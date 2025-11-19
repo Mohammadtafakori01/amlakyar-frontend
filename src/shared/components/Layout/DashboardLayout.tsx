@@ -1,0 +1,237 @@
+import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/router';
+import {
+  FiMenu,
+  FiLayout,
+  FiUsers,
+  FiUser,
+  FiLogOut,
+  FiShield,
+} from 'react-icons/fi';
+import { useAuth } from '../../../domains/auth/hooks/useAuth';
+import { UserRole } from '../../../shared/types';
+
+const drawerWidth = 280;
+
+interface MenuItem {
+  text: string;
+  icon: React.ReactNode;
+  path: string;
+  roles: UserRole[];
+}
+
+const menuItems: MenuItem[] = [
+  {
+    text: 'داشبورد',
+    icon: <FiLayout className="w-5 h-5" />,
+    path: '/dashboard',
+    roles: [UserRole.CUSTOMER, UserRole.CONSULTANT, UserRole.SECRETARY, UserRole.SUPERVISOR, UserRole.ADMIN, UserRole.MASTER],
+  },
+  {
+    text: 'پروفایل',
+    icon: <FiUser className="w-5 h-5" />,
+    path: '/dashboard/profile',
+    roles: [UserRole.CUSTOMER, UserRole.CONSULTANT, UserRole.SECRETARY, UserRole.SUPERVISOR, UserRole.ADMIN, UserRole.MASTER],
+  },
+  {
+    text: 'مشاوران',
+    icon: <FiShield className="w-5 h-5" />,
+    path: '/dashboard/consultants',
+    roles: [UserRole.SUPERVISOR],
+  },
+  {
+    text: 'کاربران',
+    icon: <FiUsers className="w-5 h-5" />,
+    path: '/dashboard/users',
+    roles: [UserRole.ADMIN, UserRole.MASTER],
+  },
+];
+
+interface DashboardLayoutProps {
+  children: React.ReactNode;
+}
+
+export default function DashboardLayout({ children }: DashboardLayoutProps) {
+  const router = useRouter();
+  const { user, logout } = useAuth();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setAnchorEl(null);
+      }
+    };
+
+    if (anchorEl) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [anchorEl]);
+
+  const handleDrawerToggle = () => {
+    setMobileOpen(!mobileOpen);
+  };
+
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleLogout = () => {
+    logout();
+    router.push('/');
+    handleMenuClose();
+  };
+
+  const handleSidebarLogout = () => {
+    logout();
+    router.push('/');
+  };
+
+  const handleProfile = () => {
+    router.push('/dashboard/profile');
+    handleMenuClose();
+  };
+
+  const filteredMenuItems = menuItems.filter(item => user && item.roles.includes(user.role));
+
+  const getRoleLabel = (role: UserRole): string => {
+    const labels: Record<UserRole, string> = {
+      [UserRole.CUSTOMER]: 'مشتری',
+      [UserRole.CONSULTANT]: 'مشاور',
+      [UserRole.SECRETARY]: 'منشی',
+      [UserRole.SUPERVISOR]: 'ناظر',
+      [UserRole.ADMIN]: 'مدیر',
+      [UserRole.MASTER]: 'مستر',
+    };
+    return labels[role] || role;
+  };
+
+  const drawer = (
+    <div className="flex flex-col h-full text-right">
+      <div className="flex items-center justify-between p-4 h-16">
+        <h2 className="text-xl font-bold text-right">املاک یار</h2>
+      </div>
+      <div className="border-t border-gray-200"></div>
+      <nav className="flex-1 overflow-y-auto">
+        <ul className="p-2">
+          {filteredMenuItems.map((item) => (
+            <li key={item.path}>
+              <button
+                onClick={() => router.push(item.path)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-colors ${
+                  router.pathname === item.path
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <span className="flex-shrink-0">{item.icon}</span>
+                <span>{item.text}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </nav>
+      <div className="border-t border-gray-200"></div>
+      <div className="p-2">
+        <button
+          onClick={handleSidebarLogout}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right text-red-600 hover:bg-red-50 transition-colors"
+        >
+          <FiLogOut className="w-5 h-5" />
+          <span>خروج از حساب</span>
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="flex h-screen bg-gray-50">
+      {/* Mobile drawer backdrop */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+          onClick={handleDrawerToggle}
+        />
+      )}
+
+      {/* Mobile drawer */}
+      <aside
+        className={`fixed top-0 right-0 h-full w-[280px] bg-white shadow-lg z-50 transform transition-transform duration-300 ease-in-out md:hidden ${
+          mobileOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
+        {drawer}
+      </aside>
+
+      {/* Desktop sidebar */}
+      <aside className="hidden md:block w-[280px] bg-white shadow-md flex-shrink-0">
+        {drawer}
+      </aside>
+
+      {/* Main content */}
+      <div className="flex-1 flex flex-col overflow-hidden p-4">
+        {/* App Bar */}
+        <header className="bg-white shadow-sm z-30 fixed top-0 left-0 right-0 md:right-[280px] h-16 flex items-center justify-between px-4">
+          <button
+            onClick={handleDrawerToggle}
+            className="md:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+            aria-label="open drawer"
+          >
+            <FiMenu className="w-6 h-6" />
+          </button>
+          <h1 className="text-xl font-semibold text-right flex-1 mr-4">داشبورد</h1>
+          {user && (
+            <div className="flex items-center gap-3">
+              <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                {getRoleLabel(user.role)}
+              </span>
+              <div className="relative" ref={menuRef}>
+                <button
+                  onClick={handleMenuOpen}
+                  className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                  aria-label="account menu"
+                >
+                  {user.firstName?.[0]?.toUpperCase() || 'U'}
+                </button>
+                {anchorEl && (
+                  <div className="absolute left-0 top-12 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                    <button
+                      onClick={handleProfile}
+                      className="w-full flex items-center gap-2 px-4 py-2 text-right text-gray-700 hover:bg-gray-100 transition-colors"
+                    >
+                      <FiUser className="w-4 h-4" />
+                      <span>پروفایل</span>
+                    </button>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-2 px-4 py-2 text-right text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      <FiLogOut className="w-4 h-4" />
+                      <span>خروج</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </header>
+
+        {/* Main content area */}
+        <main className="flex-1 overflow-y-auto pt-16 p-6 text-right">
+          {children}
+        </main>
+      </div>
+    </div>
+  );
+}

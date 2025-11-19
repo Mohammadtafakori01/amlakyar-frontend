@@ -1,0 +1,67 @@
+@font-face {
+  font-family: 'IranYekan';
+  font-style: normal;
+  font-weight: 100;
+  font-display: swap;
+  src: url('/fonts/IRANYEKANTHIN.TTF') format('truetype');
+}
+
+@font-face {
+  font-family: 'IranYekan';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url('/fonts/IRANYEKANLIGHT(FANUM).TTF') format('truetype');
+}
+
+@font-face {
+  font-family: 'IranYekan';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/IRANYEKANREGULAR(FANUM).TTF') format('truetype');
+}
+
+@font-face {
+  font-family: 'IranYekan';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/IRANYEKANMEDIUM.TTF') format('truetype');
+}
+
+@font-face {
+  font-family: 'IranYekan';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/IRANYEKANBOLD.TTF') format('truetype');
+}
+
+@font-face {
+  font-family: 'IranYekan';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url('/fonts/IRANYEKANEXTRABOLD.TTF') format('truetype');
+}
+
+@font-face {
+  font-family: 'IranYekan';
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url('/fonts/IRANYEKANBLACK.TTF') format('truetype');
+}
+
+@font-face {
+  font-family: 'IranYekan';
+  font-style: normal;
+  font-weight: 950;
+  font-display: swap;
+  src: url('/fonts/IRANYEKANEXTRABLACK.TTF') format('truetype');
+}
+* {
+  direction: rtl !important;
+  font-family: 'IranYekan', 'Tahoma', 'Arial', sans-serif !important;
+}

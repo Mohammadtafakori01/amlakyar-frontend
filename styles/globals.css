@@ -1,0 +1,187 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    direction: rtl;
+    text-align: right;
+    font-family: 'IranYekan', 'Tahoma', 'Arial', sans-serif !important;
+  }
+  
+  body {
+    direction: rtl;
+    text-align: right;
+    font-family: 'IranYekan', 'Tahoma', 'Arial', sans-serif !important;
+  }
+  
+  * {
+    direction: rtl;
+    text-align: right;
+    font-family: 'IranYekan', 'Tahoma', 'Arial', sans-serif !important;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    direction: rtl;
+    text-align: right;
+    font-family: 'IranYekan', 'Tahoma', 'Arial', sans-serif !important;
+  }
+  
+  p, span, div, a, button, input, textarea, select, label {
+    font-family: 'IranYekan', 'Tahoma', 'Arial', sans-serif !important;
+  }
+  
+  table, thead, tbody, tfoot, tr, th, td {
+    font-family: 'IranYekan', 'Tahoma', 'Arial', sans-serif !important;
+    direction: rtl;
+    text-align: right;
+  }
+  
+  input[type="number"] {
+    direction: ltr;
+    text-align: left;
+    font-family: 'IranYekan', 'Tahoma', 'Arial', sans-serif !important;
+  }
+}
+
+@layer utilities {
+  .text-right-rtl {
+    text-align: right;
+    direction: rtl;
+  }
+  
+  .text-left-ltr {
+    text-align: left;
+    direction: ltr;
+  }
+}
+
+/* Global font override for ALL elements - highest priority */
+*,
+*::before,
+*::after {
+  font-family: 'IranYekan', 'Tahoma', 'Arial', sans-serif !important;
+}
+
+/* HTML elements */
+html,
+body,
+h1, h2, h3, h4, h5, h6,
+p, span, div, a, button,
+input, textarea, select, label,
+li, ul, ol, dl, dt, dd,
+pre, code, blockquote,
+table, thead, tbody, tfoot, tr, th, td,
+caption, col, colgroup {
+  font-family: 'IranYekan', 'Tahoma', 'Arial', sans-serif !important;
+}
+
+/* Material-UI Components - Force font for all MUI components */
+.MuiTypography-root,
+.MuiButton-root,
+.MuiTextField-root,
+.MuiInputBase-root,
+.MuiInputBase-input,
+.MuiSelect-root,
+.MuiMenuItem-root,
+.MuiDialog-root,
+.MuiDialog-paper,
+.MuiDialogTitle-root,
+.MuiDialogContent-root,
+.MuiDialogActions-root,
+.MuiCard-root,
+.MuiCardContent-root,
+.MuiCardHeader-root,
+.MuiChip-root,
+.MuiIconButton-root,
+.MuiPaper-root,
+.MuiFormControl-root,
+.MuiFormControlLabel-root,
+.MuiFormLabel-root,
+.MuiCheckbox-root,
+.MuiRadio-root,
+.MuiSwitch-root,
+.MuiTabs-root,
+.MuiTab-root,
+.MuiAlert-root,
+.MuiSnackbar-root,
+.MuiAppBar-root,
+.MuiToolbar-root,
+.MuiDrawer-root,
+.MuiDrawer-paper,
+.MuiList-root,
+.MuiListItem-root,
+.MuiListItemText-root,
+.MuiListItemButton-root,
+.MuiListItemIcon-root,
+.MuiTable-root,
+.MuiTableHead-root,
+.MuiTableBody-root,
+.MuiTableRow-root,
+.MuiTableCell-root,
+.MuiTableCell-head,
+.MuiTableContainer-root,
+.MuiBox-root,
+.MuiGrid-root,
+.MuiContainer-root {
+  font-family: 'IranYekan', 'Tahoma', 'Arial', sans-serif !important;
+  direction: rtl !important;
+  text-align: right !important;
+}
+
+/* Material-UI nested elements */
+.MuiTableCell-root *,
+.MuiTableCell-head *,
+.MuiDialog-paper *,
+.MuiCardContent *,
+.MuiCardHeader *,
+.MuiListItemText-primary,
+.MuiListItemText-secondary,
+.MuiTypography-h1,
+.MuiTypography-h2,
+.MuiTypography-h3,
+.MuiTypography-h4,
+.MuiTypography-h5,
+.MuiTypography-h6,
+.MuiTypography-body1,
+.MuiTypography-body2,
+.MuiTypography-button,
+.MuiTypography-caption,
+.MuiTypography-overline,
+.MuiInputBase-input::placeholder,
+.MuiTextField-root input,
+.MuiTextField-root textarea,
+.MuiSelect-root * {
+  font-family: 'IranYekan', 'Tahoma', 'Arial', sans-serif !important;
+}
+
+/* Tables - comprehensive coverage */
+table,
+thead,
+tbody,
+tfoot,
+tr,
+th,
+td,
+.MuiTable-root,
+.MuiTableHead-root,
+.MuiTableBody-root,
+.MuiTableRow-root,
+.MuiTableCell-root,
+.MuiTableCell-head,
+.MuiTableContainer-root table,
+.MuiTableContainer-root table *,
+.MuiTableContainer-root table th,
+.MuiTableContainer-root table td,
+.MuiTableContainer-root table tr {
+  font-family: 'IranYekan', 'Tahoma', 'Arial', sans-serif !important;
+  direction: rtl !important;
+  text-align: right !important;
+}
+
+/* Ensure all content inside table cells uses IranYekan */
+.MuiTableCell-root *,
+.MuiTableCell-head *,
+.MuiTableContainer-root * {
+  font-family: 'IranYekan', 'Tahoma', 'Arial', sans-serif !important;
+}

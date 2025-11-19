@@ -1,0 +1,81 @@
+{
+  "name": "amlakyar-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "build:android": "npm run build && npx cap sync android && npx cap open android",
+    "build:electron": "cross-env ELECTRON=true npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder",
+    "build:all": "npm run build && npm run build:android && npm run build:electron",
+    "electron:dev": "concurrently \"next dev\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron:build": "cross-env ELECTRON=true npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder"
+  },
+  "dependencies": {
+    "@capacitor/android": "^5.5.1",
+    "@capacitor/cli": "^5.5.1",
+    "@capacitor/core": "^5.5.1",
+    "@emotion/cache": "^11.11.0",
+    "@emotion/react": "^11.11.1",
+    "@emotion/styled": "^11.11.0",
+    "@hookform/resolvers": "^5.2.2",
+    "@mui/icons-material": "^5.14.19",
+    "@mui/material": "^5.14.20",
+    "@reduxjs/toolkit": "^2.10.1",
+    "axios": "^1.13.2",
+    "next": "^14.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-hook-form": "^7.66.1",
+    "react-icons": "^5.5.0",
+    "react-redux": "^9.2.0",
+    "stylis": "^4.3.0",
+    "stylis-plugin-rtl": "^2.1.1",
+    "workbox-window": "^7.0.0",
+    "yup": "^1.7.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.9.0",
+    "@types/react": "^18.2.37",
+    "@types/react-dom": "^18.2.15",
+    "@types/stylis": "^4.2.7",
+    "autoprefixer": "^10.4.22",
+    "concurrently": "^8.2.2",
+    "cross-env": "^10.1.0",
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^14.2.33",
+    "next-pwa": "^5.6.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.18",
+    "typescript": "^5.2.2",
+    "wait-on": "^7.2.0"
+  },
+  "main": "electron/main.js",
+  "build": {
+    "appId": "com.amlakyar.app",
+    "productName": "Amlakyar",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "out/**/*",
+      "electron/**/*"
+    ],
+    "asar": false,
+    "win": {
+      "target": "nsis",
+      "icon": "public/icons/icon-512x512.png",
+      "sign": false,
+      "signingHashAlgorithms": [],
+      "signDlls": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

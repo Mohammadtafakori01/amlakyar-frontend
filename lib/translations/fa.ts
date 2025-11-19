@@ -1,0 +1,40 @@
+export const fa = {
+  app: {
+    name: 'املاک یار',
+    description: 'پلتفرم مدیریت املاک',
+  },
+  common: {
+    welcome: 'خوش آمدید',
+    online: 'آنلاین',
+    offline: 'آفلاین',
+    enable: 'فعال‌سازی',
+    enabled: 'فعال شده',
+    test: 'تست',
+  },
+  home: {
+    title: 'خوش آمدید به املاک یار',
+    subtitle: 'پلتفرم مدیریت املاک',
+    pwaFeatures: 'ویژگی‌های PWA',
+    pwaDescription: 'این برنامه به عنوان یک برنامه وب پیشرو (PWA) با پشتیبانی آفلاین، اعلان‌های فوری و قابلیت همگام‌سازی پس‌زمینه کار می‌کند.',
+    enableNotifications: 'فعال‌سازی اعلان‌ها',
+    notificationsEnabled: 'اعلان‌ها فعال شد',
+    testBackgroundSync: 'تست همگام‌سازی پس‌زمینه',
+    platformSupport: 'پشتیبانی از پلتفرم',
+    platformDescription: 'این برنامه می‌تواند برای چندین پلتفرم ساخته شود:',
+    webPWA: 'وب PWA',
+    androidAPK: 'اندروید APK',
+    windowsEXE: 'ویندوز EXE',
+    offlineCapabilities: 'قابلیت‌های آفلاین',
+    offlineDescription: 'این برنامه منابع را برای استفاده آفلاین ذخیره می‌کند. اتصال اینترنت را قطع کنید و صفحه را رفرش کنید تا ببینید که به صورت آفلاین کار می‌کند.',
+  },
+  electron: {
+    help: 'راهنما',
+    about: 'درباره',
+    quit: 'خروج',
+    file: 'فایل',
+    edit: 'ویرایش',
+    view: 'نمایش',
+    window: 'پنجره',
+  },
+};
+
