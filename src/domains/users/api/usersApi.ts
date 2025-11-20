@@ -1,5 +1,5 @@
 import apiClient from '../../../shared/api/client';
-import { User, CreateUserRequest, UpdateUserRequest, UserFilters, CreateStaffRequest, PaginatedResponse } from '../../../shared/types';
+import { User, CreateUserRequest, UpdateUserRequest, UserFilters, CreateStaffRequest, PaginatedResponse, SearchUsersQuery } from '../../../shared/types';
 
 export const usersApi = {
   getAllUsers: async (filters?: UserFilters): Promise<PaginatedResponse<User>> => {
@@ -41,6 +41,20 @@ export const usersApi = {
 
   getCurrentUserProfile: async (): Promise<User> => {
     const response = await apiClient.get<User>('/users/me/profile');
+    return response.data;
+  },
+
+  searchUsers: async (query: SearchUsersQuery): Promise<User[]> => {
+    const params = new URLSearchParams();
+    if (query.phone) params.append('phone', query.phone);
+    if (query.firstName) params.append('firstName', query.firstName);
+    if (query.lastName) params.append('lastName', query.lastName);
+    if (query.name) params.append('name', query.name);
+    if (query.nationalId) params.append('nationalId', query.nationalId);
+    
+    const queryString = params.toString();
+    const url = queryString ? `/users/search?${queryString}` : '/users/search';
+    const response = await apiClient.get<User[]>(url);
     return response.data;
   },
 };

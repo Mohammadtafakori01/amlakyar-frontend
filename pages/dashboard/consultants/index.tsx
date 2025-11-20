@@ -43,10 +43,20 @@ export default function ConsultantsPage() {
     try {
       const result = await dispatch(getConsultants());
       if (getConsultants.fulfilled.match(result)) {
-        setConsultants(result.payload || []);
+        // Ensure we always have an array, even if API returns an object
+        const payload = result.payload;
+        if (Array.isArray(payload)) {
+          setConsultants(payload);
+        } else if (payload && typeof payload === 'object') {
+          // Handle case where API returns { consultants: [...] } or { data: [...] }
+          setConsultants(payload.consultants || payload.data || []);
+        } else {
+          setConsultants([]);
+        }
       }
     } catch (error) {
       console.error('Error loading consultants:', error);
+      setConsultants([]);
     } finally {
       setIsLoading(false);
     }
@@ -109,7 +119,7 @@ export default function ConsultantsPage() {
 
             {isLoading ? (
               <Loading />
-            ) : consultants.length === 0 ? (
+            ) : !Array.isArray(consultants) || consultants.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-8 text-sm text-gray-500">
                 مشاوری ثبت نشده است.
               </div>

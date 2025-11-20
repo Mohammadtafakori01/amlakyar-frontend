@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { authApi } from '../api/authApi';
 import { estatesApi } from '../../estates/api/estatesApi';
 import { AuthState, User, LoginRequest, RegisterCustomerRequest, SendOTPRequest, VerifyOTPRequest, ForgotPasswordRequest, ResetPasswordRequest, RefreshTokenRequest, RegisterConsultantRequest, RegisterMemberRequest, RegisterAdminRequest, RegisterEstateRequest, Estate } from '../types';
+import { UserRole } from '../../../shared/types';
 
 // Helper function to get user from localStorage
 const getUserFromStorage = (): User | null => {
@@ -36,6 +37,11 @@ const initialState: AuthState = {
   estateRegistrationError: null,
   lastRegisteredEstate: null,
   resetPasswordMessage: null,
+  // Master impersonation fields
+  masterAccessToken: null,
+  masterRefreshToken: null,
+  masterUser: null,
+  isImpersonating: false,
 };
 
 // Async thunks
@@ -201,6 +207,50 @@ export const registerAdmin = createAsyncThunk(
   }
 );
 
+export const loginAsUser = createAsyncThunk(
+  'auth/loginAsUser',
+  async (userId: string, { getState, rejectWithValue }) => {
+    try {
+      const state = getState() as { auth: AuthState };
+      const currentUser = state.auth.user;
+      const currentAccessToken = state.auth.accessToken;
+      const currentRefreshToken = state.auth.refreshToken;
+
+      // Only allow MASTER role to login as user
+      if (currentUser?.role !== UserRole.MASTER) {
+        return rejectWithValue('فقط کاربر مستر می‌تواند به عنوان کاربر دیگر وارد شود');
+      }
+
+      // Store master tokens before switching
+      const masterAccessToken = currentAccessToken;
+      const masterRefreshToken = currentRefreshToken;
+      const masterUser = currentUser;
+
+      // Call the API to login as user
+      const response = await authApi.loginAsUser(userId);
+      
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('accessToken', response.accessToken);
+        localStorage.setItem('refreshToken', response.refreshToken);
+        localStorage.setItem('user', JSON.stringify(response.user));
+        // Store master tokens in localStorage for restoration
+        localStorage.setItem('masterAccessToken', masterAccessToken || '');
+        localStorage.setItem('masterRefreshToken', masterRefreshToken || '');
+        localStorage.setItem('masterUser', JSON.stringify(masterUser));
+      }
+
+      return {
+        ...response,
+        masterAccessToken,
+        masterRefreshToken,
+        masterUser,
+      };
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'خطا در ورود به عنوان کاربر');
+    }
+  }
+);
+
 const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -214,10 +264,18 @@ const authSlice = createSlice({
       state.estateRegistrationSuccess = false;
       state.estateRegistrationError = null;
       state.lastRegisteredEstate = null;
+      // Clear master tokens on logout
+      state.masterAccessToken = null;
+      state.masterRefreshToken = null;
+      state.masterUser = null;
+      state.isImpersonating = false;
       if (typeof window !== 'undefined') {
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('user');
+        localStorage.removeItem('masterAccessToken');
+        localStorage.removeItem('masterRefreshToken');
+        localStorage.removeItem('masterUser');
       }
     },
     setUser: (state, action: PayloadAction<User>) => {
@@ -250,6 +308,9 @@ const authSlice = createSlice({
         const accessToken = localStorage.getItem('accessToken');
         const refreshToken = localStorage.getItem('refreshToken');
         const user = getUserFromStorage();
+        const masterAccessToken = localStorage.getItem('masterAccessToken');
+        const masterRefreshToken = localStorage.getItem('masterRefreshToken');
+        const masterUserStr = localStorage.getItem('masterUser');
         
         if (accessToken) {
           state.accessToken = accessToken;
@@ -261,6 +322,44 @@ const authSlice = createSlice({
           state.user = user;
           state.isAuthenticated = true;
           state.estateStatusMessage = null;
+        }
+        // Restore master tokens if they exist
+        if (masterAccessToken && masterRefreshToken && masterUserStr) {
+          try {
+            state.masterAccessToken = masterAccessToken;
+            state.masterRefreshToken = masterRefreshToken;
+            state.masterUser = JSON.parse(masterUserStr);
+            state.isImpersonating = true;
+          } catch {
+            // Invalid master user data, clear it
+            localStorage.removeItem('masterAccessToken');
+            localStorage.removeItem('masterRefreshToken');
+            localStorage.removeItem('masterUser');
+          }
+        }
+      }
+    },
+    exitImpersonation: (state) => {
+      // Restore master tokens and user
+      if (state.masterAccessToken && state.masterRefreshToken && state.masterUser) {
+        state.accessToken = state.masterAccessToken;
+        state.refreshToken = state.masterRefreshToken;
+        state.user = state.masterUser;
+        state.isAuthenticated = true;
+        
+        // Clear master tokens
+        state.masterAccessToken = null;
+        state.masterRefreshToken = null;
+        state.masterUser = null;
+        state.isImpersonating = false;
+        
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('accessToken', state.accessToken);
+          localStorage.setItem('refreshToken', state.refreshToken);
+          localStorage.setItem('user', JSON.stringify(state.user));
+          localStorage.removeItem('masterAccessToken');
+          localStorage.removeItem('masterRefreshToken');
+          localStorage.removeItem('masterUser');
         }
       }
     },
@@ -385,9 +484,32 @@ const authSlice = createSlice({
           state.refreshToken = action.payload.refreshToken;
         }
       });
+
+    // Login As User
+    builder
+      .addCase(loginAsUser.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(loginAsUser.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.user = action.payload.user;
+        state.accessToken = action.payload.accessToken;
+        state.refreshToken = action.payload.refreshToken;
+        state.isAuthenticated = true;
+        state.masterAccessToken = action.payload.masterAccessToken;
+        state.masterRefreshToken = action.payload.masterRefreshToken;
+        state.masterUser = action.payload.masterUser;
+        state.isImpersonating = true;
+        state.error = null;
+      })
+      .addCase(loginAsUser.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      });
   },
 });
 
-export const { logout, setUser, clearError, restoreAuth, clearEstateStatusMessage, clearResetPasswordMessage, resetEstateRegistration } = authSlice.actions;
+export const { logout, setUser, clearError, restoreAuth, clearEstateStatusMessage, clearResetPasswordMessage, resetEstateRegistration, exitImpersonation } = authSlice.actions;
 export default authSlice.reducer;
 

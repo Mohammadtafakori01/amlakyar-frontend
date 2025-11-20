@@ -12,6 +12,11 @@ export interface AuthState {
   estateRegistrationError: string | null;
   lastRegisteredEstate: Estate | null;
   resetPasswordMessage: string | null;
+  // Master impersonation fields
+  masterAccessToken: string | null;
+  masterRefreshToken: string | null;
+  masterUser: User | null;
+  isImpersonating: boolean;
 }
 
 export type {

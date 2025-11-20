@@ -8,6 +8,8 @@ import {
   FiLogOut,
   FiShield,
   FiHome,
+  FiFileText,
+  FiX,
 } from 'react-icons/fi';
 import { useAuth } from '../../../domains/auth/hooks/useAuth';
 import { UserRole } from '../../../shared/types';
@@ -52,6 +54,12 @@ const menuItems: MenuItem[] = [
     path: '/dashboard/estates',
     roles: [UserRole.MASTER],
   },
+  {
+    text: 'قراردادها',
+    icon: <FiFileText className="w-5 h-5" />,
+    path: '/dashboard/contracts',
+    roles: [UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.MASTER],
+  },
 ];
 
 interface DashboardLayoutProps {
@@ -60,7 +68,7 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, logout, isImpersonating, exitImpersonation } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -107,6 +115,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const handleProfile = () => {
     router.push('/dashboard/profile');
+    handleMenuClose();
+  };
+
+  const handleExitImpersonation = () => {
+    exitImpersonation();
+    router.push('/dashboard/users');
     handleMenuClose();
   };
 
@@ -200,6 +214,16 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <h1 className="text-xl font-semibold text-right flex-1 mr-4">داشبورد</h1>
           {user && (
             <div className="flex items-center gap-3">
+              {isImpersonating && (
+                <button
+                  onClick={handleExitImpersonation}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-amber-100 text-amber-800 rounded-full text-sm font-medium hover:bg-amber-200 transition-colors"
+                  title="خروج از حساب کاربری فعلی و بازگشت به حساب مستر"
+                >
+                  <FiX className="w-4 h-4" />
+                  خروج از حساب کاربری
+                </button>
+              )}
               <span className="px-3 py-1 bg-primary-100 text-primary-800 rounded-full text-sm font-medium">
                 {getRoleLabel(user.role)}
               </span>

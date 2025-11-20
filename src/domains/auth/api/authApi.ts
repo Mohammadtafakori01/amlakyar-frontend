@@ -73,5 +73,10 @@ export const authApi = {
   registerAdmin: async (data: RegisterAdminRequest): Promise<void> => {
     await apiClient.post('/auth/master/register-admin', data);
   },
+
+  loginAsUser: async (userId: string): Promise<AuthResponse> => {
+    const response = await apiClient.post<AuthResponse>('/auth/master/login-as-user', { userId });
+    return response.data;
+  },
 };
 

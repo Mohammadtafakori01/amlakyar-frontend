@@ -1,4 +1,4 @@
-import { User, CreateUserRequest, UpdateUserRequest, UserFilters, CreateStaffRequest, PaginationMeta } from '../../../shared/types';
+import { User, CreateUserRequest, UpdateUserRequest, UserFilters, CreateStaffRequest, PaginationMeta, SearchUsersQuery } from '../../../shared/types';
 
 export interface UsersState {
   users: User[];
@@ -7,6 +7,9 @@ export interface UsersState {
   pagination: PaginationMeta | null;
   isLoading: boolean;
   error: string | null;
+  searchResults: User[];
+  isSearching: boolean;
+  searchQuery: SearchUsersQuery | null;
 }
 
 export type {
@@ -15,5 +18,6 @@ export type {
   UpdateUserRequest,
   UserFilters,
   CreateStaffRequest,
+  SearchUsersQuery,
 };
 

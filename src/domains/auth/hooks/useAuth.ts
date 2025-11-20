@@ -1,6 +1,6 @@
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../../../app/store';
-import { logout as logoutAction, setUser, clearError, clearEstateStatusMessage as clearEstateStatusMessageAction, clearResetPasswordMessage as clearResetPasswordMessageAction, resetEstateRegistration as resetEstateRegistrationAction } from '../store/authSlice';
+import { logout as logoutAction, setUser, clearError, clearEstateStatusMessage as clearEstateStatusMessageAction, clearResetPasswordMessage as clearResetPasswordMessageAction, resetEstateRegistration as resetEstateRegistrationAction, exitImpersonation as exitImpersonationAction, loginAsUser as loginAsUserAction } from '../store/authSlice';
 
 export const useAuth = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -30,6 +30,14 @@ export const useAuth = () => {
     dispatch(resetEstateRegistrationAction());
   };
 
+  const loginAsUser = (userId: string) => {
+    return dispatch(loginAsUserAction(userId));
+  };
+
+  const exitImpersonation = () => {
+    dispatch(exitImpersonationAction());
+  };
+
   return {
     ...auth,
     logout,
@@ -38,6 +46,8 @@ export const useAuth = () => {
     clearEstateStatusMessage,
     clearResetPasswordMessage,
     resetEstateRegistration,
+    loginAsUser,
+    exitImpersonation,
   };
 };
 

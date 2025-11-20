@@ -212,3 +212,12 @@ export interface UserFilters {
   limit?: number;
 }
 
+// User search query parameters
+export interface SearchUsersQuery {
+  phone?: string;
+  firstName?: string;
+  lastName?: string;
+  name?: string;
+  nationalId?: string;
+}
+

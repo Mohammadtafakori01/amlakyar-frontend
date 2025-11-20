@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { usersApi } from '../api/usersApi';
-import { UsersState, User, CreateUserRequest, UpdateUserRequest, UserFilters, CreateStaffRequest, PaginatedResponse } from '../types';
+import { UsersState, User, CreateUserRequest, UpdateUserRequest, UserFilters, CreateStaffRequest, PaginatedResponse, SearchUsersQuery } from '../types';
 
 const initialState: UsersState = {
   users: [],
@@ -9,6 +9,9 @@ const initialState: UsersState = {
   pagination: null,
   isLoading: false,
   error: null,
+  searchResults: [],
+  isSearching: false,
+  searchQuery: null,
 };
 
 // Async thunks
@@ -87,6 +90,20 @@ export const deleteUser = createAsyncThunk(
   }
 );
 
+export const searchUsers = createAsyncThunk(
+  'users/searchUsers',
+  async (query: SearchUsersQuery, { rejectWithValue }) => {
+    try {
+      const users = await usersApi.searchUsers(query);
+      return { users, query };
+    } catch (error: any) {
+      const message = error.response?.data?.message;
+      const errorMsg = Array.isArray(message) ? message.join(', ') : (message || 'خطا در جستجوی کاربران');
+      return rejectWithValue(errorMsg);
+    }
+  }
+);
+
 const usersSlice = createSlice({
   name: 'users',
   initialState,
@@ -99,6 +116,11 @@ const usersSlice = createSlice({
     },
     clearError: (state) => {
       state.error = null;
+    },
+    clearSearch: (state) => {
+      state.searchResults = [];
+      state.searchQuery = null;
+      state.isSearching = false;
     },
   },
   extraReducers: (builder) => {
@@ -207,9 +229,26 @@ const usersSlice = createSlice({
         state.isLoading = false;
         state.error = action.payload as string;
       });
+
+    // Search Users
+    builder
+      .addCase(searchUsers.pending, (state) => {
+        state.isSearching = true;
+        state.error = null;
+      })
+      .addCase(searchUsers.fulfilled, (state, action) => {
+        state.isSearching = false;
+        state.searchResults = action.payload.users;
+        state.searchQuery = action.payload.query;
+        state.error = null;
+      })
+      .addCase(searchUsers.rejected, (state, action) => {
+        state.isSearching = false;
+        state.error = action.payload as string;
+      });
   },
 });
 
-export const { setSelectedUser, setFilters, clearError } = usersSlice.actions;
+export const { setSelectedUser, setFilters, clearError, clearSearch } = usersSlice.actions;
 export default usersSlice.reducer;
 

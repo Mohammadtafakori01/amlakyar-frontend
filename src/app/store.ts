@@ -3,6 +3,7 @@ import authReducer from '../domains/auth/store/authSlice';
 import usersReducer from '../domains/users/store/usersSlice';
 import profileReducer from '../domains/profile/store/profileSlice';
 import estatesReducer from '../domains/estates/store/estatesSlice';
+import contractsReducer from '../domains/contracts/store/contractsSlice';
 
 export const store = configureStore({
   reducer: {
@@ -10,6 +11,7 @@ export const store = configureStore({
     users: usersReducer,
     profile: profileReducer,
     estates: estatesReducer,
+    contracts: contractsReducer,
   },
 });
 

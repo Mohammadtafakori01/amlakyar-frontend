@@ -1,12 +1,12 @@
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { useDispatch } from 'react-redux';
-import { FiPlus, FiEdit2, FiTrash2, FiFilter, FiChevronRight, FiChevronLeft } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiFilter, FiChevronRight, FiChevronLeft, FiSearch, FiX, FiLogIn } from 'react-icons/fi';
 import DashboardLayout from '../../../src/shared/components/Layout/DashboardLayout';
 import PrivateRoute from '../../../src/shared/components/guards/PrivateRoute';
 import RoleGuard from '../../../src/shared/components/guards/RoleGuard';
 import { useUsers } from '../../../src/domains/users/hooks/useUsers';
 import { useAuth } from '../../../src/domains/auth/hooks/useAuth';
-import { UserRole, CreateUserRequest, UpdateUserRequest, UserFilters, CreateStaffRequest } from '../../../src/shared/types';
+import { UserRole, CreateUserRequest, UpdateUserRequest, UserFilters, CreateStaffRequest, SearchUsersQuery } from '../../../src/shared/types';
 import Loading from '../../../src/shared/components/common/Loading';
 import ErrorDisplay from '../../../src/shared/components/common/ErrorDisplay';
 import { validatePhoneNumber, validateNationalId, validatePassword } from '../../../src/shared/utils/validation';
@@ -28,8 +28,13 @@ export default function UsersPage() {
     setSelectedUser,
     filters,
     setFilters,
+    searchUsers,
+    clearSearch,
+    searchResults,
+    isSearching,
+    searchQuery,
   } = useUsers();
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, loginAsUser: loginAsUserAction, isLoading: authLoading } = useAuth();
   const isMaster = currentUser?.role === UserRole.MASTER;
   const isAdmin = currentUser?.role === UserRole.ADMIN;
   const isSupervisor = currentUser?.role === UserRole.SUPERVISOR;
@@ -69,20 +74,28 @@ export default function UsersPage() {
 
   const buildScopedFilters = useCallback(
     (baseFilters?: UserFilters) => {
-      if (!isMaster && currentUser?.estateId) {
-        return { ...(baseFilters || {}), estateId: currentUser.estateId };
+      // Only Master users can filter by estateId via query parameter
+      // For non-Master users, the backend automatically scopes results to their estate
+      if (isMaster) {
+        return { ...(baseFilters || {}) };
       }
-      return { ...(baseFilters || {}) };
+      // For non-Master users, remove estateId from filters
+      // The backend will automatically scope to their estate based on authentication
+      const { estateId, ...filtersWithoutEstateId } = baseFilters || {};
+      return filtersWithoutEstateId;
     },
-    [isMaster, currentUser?.estateId]
+    [isMaster]
   );
   const [openDialog, setOpenDialog] = useState(false);
   const [isEdit, setIsEdit] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
   const [showFilters, setShowFilters] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const hasFetched = useRef(false);
+  const [searchInput, setSearchInput] = useState('');
+  const [searchType, setSearchType] = useState<'name' | 'phone' | 'nationalId'>('name');
   
   const [formData, setFormData] = useState<CreateUserRequest & { isActive?: boolean; isApproved?: boolean }>({
     phoneNumber: '',
@@ -104,6 +117,7 @@ export default function UsersPage() {
   const [localFilters, setLocalFilters] = useState<UserFilters>(() =>
     buildScopedFilters({
       role: filters?.role,
+      // estateId will be removed by buildScopedFilters for non-Master users
       estateId: filters?.estateId,
     })
   );
@@ -127,16 +141,18 @@ export default function UsersPage() {
     }
   }, [currentPage, pageSize, dispatch, filters, buildScopedFilters, currentUser]);
 
+  // Remove estateId from localFilters for non-Master users
   useEffect(() => {
-    if (!isMaster && currentUser?.estateId) {
+    if (!isMaster) {
       setLocalFilters((prev) => {
-        if (prev.estateId === currentUser.estateId) {
-          return prev;
+        if (prev.estateId) {
+          const { estateId, ...rest } = prev;
+          return rest;
         }
-        return { ...prev, estateId: currentUser.estateId };
+        return prev;
       });
     }
-  }, [currentUser?.estateId, isMaster]);
+  }, [isMaster]);
 
   // Sync currentPage with pagination.page from API response
   useEffect(() => {
@@ -177,6 +193,38 @@ export default function UsersPage() {
   const handlePageSizeChange = (newSize: number) => {
     setPageSize(newSize);
     setCurrentPage(1); // Reset to first page when page size changes
+  };
+
+  const handleSearch = async () => {
+    if (!searchInput.trim()) {
+      return;
+    }
+
+    const query: SearchUsersQuery = {};
+    if (searchType === 'name') {
+      query.name = searchInput.trim();
+    } else if (searchType === 'phone') {
+      query.phone = searchInput.trim();
+    } else if (searchType === 'nationalId') {
+      query.nationalId = searchInput.trim();
+    }
+
+    await searchUsers(query);
+  };
+
+  const handleClearSearch = () => {
+    setSearchInput('');
+    clearSearch();
+    setShowSearch(false);
+    // Reload the regular list
+    const scoped = buildScopedFilters(localFilters);
+    dispatch(fetchUsersThunk({ ...scoped, page: currentPage, limit: pageSize }));
+  };
+
+  const handleSearchKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
   };
 
   const handleOpenDialog = (user?: any) => {
@@ -316,6 +364,27 @@ export default function UsersPage() {
     }
   };
 
+  const handleLoginAsUser = async (userId: string) => {
+    if (!isMaster) {
+      setSnackbar({ open: true, message: 'فقط کاربر مستر می‌تواند به عنوان کاربر دیگر وارد شود', severity: 'error' });
+      return;
+    }
+    
+    if (window.confirm('آیا می‌خواهید به عنوان این کاربر وارد شوید؟')) {
+      try {
+        await loginAsUserAction(userId);
+        setSnackbar({ open: true, message: 'با موفقیت به عنوان کاربر وارد شدید', severity: 'success' });
+        // Redirect to dashboard after a short delay
+        setTimeout(() => {
+          window.location.href = '/dashboard';
+        }, 1000);
+      } catch (err: any) {
+        const errorMessage = err.response?.data?.message || err.message || 'خطا در ورود به عنوان کاربر';
+        setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+      }
+    }
+  };
+
   const getRoleLabel = (role: UserRole): string => {
     const labels: Record<UserRole, string> = {
       [UserRole.CUSTOMER]: 'مشتری',
@@ -358,6 +427,27 @@ export default function UsersPage() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h1 className="text-3xl font-bold text-gray-900">مدیریت کاربران</h1>
               <div className="flex flex-wrap gap-2">
+                {(isMaster || isAdmin) && (
+                  <button
+                    onClick={() => {
+                      if (showSearch) {
+                        // If search panel is open and there's an active search, clear it
+                        if (searchQuery) {
+                          handleClearSearch();
+                        } else {
+                          // Just close the panel
+                          setShowSearch(false);
+                        }
+                      } else {
+                        // Open search panel
+                        setShowSearch(true);
+                      }
+                    }}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:border-primary-200 hover:text-primary-600"
+                  >
+                    <FiSearch /> جستجو
+                  </button>
+                )}
                 <button
                   onClick={() => setShowFilters(!showFilters)}
                   className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:border-primary-200 hover:text-primary-600"
@@ -375,6 +465,71 @@ export default function UsersPage() {
                 )}
               </div>
             </div>
+
+            {showSearch && (isMaster || isAdmin) && (
+              <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                <div className="flex flex-col gap-4 md:flex-row md:items-end">
+                  <div className="flex-1">
+                    <label className="mb-1 block text-sm font-semibold text-gray-600">نوع جستجو</label>
+                    <select
+                      value={searchType}
+                      onChange={(e) => setSearchType(e.target.value as 'name' | 'phone' | 'nationalId')}
+                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                    >
+                      <option value="name">نام</option>
+                      <option value="phone">شماره موبایل</option>
+                      <option value="nationalId">کد ملی</option>
+                    </select>
+                  </div>
+                  <div className="flex-1">
+                    <label className="mb-1 block text-sm font-semibold text-gray-600">
+                      {searchType === 'name' ? 'نام' : searchType === 'phone' ? 'شماره موبایل' : 'کد ملی'}
+                    </label>
+                    <input
+                      type="text"
+                      value={searchInput}
+                      onChange={(e) => setSearchInput(e.target.value)}
+                      onKeyPress={handleSearchKeyPress}
+                      placeholder={
+                        searchType === 'name'
+                          ? 'نام یا نام خانوادگی'
+                          : searchType === 'phone'
+                          ? '09123456789'
+                          : '1234567890'
+                      }
+                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleSearch}
+                      disabled={!searchInput.trim() || isSearching}
+                      className="inline-flex items-center gap-2 rounded-2xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <FiSearch />
+                      جستجو
+                    </button>
+                    {searchQuery && (
+                      <button
+                        onClick={handleClearSearch}
+                        className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 hover:border-gray-300 hover:bg-gray-50"
+                      >
+                        <FiX />
+                        پاک کردن
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {searchQuery && (
+                  <div className="mt-3 rounded-lg bg-primary-50 px-3 py-2 text-sm text-primary-800">
+                    در حال نمایش نتایج جستجو
+                    {searchQuery.name && ` برای: "${searchQuery.name}"`}
+                    {searchQuery.phone && ` برای شماره: "${searchQuery.phone}"`}
+                    {searchQuery.nationalId && ` برای کد ملی: "${searchQuery.nationalId}"`}
+                  </div>
+                )}
+              </div>
+            )}
 
             {showFilters && (
               <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
@@ -439,8 +594,151 @@ export default function UsersPage() {
 
             <ErrorDisplay error={error} />
 
-            {isLoading ? (
+            {(isLoading || isSearching) ? (
               <Loading />
+            ) : searchQuery ? (
+              searchResults.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-8 text-sm text-gray-500">
+                  نتیجه‌ای یافت نشد.
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm">
+                  <table className="min-w-full text-right text-sm text-gray-800">
+                    <thead>
+                      <tr className="bg-gray-50 text-xs font-semibold uppercase text-gray-500">
+                        <th className="px-4 py-3">نام</th>
+                        <th className="px-4 py-3">شماره موبایل</th>
+                        <th className="px-4 py-3">کد ملی</th>
+                        <th className="px-4 py-3">نقش</th>
+                        <th className="px-4 py-3">وضعیت</th>
+                        <th className="px-4 py-3">تایید شده</th>
+                        {(currentUser?.role === UserRole.MASTER || currentUser?.role === UserRole.ADMIN) && (
+                          <>
+                            <th className="px-4 py-3">املاک</th>
+                            <th className="px-4 py-3">والد</th>
+                          </>
+                        )}
+                        <th className="px-4 py-3">عملیات</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {searchResults.map((user) => {
+                      const missingRelationship = hasMissingRelationship(user);
+                      return (
+                        <tr 
+                        key={user.id} 
+                        className={`border-t border-gray-100 hover:bg-gray-50 ${missingRelationship ? 'bg-amber-50/30' : ''}`}
+                        title={missingRelationship ? 'این کاربر رابطه‌های لازم (parentId یا estateId) را ندارد' : ''}
+                      >
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            {user.firstName} {user.lastName}
+                            {missingRelationship && (
+                              <span className="text-xs text-amber-600" title="رابطه‌های ناقص">
+                                ⚠️
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">{user.phoneNumber}</td>
+                        <td className="px-4 py-3">{user.nationalId}</td>
+                        <td className="px-4 py-3">
+                          <span className="inline-flex items-center rounded-full border border-gray-200 px-3 py-1 text-xs font-semibold text-gray-600">
+                            {getRoleLabel(user.role)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${
+                              user.isActive
+                                ? 'border-green-200 bg-green-50 text-green-700'
+                                : 'border-gray-200 bg-gray-50 text-gray-500'
+                            }`}
+                          >
+                            {user.isActive ? 'فعال' : 'غیرفعال'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${
+                              user.isApproved
+                                ? 'border-green-200 bg-green-50 text-green-700'
+                                : 'border-amber-200 bg-amber-50 text-amber-700'
+                            }`}
+                          >
+                            {user.isApproved ? 'بله' : 'خیر'}
+                          </span>
+                        </td>
+                        {(currentUser?.role === UserRole.MASTER || currentUser?.role === UserRole.ADMIN) && (
+                          <>
+                            <td className="px-4 py-3">
+                              {user.estateId ? (
+                                user.estate ? (
+                                  <div className="text-sm text-gray-700">{user.estate.establishmentName}</div>
+                                ) : (
+                                  <span className="text-xs text-gray-500">املاک موجود است</span>
+                                )
+                              ) : (
+                                <span className="text-xs text-red-600 font-semibold">-</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {user.parentId ? (
+                                user.parent ? (
+                                  <div className="text-sm text-gray-700">
+                                    {user.parent.firstName} {user.parent.lastName}
+                                    <span className="text-xs text-gray-500 block mt-1">
+                                      ({getRoleLabel(user.parent.role)})
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-gray-500">والد موجود است</span>
+                                )
+                              ) : (
+                                <span className="text-xs text-red-600 font-semibold">-</span>
+                              )}
+                            </td>
+                          </>
+                        )}
+                        <td className="px-4 py-3">
+                          <div className="flex gap-2">
+                            {(canEditUser(user.role) || user.id === currentUser?.id) && (
+                              <button
+                                onClick={() => handleOpenDialog(user)}
+                                className="rounded-full border border-gray-200 p-2 text-gray-600 hover:border-primary-200 hover:text-primary-600"
+                                title="ویرایش"
+                              >
+                                <FiEdit2 />
+                              </button>
+                            )}
+                            {currentUser?.role === UserRole.MASTER && (
+                              <>
+                                <button
+                                  onClick={() => handleLoginAsUser(user.id)}
+                                  disabled={authLoading}
+                                  className="rounded-full border border-gray-200 p-2 text-blue-600 hover:border-blue-200 hover:text-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  title="ورود به عنوان این کاربر"
+                                >
+                                  <FiLogIn />
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(user.id)}
+                                  className="rounded-full border border-gray-200 p-2 text-red-600 hover:border-red-200 hover:text-red-700"
+                                  title="حذف"
+                                >
+                                  <FiTrash2 />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              )
             ) : users.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-8 text-sm text-gray-500">
                 کاربری یافت نشد.
@@ -550,17 +848,29 @@ export default function UsersPage() {
                               <button
                                 onClick={() => handleOpenDialog(user)}
                                 className="rounded-full border border-gray-200 p-2 text-gray-600 hover:border-primary-200 hover:text-primary-600"
+                                title="ویرایش"
                               >
                                 <FiEdit2 />
                               </button>
                             )}
                             {currentUser?.role === UserRole.MASTER && (
-                              <button
-                                onClick={() => handleDelete(user.id)}
-                                className="rounded-full border border-gray-200 p-2 text-red-600 hover:border-red-200 hover:text-red-700"
-                              >
-                                <FiTrash2 />
-                              </button>
+                              <>
+                                <button
+                                  onClick={() => handleLoginAsUser(user.id)}
+                                  disabled={authLoading}
+                                  className="rounded-full border border-gray-200 p-2 text-blue-600 hover:border-blue-200 hover:text-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  title="ورود به عنوان این کاربر"
+                                >
+                                  <FiLogIn />
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(user.id)}
+                                  className="rounded-full border border-gray-200 p-2 text-red-600 hover:border-red-200 hover:text-red-700"
+                                  title="حذف"
+                                >
+                                  <FiTrash2 />
+                                </button>
+                              </>
                             )}
                           </div>
                         </td>
@@ -572,8 +882,8 @@ export default function UsersPage() {
               </div>
             )}
 
-            {/* Pagination */}
-            {pagination && (
+            {/* Pagination - Only show when not searching */}
+            {!searchQuery && pagination && (
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <span>
