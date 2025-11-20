@@ -1,7 +1,7 @@
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../../../app/store';
-import { fetchUsers, fetchUserById, createUser, updateUser, deleteUser, setSelectedUser, setFilters, clearError } from '../store/usersSlice';
-import { UserFilters, CreateUserRequest, UpdateUserRequest } from '../types';
+import { fetchUsers, fetchUserById, createUser, updateUser, deleteUser, setSelectedUser, setFilters, clearError, createStaff } from '../store/usersSlice';
+import { UserFilters, CreateUserRequest, UpdateUserRequest, CreateStaffRequest } from '../types';
 
 export const useUsers = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -12,6 +12,7 @@ export const useUsers = () => {
     fetchUsers: (filters?: UserFilters) => dispatch(fetchUsers(filters)),
     fetchUserById: (id: string) => dispatch(fetchUserById(id)),
     createUser: (data: CreateUserRequest) => dispatch(createUser(data)),
+    createStaff: (data: CreateStaffRequest) => dispatch(createStaff(data)),
     updateUser: (id: string, data: UpdateUserRequest) => dispatch(updateUser({ id, data })),
     deleteUser: (id: string) => dispatch(deleteUser(id)),
     setSelectedUser: (user: any) => dispatch(setSelectedUser(user)),

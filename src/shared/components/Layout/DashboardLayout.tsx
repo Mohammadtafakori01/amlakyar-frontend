@@ -7,6 +7,7 @@ import {
   FiUser,
   FiLogOut,
   FiShield,
+  FiHome,
 } from 'react-icons/fi';
 import { useAuth } from '../../../domains/auth/hooks/useAuth';
 import { UserRole } from '../../../shared/types';
@@ -44,6 +45,12 @@ const menuItems: MenuItem[] = [
     icon: <FiUsers className="w-5 h-5" />,
     path: '/dashboard/users',
     roles: [UserRole.ADMIN, UserRole.MASTER],
+  },
+  {
+    text: 'املاکی‌ها',
+    icon: <FiHome className="w-5 h-5" />,
+    path: '/dashboard/estates',
+    roles: [UserRole.MASTER],
   },
 ];
 
@@ -131,7 +138,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 onClick={() => router.push(item.path)}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-colors ${
                   router.pathname === item.path
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-primary-600 text-white'
                     : 'text-gray-700 hover:bg-gray-100'
                 }`}
               >
@@ -193,13 +200,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <h1 className="text-xl font-semibold text-right flex-1 mr-4">داشبورد</h1>
           {user && (
             <div className="flex items-center gap-3">
-              <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+              <span className="px-3 py-1 bg-primary-100 text-primary-800 rounded-full text-sm font-medium">
                 {getRoleLabel(user.role)}
               </span>
               <div className="relative" ref={menuRef}>
                 <button
                   onClick={handleMenuOpen}
-                  className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                  className="flex items-center justify-center w-10 h-10 rounded-full bg-primary-600 text-white hover:bg-primary-700 transition-colors"
                   aria-label="account menu"
                 >
                   {user.firstName?.[0]?.toUpperCase() || 'U'}

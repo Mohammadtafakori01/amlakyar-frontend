@@ -3,16 +3,33 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --color-brand-primary: #1f64ff;
+    --color-brand-primary-dark: #0f4ed6;
+    --color-brand-primary-light: #dce7ff;
+    --color-brand-accent: #0fb7f2;
+    --color-bg-soft: #f4f7fb;
+    --color-surface: #ffffff;
+    --color-text-primary: #0b1120;
+    --color-text-secondary: #4a566e;
+    --color-border-muted: #e2e8f0;
+  }
+
   html {
     direction: rtl;
     text-align: right;
     font-family: 'IranYekan', 'Tahoma', 'Arial', sans-serif !important;
+    background-color: var(--color-bg-soft);
+    color: var(--color-text-primary);
   }
   
   body {
     direction: rtl;
     text-align: right;
     font-family: 'IranYekan', 'Tahoma', 'Arial', sans-serif !important;
+    background-color: var(--color-bg-soft);
+    color: var(--color-text-primary);
+    min-height: 100vh;
   }
   
   * {
@@ -76,112 +93,8 @@ caption, col, colgroup {
   font-family: 'IranYekan', 'Tahoma', 'Arial', sans-serif !important;
 }
 
-/* Material-UI Components - Force font for all MUI components */
-.MuiTypography-root,
-.MuiButton-root,
-.MuiTextField-root,
-.MuiInputBase-root,
-.MuiInputBase-input,
-.MuiSelect-root,
-.MuiMenuItem-root,
-.MuiDialog-root,
-.MuiDialog-paper,
-.MuiDialogTitle-root,
-.MuiDialogContent-root,
-.MuiDialogActions-root,
-.MuiCard-root,
-.MuiCardContent-root,
-.MuiCardHeader-root,
-.MuiChip-root,
-.MuiIconButton-root,
-.MuiPaper-root,
-.MuiFormControl-root,
-.MuiFormControlLabel-root,
-.MuiFormLabel-root,
-.MuiCheckbox-root,
-.MuiRadio-root,
-.MuiSwitch-root,
-.MuiTabs-root,
-.MuiTab-root,
-.MuiAlert-root,
-.MuiSnackbar-root,
-.MuiAppBar-root,
-.MuiToolbar-root,
-.MuiDrawer-root,
-.MuiDrawer-paper,
-.MuiList-root,
-.MuiListItem-root,
-.MuiListItemText-root,
-.MuiListItemButton-root,
-.MuiListItemIcon-root,
-.MuiTable-root,
-.MuiTableHead-root,
-.MuiTableBody-root,
-.MuiTableRow-root,
-.MuiTableCell-root,
-.MuiTableCell-head,
-.MuiTableContainer-root,
-.MuiBox-root,
-.MuiGrid-root,
-.MuiContainer-root {
-  font-family: 'IranYekan', 'Tahoma', 'Arial', sans-serif !important;
-  direction: rtl !important;
-  text-align: right !important;
+::selection {
+  background-color: var(--color-brand-primary-light);
+  color: var(--color-brand-primary-dark);
 }
 
-/* Material-UI nested elements */
-.MuiTableCell-root *,
-.MuiTableCell-head *,
-.MuiDialog-paper *,
-.MuiCardContent *,
-.MuiCardHeader *,
-.MuiListItemText-primary,
-.MuiListItemText-secondary,
-.MuiTypography-h1,
-.MuiTypography-h2,
-.MuiTypography-h3,
-.MuiTypography-h4,
-.MuiTypography-h5,
-.MuiTypography-h6,
-.MuiTypography-body1,
-.MuiTypography-body2,
-.MuiTypography-button,
-.MuiTypography-caption,
-.MuiTypography-overline,
-.MuiInputBase-input::placeholder,
-.MuiTextField-root input,
-.MuiTextField-root textarea,
-.MuiSelect-root * {
-  font-family: 'IranYekan', 'Tahoma', 'Arial', sans-serif !important;
-}
-
-/* Tables - comprehensive coverage */
-table,
-thead,
-tbody,
-tfoot,
-tr,
-th,
-td,
-.MuiTable-root,
-.MuiTableHead-root,
-.MuiTableBody-root,
-.MuiTableRow-root,
-.MuiTableCell-root,
-.MuiTableCell-head,
-.MuiTableContainer-root table,
-.MuiTableContainer-root table *,
-.MuiTableContainer-root table th,
-.MuiTableContainer-root table td,
-.MuiTableContainer-root table tr {
-  font-family: 'IranYekan', 'Tahoma', 'Arial', sans-serif !important;
-  direction: rtl !important;
-  text-align: right !important;
-}
-
-/* Ensure all content inside table cells uses IranYekan */
-.MuiTableCell-root *,
-.MuiTableCell-head *,
-.MuiTableContainer-root * {
-  font-family: 'IranYekan', 'Tahoma', 'Arial', sans-serif !important;
-}

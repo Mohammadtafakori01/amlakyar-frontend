@@ -1,24 +1,5 @@
 import { useEffect, useState } from 'react';
-import {
-  Box,
-  Typography,
-  Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Snackbar,
-  Alert,
-} from '@mui/material';
-import { Add as AddIcon } from '@mui/icons-material';
+import { FiPlus } from 'react-icons/fi';
 import DashboardLayout from '../../../src/shared/components/Layout/DashboardLayout';
 import PrivateRoute from '../../../src/shared/components/guards/PrivateRoute';
 import RoleGuard from '../../../src/shared/components/guards/RoleGuard';
@@ -44,6 +25,13 @@ export default function ConsultantsPage() {
     nationalId: '',
     phoneNumber: '',
   });
+
+  useEffect(() => {
+    if (snackbar.open) {
+      const timer = setTimeout(() => setSnackbar((prev) => ({ ...prev, open: false })), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [snackbar.open]);
 
   useEffect(() => {
     loadConsultants();
@@ -85,7 +73,12 @@ export default function ConsultantsPage() {
     }
 
     try {
-      const result = await dispatch(registerConsultant(formData));
+      // Include estateId from current user (Supervisor) to ensure consultant is linked to their estate
+      const requestData = {
+        ...formData,
+        ...(user?.estateId && { estateId: user.estateId }),
+      };
+      const result = await dispatch(registerConsultant(requestData));
       if (registerConsultant.fulfilled.match(result)) {
         setSnackbar({ open: true, message: 'مشاور با موفقیت ثبت شد', severity: 'success' });
         handleCloseDialog();
@@ -102,104 +95,126 @@ export default function ConsultantsPage() {
     <PrivateRoute>
       <RoleGuard allowedRoles={[UserRole.SUPERVISOR]}>
         <DashboardLayout>
-          <Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-              <Typography variant="h4">مدیریت مشاوران</Typography>
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
+          <div className="space-y-6 text-right">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <h1 className="text-3xl font-bold text-gray-900">مدیریت مشاوران</h1>
+              <button
                 onClick={handleOpenDialog}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary-600 px-5 py-3 text-sm font-semibold text-white shadow hover:bg-primary-700"
               >
+                <FiPlus className="text-lg" />
                 ثبت مشاور جدید
-              </Button>
-            </Box>
+              </button>
+            </div>
 
             {isLoading ? (
               <Loading />
+            ) : consultants.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-8 text-sm text-gray-500">
+                مشاوری ثبت نشده است.
+              </div>
             ) : (
-              <TableContainer component={Paper}>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>نام</TableCell>
-                      <TableCell>شماره موبایل</TableCell>
-                      <TableCell>کد ملی</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {consultants.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={3} align="center">
-                          مشاوری ثبت نشده است
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      consultants.map((consultant: any) => (
-                        <TableRow key={consultant.id}>
-                          <TableCell>{consultant.firstName} {consultant.lastName}</TableCell>
-                          <TableCell>{consultant.phoneNumber}</TableCell>
-                          <TableCell>{consultant.nationalId}</TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+              <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm">
+                <table className="min-w-full text-right">
+                  <thead>
+                    <tr className="bg-gray-50 text-sm font-semibold text-gray-600">
+                      <th className="px-4 py-3">نام</th>
+                      <th className="px-4 py-3">شماره موبایل</th>
+                      <th className="px-4 py-3">کد ملی</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {consultants.map((consultant: any) => (
+                      <tr key={consultant.id} className="border-t border-gray-100 text-sm text-gray-700 hover:bg-gray-50">
+                        <td className="px-4 py-3">{consultant.firstName} {consultant.lastName}</td>
+                        <td className="px-4 py-3">{consultant.phoneNumber}</td>
+                        <td className="px-4 py-3">{consultant.nationalId}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
 
-            <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-              <DialogTitle>ثبت مشاور جدید</DialogTitle>
-              <DialogContent>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-                  <TextField
-                    label="نام"
-                    value={formData.firstName}
-                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    fullWidth
-                    required
-                  />
-                  <TextField
-                    label="نام خانوادگی"
-                    value={formData.lastName}
-                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    fullWidth
-                    required
-                  />
-                  <TextField
-                    label="کد ملی"
-                    value={formData.nationalId}
-                    onChange={(e) => setFormData({ ...formData, nationalId: e.target.value })}
-                    fullWidth
-                    required
-                    inputProps={{ maxLength: 10 }}
-                  />
-                  <TextField
-                    label="شماره موبایل"
-                    value={formData.phoneNumber}
-                    onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-                    fullWidth
-                    required
-                    placeholder="09123456789"
-                    inputProps={{ maxLength: 11 }}
-                  />
-                </Box>
-              </DialogContent>
-              <DialogActions>
-                <Button onClick={handleCloseDialog}>انصراف</Button>
-                <Button onClick={handleSubmit} variant="contained">
-                  ثبت
-                </Button>
-              </DialogActions>
-            </Dialog>
+            {openDialog && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+                <div className="w-full max-w-lg rounded-2xl bg-white p-6 text-right shadow-2xl">
+                  <h3 className="text-xl font-semibold text-gray-900">ثبت مشاور جدید</h3>
+                  <div className="mt-4 space-y-4">
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-gray-600">نام</label>
+                    <input
+                        type="text"
+                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                        value={formData.firstName}
+                        onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                        maxLength={50}
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-gray-600">نام خانوادگی</label>
+                    <input
+                        type="text"
+                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                        value={formData.lastName}
+                        onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                        maxLength={50}
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-gray-600">کد ملی</label>
+                    <input
+                        type="text"
+                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                        value={formData.nationalId}
+                        onChange={(e) => setFormData({ ...formData, nationalId: e.target.value })}
+                        maxLength={10}
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-gray-600">شماره موبایل</label>
+                    <input
+                        type="text"
+                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                        value={formData.phoneNumber}
+                        onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                        maxLength={11}
+                        placeholder="09123456789"
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+                    <button
+                      onClick={handleCloseDialog}
+                      className="flex-1 rounded-2xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 transition hover:border-gray-300 hover:bg-gray-50"
+                    >
+                      انصراف
+                    </button>
+                    <button
+                      onClick={handleSubmit}
+                      className="flex-1 rounded-2xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-700"
+                    >
+                      ثبت
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
-            <Snackbar
-              open={snackbar.open}
-              autoHideDuration={6000}
-              onClose={() => setSnackbar({ ...snackbar, open: false })}
-            >
-              <Alert severity={snackbar.severity}>{snackbar.message}</Alert>
-            </Snackbar>
-          </Box>
+            {snackbar.open && (
+              <div className="fixed bottom-6 left-1/2 z-40 w-full max-w-md -translate-x-1/2 px-4">
+                <div
+                  className={`rounded-2xl border px-4 py-3 text-sm shadow-lg ${
+                    snackbar.severity === 'success'
+                      ? 'border-green-200 bg-green-50 text-green-800'
+                      : 'border-red-200 bg-red-50 text-red-800'
+                  }`}
+                >
+                  {snackbar.message}
+                </div>
+              </div>
+            )}
+          </div>
         </DashboardLayout>
       </RoleGuard>
     </PrivateRoute>

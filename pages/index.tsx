@@ -1,45 +1,23 @@
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/router';
+import { useState, useEffect, type ChangeEvent, type SyntheticEvent, type MouseEvent } from 'react';
 import {
-  Container,
-  Box,
-  Card,
-  CardContent,
-  Tabs,
-  Tab,
-  TextField,
-  Button,
-  Typography,
-  Alert,
-  Link,
-  CircularProgress,
-  InputAdornment,
-  IconButton,
-  Fade,
-  Grid,
-  ToggleButtonGroup,
-  ToggleButton,
-  Chip,
-  Snackbar,
-} from '@mui/material';
-import {
-  Visibility,
-  VisibilityOff,
-  Phone,
-  Lock,
-  Person,
-  Badge,
-  VpnKey,
-  CheckCircle,
-} from '@mui/icons-material';
+  FiPhone,
+  FiLock,
+  FiUser,
+  FiEye,
+  FiEyeOff,
+  FiKey,
+  FiCheckCircle,
+  FiBriefcase,
+  FiShield,
+} from 'react-icons/fi';
 import { useDispatch } from 'react-redux';
 import { AppDispatch } from '../src/app/store';
-import { login, registerCustomer, sendOTP, verifyOTP, forgotPassword, resetPassword } from '../src/domains/auth/store/authSlice';
+import { login, registerEstate, sendOTP, verifyOTP, forgotPassword, resetPassword } from '../src/domains/auth/store/authSlice';
 import { useAuth } from '../src/domains/auth/hooks/useAuth';
 import ErrorDisplay from '../src/shared/components/common/ErrorDisplay';
 import PublicRoute from '../src/shared/components/guards/PublicRoute';
-import { validatePhoneNumber, validateNationalId, validatePassword, validateOTPCode } from '../src/shared/utils/validation';
-import { goldenYellow, burntOrange, creamyWhite, mediumBlue } from '../lib/theme/colors';
+import { validatePhoneNumber, validateNationalId, validatePassword, validateOTPCode, validateGuildId, validateFixedPhone, validateRequiredText } from '../src/shared/utils/validation';
+import { brandPrimary, brandPrimaryDark, heroGradient, surfaceGradient } from '../lib/theme/colors';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -47,23 +25,71 @@ interface TabPanelProps {
   value: number;
 }
 
-function TabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props;
-  return (
-    <div role="tabpanel" hidden={value !== index} {...other}>
-      {value === index && (
-        <Fade in={value === index} timeout={300}>
-          <Box sx={{ pt: 4 }}>{children}</Box>
-        </Fade>
-      )}
-    </div>
-  );
+function TabPanel({ children, value, index }: TabPanelProps) {
+  if (value !== index) return null;
+  return <div className="pt-6">{children}</div>;
 }
 
+const Spinner = ({ size = 24 }: { size?: number }) => (
+  <span
+    className="inline-block animate-spin rounded-full border-2 border-white border-t-transparent"
+    style={{ width: size, height: size }}
+  />
+);
+
+type AlertVariant = 'info' | 'success' | 'warning' | 'error';
+
+const alertStyles: Record<AlertVariant, string> = {
+  info: 'bg-primary-50 border-primary-200 text-primary-800',
+  success: 'bg-green-50 border-green-200 text-green-800',
+  warning: 'bg-amber-50 border-amber-200 text-amber-800',
+  error: 'bg-red-50 border-red-200 text-red-800',
+};
+
+interface AlertBoxProps {
+  children: React.ReactNode;
+  variant?: AlertVariant;
+  icon?: React.ReactNode;
+  onClose?: () => void;
+}
+
+const AlertBox = ({ children, variant = 'info', icon, onClose }: AlertBoxProps) => (
+  <div className={`rounded-2xl border px-4 py-3 text-sm ${alertStyles[variant]}`}>
+    <div className="flex items-start gap-3">
+      {icon && <span className="text-xl">{icon}</span>}
+      <div className="flex-1 text-right">{children}</div>
+      {onClose && (
+        <button
+          onClick={onClose}
+          className="text-xs font-semibold text-current underline decoration-dotted"
+        >
+          بستن
+        </button>
+      )}
+    </div>
+  </div>
+);
+
+const inputBaseClass =
+  'w-full rounded-2xl border border-gray-200 bg-white/90 px-4 py-3 text-right text-gray-900 placeholder-gray-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-100';
+
+const sectionTitleClass = 'text-lg font-semibold text-gray-800 mb-2';
+
 export default function Home() {
-  const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
-  const { isAuthenticated, isLoading, error } = useAuth();
+  const {
+    isAuthenticated,
+    isLoading,
+    error,
+    estateStatusMessage,
+    estateRegistrationSuccess,
+    estateRegistrationError,
+    lastRegisteredEstate,
+    resetPasswordMessage,
+    clearEstateStatusMessage,
+    clearResetPasswordMessage,
+    resetEstateRegistration,
+  } = useAuth();
   const [tabValue, setTabValue] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -73,12 +99,16 @@ export default function Home() {
   const [loginPhone, setLoginPhone] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
 
-  // Register form
-  const [regFirstName, setRegFirstName] = useState('');
-  const [regLastName, setRegLastName] = useState('');
-  const [regNationalId, setRegNationalId] = useState('');
-  const [regPhone, setRegPhone] = useState('');
-  const [regPassword, setRegPassword] = useState('');
+  // Estate registration form
+  const [estateGuildId, setEstateGuildId] = useState('');
+  const [estateName, setEstateName] = useState('');
+  const [estateFixedPhone, setEstateFixedPhone] = useState('');
+  const [estateAddress, setEstateAddress] = useState('');
+  const [adminFirstName, setAdminFirstName] = useState('');
+  const [adminLastName, setAdminLastName] = useState('');
+  const [adminNationalId, setAdminNationalId] = useState('');
+  const [adminPhone, setAdminPhone] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
 
   // OTP form
   const [otpPhone, setOtpPhone] = useState('');
@@ -109,8 +139,16 @@ export default function Home() {
     }
   }, [resetCountdown]);
 
-  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+  useEffect(() => {
+    if (estateRegistrationSuccess) {
+      resetEstateFormFields();
+    }
+  }, [estateRegistrationSuccess]);
+
+  const handleTabChange = (_event: SyntheticEvent | null, newValue: number) => {
     setTabValue(newValue);
+    clearEstateStatusMessage();
+    clearResetPasswordMessage();
     if (newValue === 0) {
       setLoginMethod('password');
       setOtpSent(false);
@@ -120,9 +158,11 @@ export default function Home() {
     }
   };
 
-  const handleLoginMethodChange = (_event: React.MouseEvent<HTMLElement>, newMethod: 'password' | 'otp' | 'forgot' | null) => {
+  const handleLoginMethodChange = (_event: MouseEvent<HTMLElement> | null, newMethod: 'password' | 'otp' | 'forgot' | null) => {
     if (newMethod !== null) {
       setLoginMethod(newMethod);
+      clearEstateStatusMessage();
+      clearResetPasswordMessage();
       setOtpSent(false);
       setResetStep('phone');
       setOtpCountdown(0);
@@ -132,28 +172,37 @@ export default function Home() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    clearEstateStatusMessage();
     if (!validatePhoneNumber(loginPhone)) {
       return;
     }
     await dispatch(login({ phoneNumber: loginPhone, password: loginPassword }));
   };
 
-  const handleRegister = async (e: React.FormEvent) => {
+  const handleEstateRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validatePhoneNumber(regPhone) || !validateNationalId(regNationalId) || !validatePassword(regPassword)) {
+    if (!isEstateFormValid()) {
       return;
     }
-    await dispatch(registerCustomer({
-      firstName: regFirstName,
-      lastName: regLastName,
-      nationalId: regNationalId,
-      phoneNumber: regPhone,
-      password: regPassword,
+    resetEstateRegistration();
+    await dispatch(registerEstate({
+      guildId: estateGuildId,
+      establishmentName: estateName.trim(),
+      fixedPhone: estateFixedPhone,
+      address: estateAddress.trim(),
+      admin: {
+        phoneNumber: adminPhone,
+        firstName: adminFirstName.trim(),
+        lastName: adminLastName.trim(),
+        nationalId: adminNationalId,
+        password: adminPassword,
+      },
     }));
   };
 
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
+    clearEstateStatusMessage();
     if (!validatePhoneNumber(otpPhone)) {
       return;
     }
@@ -166,6 +215,7 @@ export default function Home() {
 
   const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
+    clearEstateStatusMessage();
     if (!validateOTPCode(otpCode)) {
       return;
     }
@@ -208,597 +258,560 @@ export default function Home() {
     return value.replace(/\D/g, '').slice(0, 10);
   };
 
+  const formatFixedPhoneNumber = (value: string) => {
+    return value.replace(/\D/g, '').slice(0, 11);
+  };
+
+  const formatGuildIdentifier = (value: string) => {
+    return value.replace(/\D/g, '').slice(0, 12);
+  };
+
   const formatOTPCode = (value: string) => {
     return value.replace(/\D/g, '').slice(0, 6);
   };
 
-  const gradientBackground = `linear-gradient(135deg, ${goldenYellow} 0%, ${burntOrange} 100%)`;
-  const gradientBackgroundHover = `linear-gradient(135deg, ${burntOrange} 0%, ${goldenYellow} 100%)`;
+  const resetEstateFormFields = () => {
+    setEstateGuildId('');
+    setEstateName('');
+    setEstateFixedPhone('');
+    setEstateAddress('');
+    setAdminFirstName('');
+    setAdminLastName('');
+    setAdminNationalId('');
+    setAdminPhone('');
+    setAdminPassword('');
+  };
+
+  const isEstateFormValid = () => {
+    return (
+      validateGuildId(estateGuildId) &&
+      validateRequiredText(estateName) &&
+      validateFixedPhone(estateFixedPhone) &&
+      validateRequiredText(estateAddress) &&
+      validateRequiredText(adminFirstName) &&
+      validateRequiredText(adminLastName) &&
+      validateNationalId(adminNationalId) &&
+      validatePhoneNumber(adminPhone) &&
+      validatePassword(adminPassword)
+    );
+  };
+
+  const getEstateStatusAlert = (message: string) => {
+    switch (message) {
+      case 'Your estate is waiting for Master approval.':
+        return 'درخواست ثبت املاک شما در انتظار تایید مستر است. پس از تایید، امکان ورود فراهم می‌شود.';
+      case 'Your estate request was rejected.':
+        return 'درخواست ثبت املاک شما رد شده است. لطفا پس از رفع ایرادات دوباره ثبت‌نام کنید یا با پشتیبانی تماس بگیرید.';
+      default:
+        return message;
+    }
+  };
+
+  const gradientBackground = heroGradient;
+  const gradientBackgroundHover = `linear-gradient(135deg, ${brandPrimaryDark} 0%, ${brandPrimary} 100%)`;
+  const cardBackground = surfaceGradient;
+
+  const methodButtonStyles = (method: typeof loginMethod) =>
+    `flex-1 rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
+      loginMethod === method
+        ? 'border-transparent bg-primary-600 text-white shadow-md hover:bg-primary-500'
+        : 'border-gray-200 bg-white/70 text-gray-600 hover:border-primary-200 hover:text-primary-600'
+    }`;
+
+  const disabledButtonClass = 'opacity-50 cursor-not-allowed';
+
+  const PrimaryButton = ({
+    children,
+    disabled,
+    onClick,
+    type = 'button',
+  }: {
+    children: React.ReactNode;
+    disabled?: boolean;
+    onClick?: () => void;
+    type?: 'button' | 'submit';
+  }) => (
+    <button
+      type={type}
+      disabled={disabled}
+      onClick={onClick}
+      className={`mt-2 rounded-2xl px-4 py-3 text-center text-lg font-semibold text-white shadow-lg transition ${
+        disabled ? disabledButtonClass : ''
+      }`}
+      style={{ background: gradientBackground }}
+      onMouseEnter={(e) => {
+        if (!disabled) e.currentTarget.style.background = gradientBackgroundHover;
+      }}
+      onMouseLeave={(e) => {
+        if (!disabled) e.currentTarget.style.background = gradientBackground;
+      }}
+    >
+      {children}
+    </button>
+  );
+
+  const renderIconInput = ({
+    label,
+    icon,
+    value,
+    onChange,
+    type = 'text',
+    placeholder,
+    maxLength,
+    errorText,
+    isPasswordToggle,
+    showToggle,
+    onToggle,
+    required = false,
+  }: {
+    label: string;
+    icon: React.ReactNode;
+    value: string;
+    onChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+    type?: string;
+    placeholder?: string;
+    maxLength?: number;
+    errorText?: string;
+    isPasswordToggle?: boolean;
+    showToggle?: boolean;
+    onToggle?: () => void;
+    required?: boolean;
+  }) => (
+    <div>
+      <label className="mb-2 block text-sm font-medium text-gray-700">{label}</label>
+      <div className="relative">
+        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg text-primary-500">{icon}</span>
+        <input
+          type={type}
+          value={value}
+          onChange={onChange}
+          placeholder={placeholder}
+          maxLength={maxLength}
+          required={required}
+          className={`${inputBaseClass} pl-12 ${errorText ? 'border-red-300 focus:ring-red-100' : ''}`}
+        />
+        {isPasswordToggle && (
+          <button
+            type="button"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+            onClick={onToggle}
+            aria-label="toggle password visibility"
+          >
+            {showToggle ? <FiEyeOff /> : <FiEye />}
+          </button>
+        )}
+      </div>
+      {errorText && <p className="mt-1 text-sm text-red-600">{errorText}</p>}
+    </div>
+  );
 
   return (
     <PublicRoute>
-      <Box
-      sx={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: `linear-gradient(135deg, ${mediumBlue}15 0%, ${goldenYellow}15 100%)`,
-        py: 4,
-        px: 2,
-      }}
-    >
-      <Container maxWidth="sm">
-        <Fade in timeout={500}>
-          <Card
-            elevation={24}
-            sx={{
-              borderRadius: 4,
-              overflow: 'hidden',
-              background: creamyWhite,
-            }}
-          >
-            {/* Header Section */}
-            <Box
-              sx={{
-                background: gradientBackground,
-                py: 4,
-                px: 3,
-                textAlign: 'center',
-                color: 'white',
-              }}
-            >
-              <Typography variant="h3" component="h1" gutterBottom sx={{ fontWeight: 700, mb: 1 }}>
-            املاکیار
-          </Typography>
-              <Typography variant="body1" sx={{ opacity: 0.95 }}>
-            پلتفرم مدیریت املاک
-          </Typography>
-        </Box>
+      <div className="flex min-h-screen items-center justify-center px-4 py-6" style={{ background: cardBackground }}>
+        <div className="w-full max-w-3xl rounded-[32px] bg-white shadow-2xl ring-1 ring-black/5">
+          <div className="px-6 py-10 text-center text-white" style={{ background: gradientBackground }}>
+            <h1 className="mb-2 text-4xl font-black">املاکیار</h1>
+            <p className="text-lg font-medium opacity-90">پلتفرم مدیریت املاک</p>
+          </div>
 
-            <CardContent sx={{ p: 4 }}>
-              <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
-                <Tabs
-                  value={tabValue}
-                  onChange={handleTabChange}
-                  variant="fullWidth"
-                  sx={{
-                    '& .MuiTab-root': {
-                      fontWeight: 600,
-                      fontSize: '1rem',
-                      textTransform: 'none',
-                      minHeight: 56,
-                    },
-                    '& .Mui-selected': {
-                      color: goldenYellow,
-                    },
-                    '& .MuiTabs-indicator': {
-                      backgroundColor: goldenYellow,
-                      height: 3,
-                    },
-                  }}
+          <div className="px-6 py-8 sm:px-10">
+            <div className="grid grid-cols-2 gap-1 rounded-2xl border border-gray-100 bg-gray-50 p-1 text-sm font-semibold text-gray-500">
+              {[
+                { label: 'ورود', icon: <FiLock className="h-4 w-4" />, index: 0 },
+                { label: 'ثبت‌نام', icon: <FiUser className="h-4 w-4" />, index: 1 },
+              ].map(({ label, icon, index }) => (
+                <button
+                  key={label}
+                  onClick={() => handleTabChange(null, index)}
+                  className={`flex items-center justify-center gap-2 rounded-2xl px-3 py-2 transition ${
+                    tabValue === index ? 'bg-white text-primary-700 shadow' : 'hover:text-gray-700'
+                  }`}
                 >
-                  <Tab label="ورود" icon={<Lock sx={{ mb: 0.5 }} />} iconPosition="top" />
-                  <Tab label="ثبت‌نام" icon={<Person sx={{ mb: 0.5 }} />} iconPosition="top" />
-                </Tabs>
-              </Box>
+                  {icon}
+                  <span>{label}</span>
+                </button>
+              ))}
+            </div>
 
-              <ErrorDisplay error={error} />
+            <ErrorDisplay error={error} />
 
-              {/* Login Tab - Merged with OTP and Forgot Password */}
-              <TabPanel value={tabValue} index={0}>
-                <Box sx={{ mb: 3 }}>
-                  <ToggleButtonGroup
-                    value={loginMethod}
-                    exclusive
-                    onChange={handleLoginMethodChange}
-                    fullWidth
-                    sx={{
-                      '& .MuiToggleButton-root': {
-                        textTransform: 'none',
-                        fontWeight: 500,
-                        borderColor: goldenYellow,
-                        color: 'text.primary',
-                        '&.Mui-selected': {
-                          backgroundColor: goldenYellow,
-                          color: 'white',
-                          '&:hover': {
-                            backgroundColor: burntOrange,
-                          },
-                        },
-                        '&:hover': {
-                          backgroundColor: `${goldenYellow}20`,
-                        },
-                      },
-                    }}
+            <TabPanel value={tabValue} index={0}>
+              {estateStatusMessage && (
+                <div className="mb-4">
+                  <AlertBox
+                    variant="warning"
+                    icon={<FiShield className="text-xl" />}
+                    onClose={clearEstateStatusMessage}
                   >
-                    <ToggleButton value="password">
-                      <Lock sx={{ mr: 1, fontSize: 18 }} />
-                      ورود با رمز
-                    </ToggleButton>
-                    <ToggleButton value="otp">
-                      <VpnKey sx={{ mr: 1, fontSize: 18 }} />
-                      ورود با کد
-                    </ToggleButton>
-                    <ToggleButton value="forgot">
-                      <Phone sx={{ mr: 1, fontSize: 18 }} />
-                      بازیابی رمز
-                    </ToggleButton>
-                  </ToggleButtonGroup>
-                </Box>
+                    {getEstateStatusAlert(estateStatusMessage)}
+                  </AlertBox>
+                </div>
+              )}
 
-                {/* Password Login */}
-                {loginMethod === 'password' && (
-                  <Fade in={loginMethod === 'password'} timeout={300}>
-                    <Box component="form" onSubmit={handleLogin} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                      <TextField
-                        label="شماره موبایل"
-                        value={loginPhone}
-                        onChange={(e) => setLoginPhone(formatPhoneNumber(e.target.value))}
-                        required
-                        fullWidth
-                        placeholder="09123456789"
-                        inputProps={{ maxLength: 11 }}
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <Phone sx={{ color: goldenYellow }} />
-                            </InputAdornment>
-                          ),
+              <div className="mb-5 flex flex-col gap-2 sm:flex-row">
+                <button className={methodButtonStyles('password')} onClick={() => handleLoginMethodChange(null, 'password')}>
+                  <span className="flex items-center justify-center gap-2">
+                    <FiLock /> ورود با رمز
+                  </span>
+                </button>
+                <button className={methodButtonStyles('otp')} onClick={() => handleLoginMethodChange(null, 'otp')}>
+                  <span className="flex items-center justify-center gap-2">
+                    <FiKey /> ورود با کد
+                  </span>
+                </button>
+                <button className={methodButtonStyles('forgot')} onClick={() => handleLoginMethodChange(null, 'forgot')}>
+                  <span className="flex items-center justify-center gap-2">
+                    <FiPhone /> بازیابی رمز
+                  </span>
+                </button>
+              </div>
+
+              {loginMethod === 'password' && (
+                <form className="flex flex-col gap-4" onSubmit={handleLogin}>
+                  {renderIconInput({
+                    label: 'شماره موبایل',
+                    icon: <FiPhone />,
+                    value: loginPhone,
+                    onChange: (e) => setLoginPhone(formatPhoneNumber(e.target.value)),
+                    placeholder: '09123456789',
+                    maxLength: 11,
+            required: true,
+                    errorText: loginPhone.length > 0 && !validatePhoneNumber(loginPhone) ? 'شماره موبایل معتبر نیست' : undefined,
+                  })}
+                  {renderIconInput({
+                    label: 'رمز عبور',
+                    icon: <FiLock />,
+                    value: loginPassword,
+                    onChange: (e) => setLoginPassword(e.target.value),
+                    type: showPassword ? 'text' : 'password',
+                    isPasswordToggle: true,
+                    showToggle: showPassword,
+                    onToggle: () => setShowPassword((prev) => !prev),
+            required: true,
+                  })}
+                  <PrimaryButton type="submit" disabled={isLoading || !validatePhoneNumber(loginPhone) || !loginPassword}>
+                    {isLoading ? <Spinner /> : 'ورود به حساب کاربری'}
+                  </PrimaryButton>
+                </form>
+              )}
+
+              {loginMethod === 'otp' && (
+                <div className="flex flex-col gap-4">
+                  {!otpSent ? (
+                    <form className="flex flex-col gap-4" onSubmit={handleSendOTP}>
+                      {renderIconInput({
+                        label: 'شماره موبایل',
+                        icon: <FiPhone />,
+                        value: otpPhone,
+                        onChange: (e) => setOtpPhone(formatPhoneNumber(e.target.value)),
+                        placeholder: '09123456789',
+                        maxLength: 11,
+                required: true,
+                        errorText: otpPhone.length > 0 && !validatePhoneNumber(otpPhone) ? 'شماره موبایل معتبر نیست' : undefined,
+                      })}
+                      <PrimaryButton type="submit" disabled={isLoading || !validatePhoneNumber(otpPhone)}>
+                        {isLoading ? <Spinner /> : 'ارسال کد تایید'}
+                      </PrimaryButton>
+                    </form>
+                  ) : (
+                    <form className="flex flex-col gap-4" onSubmit={handleVerifyOTP}>
+                      <AlertBox variant="success" icon={<FiCheckCircle className="text-xl" />}>
+                        کد تایید به شماره {otpPhone} ارسال شد
+                      </AlertBox>
+                      {renderIconInput({
+                        label: 'کد تایید',
+                        icon: <FiKey />,
+                        value: otpCode,
+                        onChange: (e) => setOtpCode(formatOTPCode(e.target.value)),
+                        placeholder: '123456',
+                        maxLength: 6,
+                required: true,
+                        errorText: otpCode.length > 0 && !validateOTPCode(otpCode) ? 'کد باید ۶ رقم باشد' : undefined,
+                      })}
+                      {otpCountdown > 0 && (
+                        <p className="text-center text-sm text-gray-500">
+                          ارسال مجدد کد تا {Math.floor(otpCountdown / 60)}:{(otpCountdown % 60).toString().padStart(2, '0')}
+                        </p>
+                      )}
+                      <PrimaryButton type="submit" disabled={isLoading || !validateOTPCode(otpCode)}>
+                        {isLoading ? <Spinner /> : 'تایید و ورود'}
+                      </PrimaryButton>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOtpSent(false);
+                          setOtpCountdown(0);
                         }}
-                        error={loginPhone.length > 0 && !validatePhoneNumber(loginPhone)}
-                        helperText={loginPhone.length > 0 && !validatePhoneNumber(loginPhone) ? 'شماره موبایل معتبر نیست' : ''}
-                      />
-                      <TextField
-                        label="رمز عبور"
-                        type={showPassword ? 'text' : 'password'}
-                        value={loginPassword}
-                        onChange={(e) => setLoginPassword(e.target.value)}
-                        required
-                        fullWidth
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <Lock sx={{ color: goldenYellow }} />
-                            </InputAdornment>
-                          ),
-                          endAdornment: (
-                            <InputAdornment position="end">
-                              <IconButton
-                                onClick={() => setShowPassword(!showPassword)}
-                                edge="end"
-                                size="small"
-                              >
-                                {showPassword ? <VisibilityOff /> : <Visibility />}
-                              </IconButton>
-                            </InputAdornment>
-                          ),
-                        }}
-                      />
-                      <Button
+                        disabled={otpCountdown > 0}
+                        className={`text-sm font-semibold text-amber-600 ${otpCountdown > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        تغییر شماره موبایل
+                      </button>
+                    </form>
+                  )}
+                </div>
+              )}
+
+              {loginMethod === 'forgot' && (
+                <div className="flex flex-col gap-4">
+                  {resetStep === 'phone' ? (
+                    <form className="flex flex-col gap-4" onSubmit={handleForgotPassword}>
+                      {renderIconInput({
+                        label: 'شماره موبایل',
+                        icon: <FiPhone />,
+                        value: forgotPhone,
+                        onChange: (e) => setForgotPhone(formatPhoneNumber(e.target.value)),
+                        placeholder: '09123456789',
+                        maxLength: 11,
+                required: true,
+                        errorText: forgotPhone.length > 0 && !validatePhoneNumber(forgotPhone) ? 'شماره موبایل معتبر نیست' : undefined,
+                      })}
+                      <PrimaryButton type="submit" disabled={isLoading || !validatePhoneNumber(forgotPhone)}>
+                        {isLoading ? <Spinner /> : 'ارسال کد بازیابی'}
+                      </PrimaryButton>
+                    </form>
+                  ) : (
+                    <form className="flex flex-col gap-4" onSubmit={handleResetPassword}>
+                      {resetPasswordMessage ? (
+                        <>
+                          <AlertBox variant="success" icon={<FiCheckCircle className="text-xl" />} onClose={clearResetPasswordMessage}>
+                            {resetPasswordMessage}
+                          </AlertBox>
+                          <PrimaryButton
+                            onClick={() => {
+                              clearResetPasswordMessage();
+                              setLoginMethod('password');
+                              setResetStep('phone');
+                              setForgotPhone('');
+                              setResetCode('');
+                              setNewPassword('');
+                            }}
+                          >
+                            بازگشت به صفحه ورود
+                          </PrimaryButton>
+                        </>
+                      ) : (
+                        <>
+                          <AlertBox variant="success" icon={<FiCheckCircle className="text-xl" />}>
+                            کد بازیابی به شماره {forgotPhone} ارسال شد
+                          </AlertBox>
+                      {renderIconInput({
+                        label: 'کد بازیابی',
+                        icon: <FiKey />,
+                        value: resetCode,
+                        onChange: (e) => setResetCode(formatOTPCode(e.target.value)),
+                        placeholder: '123456',
+                        maxLength: 6,
+                required: true,
+                        errorText: resetCode.length > 0 && !validateOTPCode(resetCode) ? 'کد باید ۶ رقم باشد' : undefined,
+                      })}
+                      {renderIconInput({
+                        label: 'رمز عبور جدید',
+                        icon: <FiLock />,
+                        value: newPassword,
+                        onChange: (e) => setNewPassword(e.target.value),
+                        type: showConfirmPassword ? 'text' : 'password',
+                        isPasswordToggle: true,
+                        showToggle: showConfirmPassword,
+                        onToggle: () => setShowConfirmPassword((prev) => !prev),
+                required: true,
+                        errorText: newPassword.length > 0 && !validatePassword(newPassword) ? 'رمز عبور باید حداقل ۶ کاراکتر باشد' : undefined,
+                      })}
+                      {resetCountdown > 0 && (
+                        <p className="text-center text-sm text-gray-500">
+                          ارسال مجدد کد تا {Math.floor(resetCountdown / 60)}:{(resetCountdown % 60).toString().padStart(2, '0')}
+                        </p>
+                      )}
+                      <PrimaryButton
                         type="submit"
-                        variant="contained"
-                        fullWidth
-                        size="large"
-                        disabled={isLoading || !validatePhoneNumber(loginPhone) || !loginPassword}
-                        sx={{
-                          py: 1.5,
-                          fontSize: '1.1rem',
-                          fontWeight: 600,
-                          textTransform: 'none',
-                          borderRadius: 2,
-                          background: gradientBackground,
-                          '&:hover': {
-                            background: gradientBackgroundHover,
-                          },
+                        disabled={isLoading || !validateOTPCode(resetCode) || !validatePassword(newPassword)}
+                      >
+                        {isLoading ? <Spinner /> : 'تغییر رمز عبور'}
+                      </PrimaryButton>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setResetStep('phone');
+                          setResetCountdown(0);
+                        }}
+                        disabled={resetCountdown > 0}
+                        className={`text-sm font-semibold text-primary-600 ${resetCountdown > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        تغییر شماره موبایل
+                      </button>
+                        </>
+                      )}
+                    </form>
+                  )}
+                </div>
+              )}
+            </TabPanel>
+
+            <TabPanel value={tabValue} index={1}>
+              <div className="flex flex-col gap-4">
+                <AlertBox variant="info" icon={<FiBriefcase className="text-xl" />}>
+                  برای دسترسی به پنل املاک ابتدا اطلاعات واحد صنفی و مدیر خود را ثبت کنید. پس از تأیید مستر، مدیر املاک فعال خواهد شد.
+                </AlertBox>
+
+                {estateRegistrationSuccess && (
+                  <AlertBox variant="success" icon={<FiCheckCircle className="text-xl" />}>
+                    درخواست ثبت «{lastRegisteredEstate?.establishmentName}» با شناسه صنفی {lastRegisteredEstate?.guildId} ثبت شد. وضعیت فعلی: در انتظار تایید مستر.
+                  </AlertBox>
+                )}
+
+                {estateRegistrationError && (
+                  <AlertBox variant="error">{estateRegistrationError}</AlertBox>
+                )}
+
+                {estateRegistrationSuccess ? (
+                  <div className="flex flex-col gap-3">
+                    <p className="text-sm text-gray-600">پس از تایید مستر، مدیر املاک می‌تواند با شماره وارد شده وارد شود.</p>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <PrimaryButton
+                        onClick={() => {
+                          setTabValue(0);
+                          resetEstateRegistration();
                         }}
                       >
-                        {isLoading ? <CircularProgress size={24} color="inherit" /> : 'ورود به حساب کاربری'}
-                      </Button>
-                    </Box>
-                  </Fade>
-                )}
-
-                {/* OTP Login */}
-                {loginMethod === 'otp' && (
-                  <Fade in={loginMethod === 'otp'} timeout={300}>
-                    <Box>
-                      {!otpSent ? (
-                        <Box component="form" onSubmit={handleSendOTP} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                          <TextField
-                            label="شماره موبایل"
-                            value={otpPhone}
-                            onChange={(e) => setOtpPhone(formatPhoneNumber(e.target.value))}
-                            required
-                            fullWidth
-                            placeholder="09123456789"
-                            inputProps={{ maxLength: 11 }}
-                            InputProps={{
-                              startAdornment: (
-                                <InputAdornment position="start">
-                                  <Phone sx={{ color: goldenYellow }} />
-                                </InputAdornment>
-                              ),
-                            }}
-                            error={otpPhone.length > 0 && !validatePhoneNumber(otpPhone)}
-                            helperText={otpPhone.length > 0 && !validatePhoneNumber(otpPhone) ? 'شماره موبایل معتبر نیست' : ''}
-                          />
-                          <Button
-                            type="submit"
-                            variant="contained"
-                            fullWidth
-                            size="large"
-                            disabled={isLoading || !validatePhoneNumber(otpPhone)}
-                            sx={{
-                              py: 1.5,
-                              fontSize: '1.1rem',
-                              fontWeight: 600,
-                              textTransform: 'none',
-                              borderRadius: 2,
-                              background: gradientBackground,
-                              '&:hover': {
-                                background: gradientBackgroundHover,
-                              },
-                            }}
-                          >
-                            {isLoading ? <CircularProgress size={24} color="inherit" /> : 'ارسال کد تایید'}
-                          </Button>
-                        </Box>
-                      ) : (
-                        <Box component="form" onSubmit={handleVerifyOTP} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                          <Alert
-                            severity="success"
-                            icon={<CheckCircle />}
-                            sx={{ borderRadius: 2 }}
-                          >
-                            کد تایید به شماره {otpPhone} ارسال شد
-                          </Alert>
-                          <TextField
-                            label="کد تایید"
-                            value={otpCode}
-                            onChange={(e) => setOtpCode(formatOTPCode(e.target.value))}
-                            required
-                            fullWidth
-                            placeholder="123456"
-                            inputProps={{ maxLength: 6, style: { textAlign: 'center', letterSpacing: '0.5em', fontSize: '1.5rem' } }}
-                            InputProps={{
-                              startAdornment: (
-                                <InputAdornment position="start">
-                                  <VpnKey sx={{ color: goldenYellow }} />
-                                </InputAdornment>
-                              ),
-                            }}
-                            error={otpCode.length > 0 && !validateOTPCode(otpCode)}
-                            helperText={otpCode.length > 0 && !validateOTPCode(otpCode) ? 'کد باید 6 رقم باشد' : ''}
-                          />
-                          {otpCountdown > 0 && (
-                            <Typography variant="body2" color="text.secondary" align="center">
-                              ارسال مجدد کد تا {Math.floor(otpCountdown / 60)}:{(otpCountdown % 60).toString().padStart(2, '0')}
-                </Typography>
-                          )}
-                          <Button
-                            type="submit"
-                            variant="contained"
-                            fullWidth
-                            size="large"
-                            disabled={isLoading || !validateOTPCode(otpCode)}
-                            sx={{
-                              py: 1.5,
-                              fontSize: '1.1rem',
-                              fontWeight: 600,
-                              textTransform: 'none',
-                              borderRadius: 2,
-                              background: gradientBackground,
-                              '&:hover': {
-                                background: gradientBackgroundHover,
-                              },
-                            }}
-                          >
-                            {isLoading ? <CircularProgress size={24} color="inherit" /> : 'تایید و ورود'}
-                          </Button>
-                          <Button
-                            variant="text"
-                            onClick={() => {
-                              setOtpSent(false);
-                              setOtpCountdown(0);
-                            }}
-                            disabled={otpCountdown > 0}
-                            sx={{ textTransform: 'none', color: goldenYellow }}
-                          >
-                            تغییر شماره موبایل
-                          </Button>
-                        </Box>
-                      )}
-                    </Box>
-                  </Fade>
-                )}
-
-                {/* Forgot Password */}
-                {loginMethod === 'forgot' && (
-                  <Fade in={loginMethod === 'forgot'} timeout={300}>
-                    <Box>
-                      {resetStep === 'phone' ? (
-                        <Box component="form" onSubmit={handleForgotPassword} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                          <TextField
-                            label="شماره موبایل"
-                            value={forgotPhone}
-                            onChange={(e) => setForgotPhone(formatPhoneNumber(e.target.value))}
-                            required
-                            fullWidth
-                            placeholder="09123456789"
-                            inputProps={{ maxLength: 11 }}
-                            InputProps={{
-                              startAdornment: (
-                                <InputAdornment position="start">
-                                  <Phone sx={{ color: goldenYellow }} />
-                                </InputAdornment>
-                              ),
-                            }}
-                            error={forgotPhone.length > 0 && !validatePhoneNumber(forgotPhone)}
-                            helperText={forgotPhone.length > 0 && !validatePhoneNumber(forgotPhone) ? 'شماره موبایل معتبر نیست' : ''}
-                          />
-                          <Button
-                            type="submit"
-                            variant="contained"
-                            fullWidth
-                            size="large"
-                            disabled={isLoading || !validatePhoneNumber(forgotPhone)}
-                            sx={{
-                              py: 1.5,
-                              fontSize: '1.1rem',
-                              fontWeight: 600,
-                              textTransform: 'none',
-                              borderRadius: 2,
-                              background: gradientBackground,
-                              '&:hover': {
-                                background: gradientBackgroundHover,
-                              },
-                            }}
-                          >
-                            {isLoading ? <CircularProgress size={24} color="inherit" /> : 'ارسال کد بازیابی'}
-                          </Button>
-                        </Box>
-                      ) : (
-                        <Box component="form" onSubmit={handleResetPassword} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                          <Alert
-                            severity="success"
-                            icon={<CheckCircle />}
-                            sx={{ borderRadius: 2 }}
-                          >
-                            کد بازیابی به شماره {forgotPhone} ارسال شد
-                          </Alert>
-                          <TextField
-                            label="کد بازیابی"
-                            value={resetCode}
-                            onChange={(e) => setResetCode(formatOTPCode(e.target.value))}
-                            required
-                            fullWidth
-                            placeholder="123456"
-                            inputProps={{ maxLength: 6, style: { textAlign: 'center', letterSpacing: '0.5em', fontSize: '1.5rem' } }}
-                            InputProps={{
-                              startAdornment: (
-                                <InputAdornment position="start">
-                                  <VpnKey sx={{ color: goldenYellow }} />
-                                </InputAdornment>
-                              ),
-                            }}
-                            error={resetCode.length > 0 && !validateOTPCode(resetCode)}
-                            helperText={resetCode.length > 0 && !validateOTPCode(resetCode) ? 'کد باید 6 رقم باشد' : ''}
-                          />
-                          <TextField
-                            label="رمز عبور جدید"
-                            type={showConfirmPassword ? 'text' : 'password'}
-                            value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
-                            required
-                            fullWidth
-                            InputProps={{
-                              startAdornment: (
-                                <InputAdornment position="start">
-                                  <Lock sx={{ color: goldenYellow }} />
-                                </InputAdornment>
-                              ),
-                              endAdornment: (
-                                <InputAdornment position="end">
-                                  <IconButton
-                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                    edge="end"
-                                    size="small"
-                                  >
-                                    {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
-                                  </IconButton>
-                                </InputAdornment>
-                              ),
-                            }}
-                            error={newPassword.length > 0 && !validatePassword(newPassword)}
-                            helperText={
-                              newPassword.length > 0 && !validatePassword(newPassword)
-                                ? 'رمز عبور باید حداقل 6 کاراکتر باشد'
-                                : 'حداقل 6 کاراکتر'
-                            }
-                          />
-                          {resetCountdown > 0 && (
-                            <Typography variant="body2" color="text.secondary" align="center">
-                              ارسال مجدد کد تا {Math.floor(resetCountdown / 60)}:{(resetCountdown % 60).toString().padStart(2, '0')}
-                </Typography>
-                          )}
-                          <Button
-                            type="submit"
-                            variant="contained"
-                            fullWidth
-                            size="large"
-                            disabled={isLoading || !validateOTPCode(resetCode) || !validatePassword(newPassword)}
-                            sx={{
-                              py: 1.5,
-                              fontSize: '1.1rem',
-                              fontWeight: 600,
-                              textTransform: 'none',
-                              borderRadius: 2,
-                              background: gradientBackground,
-                              '&:hover': {
-                                background: gradientBackgroundHover,
-                              },
-                            }}
-                          >
-                            {isLoading ? <CircularProgress size={24} color="inherit" /> : 'تغییر رمز عبور'}
-                          </Button>
-                          <Button
-                            variant="text"
-                            onClick={() => {
-                              setResetStep('phone');
-                              setResetCountdown(0);
-                            }}
-                            disabled={resetCountdown > 0}
-                            sx={{ textTransform: 'none', color: goldenYellow }}
-                          >
-                            تغییر شماره موبایل
-                          </Button>
-                        </Box>
-                      )}
-                    </Box>
-                  </Fade>
-                )}
-              </TabPanel>
-
-              {/* Register Tab */}
-              <TabPanel value={tabValue} index={1}>
-                <Box component="form" onSubmit={handleRegister} sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6}>
-                      <TextField
-                        label="نام"
-                        value={regFirstName}
-                        onChange={(e) => setRegFirstName(e.target.value)}
-                        required
-                        fullWidth
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <Person sx={{ color: goldenYellow }} />
-                            </InputAdornment>
-                          ),
+                        رفتن به صفحه ورود
+                      </PrimaryButton>
+                      <button
+                        className="rounded-2xl border border-gray-300 px-4 py-3 text-center font-semibold text-gray-700 transition hover:border-primary-200 hover:text-primary-600"
+                        onClick={() => {
+                          resetEstateRegistration();
+                          resetEstateFormFields();
                         }}
-                      />
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <TextField
-                        label="نام خانوادگی"
-                        value={regLastName}
-                        onChange={(e) => setRegLastName(e.target.value)}
-                        required
-                        fullWidth
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <Person sx={{ color: goldenYellow }} />
-                            </InputAdornment>
-                          ),
-                        }}
-                      />
-                    </Grid>
-                  </Grid>
-                  <TextField
-                    label="کد ملی"
-                    value={regNationalId}
-                    onChange={(e) => setRegNationalId(formatNationalId(e.target.value))}
-                    required
-                    fullWidth
-                    inputProps={{ maxLength: 10 }}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Badge sx={{ color: goldenYellow }} />
-                        </InputAdornment>
-                      ),
-                    }}
-                    error={regNationalId.length > 0 && !validateNationalId(regNationalId)}
-                    helperText={regNationalId.length > 0 && !validateNationalId(regNationalId) ? 'کد ملی باید 10 رقم باشد' : ''}
-                  />
-                  <TextField
-                    label="شماره موبایل"
-                    value={regPhone}
-                    onChange={(e) => setRegPhone(formatPhoneNumber(e.target.value))}
-                    required
-                    fullWidth
-                    placeholder="09123456789"
-                    inputProps={{ maxLength: 11 }}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Phone sx={{ color: goldenYellow }} />
-                        </InputAdornment>
-                      ),
-                    }}
-                    error={regPhone.length > 0 && !validatePhoneNumber(regPhone)}
-                    helperText={regPhone.length > 0 && !validatePhoneNumber(regPhone) ? 'شماره موبایل معتبر نیست' : ''}
-                  />
-                  <TextField
-                    label="رمز عبور"
-                    type={showPassword ? 'text' : 'password'}
-                    value={regPassword}
-                    onChange={(e) => setRegPassword(e.target.value)}
-                    required
-                    fullWidth
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Lock sx={{ color: goldenYellow }} />
-                        </InputAdornment>
-                      ),
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <IconButton
-                            onClick={() => setShowPassword(!showPassword)}
-                            edge="end"
-                            size="small"
-                          >
-                            {showPassword ? <VisibilityOff /> : <Visibility />}
-                          </IconButton>
-                        </InputAdornment>
-                      ),
-                    }}
-                    error={regPassword.length > 0 && !validatePassword(regPassword)}
-                    helperText={
-                      regPassword.length > 0 && !validatePassword(regPassword)
-                        ? 'رمز عبور باید حداقل 6 کاراکتر باشد'
-                        : 'حداقل 6 کاراکتر'
-                    }
-                  />
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    fullWidth
-                    size="large"
-                    disabled={
-                      isLoading ||
-                      !validatePhoneNumber(regPhone) ||
-                      !validateNationalId(regNationalId) ||
-                      !validatePassword(regPassword) ||
-                      !regFirstName ||
-                      !regLastName
-                    }
-                    sx={{
-                      py: 1.5,
-                      fontSize: '1.1rem',
-                      fontWeight: 600,
-                      textTransform: 'none',
-                      borderRadius: 2,
-                      mt: 1,
-                      background: gradientBackground,
-                      '&:hover': {
-                        background: gradientBackgroundHover,
-                      },
-                    }}
-                  >
-                    {isLoading ? <CircularProgress size={24} color="inherit" /> : 'ثبت‌نام و ورود'}
-                  </Button>
-                </Box>
-              </TabPanel>
-              </CardContent>
-            </Card>
-        </Fade>
-      </Container>
-    </Box>
+                      >
+                        ثبت درخواست جدید
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <form className="flex flex-col gap-6" onSubmit={handleEstateRegister}>
+                    <div>
+                      <h3 className={sectionTitleClass}>اطلاعات واحد صنفی</h3>
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div>
+                          {renderIconInput({
+                            label: 'شناسه صنفی',
+                            icon: <FiShield />,
+                            value: estateGuildId,
+                            onChange: (e) => setEstateGuildId(formatGuildIdentifier(e.target.value)),
+                            maxLength: 12,
+                            required: true,
+                            errorText: estateGuildId.length > 0 && !validateGuildId(estateGuildId) ? 'شناسه صنفی باید حداقل ۶ رقم باشد' : undefined,
+                          })}
+                        </div>
+                        <div>
+                          {renderIconInput({
+                            label: 'نام واحد صنفی',
+                            icon: <FiUser />,
+                            value: estateName,
+                            onChange: (e) => setEstateName(e.target.value),
+                            required: true,
+                            errorText: estateName.length > 0 && !validateRequiredText(estateName) ? 'حداقل ۳ کاراکتر' : undefined,
+                          })}
+                        </div>
+                        <div>
+                          {renderIconInput({
+                            label: 'تلفن ثابت',
+                            icon: <FiPhone />,
+                            value: estateFixedPhone,
+                            onChange: (e) => setEstateFixedPhone(formatFixedPhoneNumber(e.target.value)),
+                            placeholder: '02144556677',
+                            maxLength: 11,
+                            required: true,
+                            errorText: estateFixedPhone.length > 0 && !validateFixedPhone(estateFixedPhone) ? 'شماره ثابت باید ۱۱ رقم باشد' : undefined,
+                          })}
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="mb-2 block text-sm font-medium text-gray-700">آدرس</label>
+                          <textarea
+                            className={`${inputBaseClass} min-h-[90px]`}
+                            value={estateAddress}
+                            onChange={(e) => setEstateAddress(e.target.value)}
+                            required
+                          />
+                          {estateAddress.length > 0 && !validateRequiredText(estateAddress) && (
+                            <p className="mt-1 text-sm text-red-600">آدرس را کامل‌تر وارد کنید</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className={sectionTitleClass}>مشخصات مدیر املاک</h3>
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div>
+                          {renderIconInput({
+                            label: 'نام',
+                            icon: <FiUser />,
+                            value: adminFirstName,
+                            onChange: (e) => setAdminFirstName(e.target.value),
+                            required: true,
+                            errorText: adminFirstName.length > 0 && !validateRequiredText(adminFirstName) ? 'حداقل ۳ کاراکتر' : undefined,
+                          })}
+                        </div>
+                        <div>
+                          {renderIconInput({
+                            label: 'نام خانوادگی',
+                            icon: <FiUser />,
+                            value: adminLastName,
+                            onChange: (e) => setAdminLastName(e.target.value),
+                            required: true,
+                            errorText: adminLastName.length > 0 && !validateRequiredText(adminLastName) ? 'حداقل ۳ کاراکتر' : undefined,
+                          })}
+                        </div>
+                        <div>
+                          {renderIconInput({
+                            label: 'کد ملی',
+                            icon: <FiShield />,
+                            value: adminNationalId,
+                            onChange: (e) => setAdminNationalId(formatNationalId(e.target.value)),
+                            maxLength: 10,
+                            required: true,
+                            errorText: adminNationalId.length > 0 && !validateNationalId(adminNationalId) ? 'کد ملی باید ۱۰ رقم باشد' : undefined,
+                          })}
+                        </div>
+                        <div>
+                          {renderIconInput({
+                            label: 'شماره موبایل مدیر',
+                            icon: <FiPhone />,
+                            value: adminPhone,
+                            onChange: (e) => setAdminPhone(formatPhoneNumber(e.target.value)),
+                            placeholder: '09120001122',
+                            maxLength: 11,
+                            required: true,
+                            errorText: adminPhone.length > 0 && !validatePhoneNumber(adminPhone) ? 'شماره موبایل معتبر نیست' : undefined,
+                          })}
+                        </div>
+                        <div className="md:col-span-2">
+                          {renderIconInput({
+                            label: 'رمز عبور مدیر',
+                            icon: <FiLock />,
+                            value: adminPassword,
+                            onChange: (e) => setAdminPassword(e.target.value),
+                            type: showPassword ? 'text' : 'password',
+                            isPasswordToggle: true,
+                            showToggle: showPassword,
+                            onToggle: () => setShowPassword((prev) => !prev),
+                            required: true,
+                            errorText: adminPassword.length > 0 && !validatePassword(adminPassword) ? 'حداقل ۶ کاراکتر' : undefined,
+                          })}
+                        </div>
+                      </div>
+                    </div>
+
+                    <PrimaryButton type="submit" disabled={isLoading || !isEstateFormValid()}>
+                      {isLoading ? <Spinner /> : 'ارسال درخواست ثبت املاک'}
+                    </PrimaryButton>
+                  </form>
+                )}
+              </div>
+            </TabPanel>
+          </div>
+        </div>
+      </div>
     </PublicRoute>
   );
 }

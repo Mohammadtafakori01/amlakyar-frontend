@@ -1,7 +1,6 @@
-import { useRouter } from 'next/router';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../../domains/auth/hooks/useAuth';
 import { UserRole } from '../../../shared/types';
-import { Alert, Box } from '@mui/material';
 
 interface RoleGuardProps {
   children: React.ReactNode;
@@ -47,20 +46,28 @@ function hasRoleAccess(userRole: UserRole, allowedRoles: UserRole[]): boolean {
 }
 
 export default function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
-  const router = useRouter();
   const { user } = useAuth();
+  const [showAlert, setShowAlert] = useState(false);
+
+  useEffect(() => {
+    if (user && !hasRoleAccess(user.role, allowedRoles)) {
+      setShowAlert(true);
+    } else {
+      setShowAlert(false);
+    }
+  }, [user, allowedRoles]);
 
   if (!user) {
     return null;
   }
 
-  if (!hasRoleAccess(user.role, allowedRoles)) {
+  if (showAlert) {
     return (
-      <Box sx={{ p: 3 }}>
-        <Alert severity="error">
+      <div className="p-4">
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-right text-red-800">
           شما دسترسی به این صفحه را ندارید.
-        </Alert>
-      </Box>
+        </div>
+      </div>
     );
   }
 

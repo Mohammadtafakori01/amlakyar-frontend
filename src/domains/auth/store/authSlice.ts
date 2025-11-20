@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { authApi } from '../api/authApi';
-import { AuthState, User, LoginRequest, RegisterCustomerRequest, SendOTPRequest, VerifyOTPRequest, ForgotPasswordRequest, ResetPasswordRequest, RefreshTokenRequest, RegisterConsultantRequest, RegisterMemberRequest, RegisterAdminRequest } from '../types';
+import { estatesApi } from '../../estates/api/estatesApi';
+import { AuthState, User, LoginRequest, RegisterCustomerRequest, SendOTPRequest, VerifyOTPRequest, ForgotPasswordRequest, ResetPasswordRequest, RefreshTokenRequest, RegisterConsultantRequest, RegisterMemberRequest, RegisterAdminRequest, RegisterEstateRequest, Estate } from '../types';
 
 // Helper function to get user from localStorage
 const getUserFromStorage = (): User | null => {
@@ -14,6 +15,12 @@ const getUserFromStorage = (): User | null => {
   }
 };
 
+const ESTATE_PENDING_ERROR = 'Your estate is waiting for Master approval.';
+const ESTATE_REJECTED_ERROR = 'Your estate request was rejected.';
+
+const isEstateStatusMessage = (message?: string): boolean =>
+  !!message && (message === ESTATE_PENDING_ERROR || message === ESTATE_REJECTED_ERROR);
+
 const initialState: AuthState = {
   user: typeof window !== 'undefined' ? getUserFromStorage() : null,
   accessToken: typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null,
@@ -24,6 +31,11 @@ const initialState: AuthState = {
     : false,
   isLoading: false,
   error: null,
+  estateStatusMessage: null,
+  estateRegistrationSuccess: false,
+  estateRegistrationError: null,
+  lastRegisteredEstate: null,
+  resetPasswordMessage: null,
 };
 
 // Async thunks
@@ -57,6 +69,20 @@ export const registerCustomer = createAsyncThunk(
       return response;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'خطا در ثبت‌نام');
+    }
+  }
+);
+
+export const registerEstate = createAsyncThunk(
+  'auth/registerEstate',
+  async (data: RegisterEstateRequest, { rejectWithValue }) => {
+    try {
+      const estate = await estatesApi.registerEstate(data);
+      return estate;
+    } catch (error: any) {
+      const message = error.response?.data?.message;
+      const errorMsg = Array.isArray(message) ? message.join(', ') : (message || 'خطا در ثبت املاک');
+      return rejectWithValue(errorMsg);
     }
   }
 );
@@ -104,7 +130,8 @@ export const resetPassword = createAsyncThunk(
   'auth/resetPassword',
   async (data: ResetPasswordRequest, { rejectWithValue }) => {
     try {
-      await authApi.resetPassword(data);
+      const response = await authApi.resetPassword(data);
+      return response.message;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'خطا در تغییر رمز عبور');
     }
@@ -183,6 +210,10 @@ const authSlice = createSlice({
       state.accessToken = null;
       state.refreshToken = null;
       state.isAuthenticated = false;
+      state.estateStatusMessage = null;
+      state.estateRegistrationSuccess = false;
+      state.estateRegistrationError = null;
+      state.lastRegisteredEstate = null;
       if (typeof window !== 'undefined') {
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
@@ -192,6 +223,7 @@ const authSlice = createSlice({
     setUser: (state, action: PayloadAction<User>) => {
       state.user = action.payload;
       state.isAuthenticated = true;
+      state.estateStatusMessage = null;
       // Save user to localStorage when setUser is called
       if (typeof window !== 'undefined') {
         localStorage.setItem('user', JSON.stringify(action.payload));
@@ -199,6 +231,18 @@ const authSlice = createSlice({
     },
     clearError: (state) => {
       state.error = null;
+      state.estateStatusMessage = null;
+    },
+    clearEstateStatusMessage: (state) => {
+      state.estateStatusMessage = null;
+    },
+    clearResetPasswordMessage: (state) => {
+      state.resetPasswordMessage = null;
+    },
+    resetEstateRegistration: (state) => {
+      state.estateRegistrationSuccess = false;
+      state.estateRegistrationError = null;
+      state.lastRegisteredEstate = null;
     },
     restoreAuth: (state) => {
       // Restore tokens and user from localStorage on app initialization/refresh
@@ -216,6 +260,7 @@ const authSlice = createSlice({
         if (user) {
           state.user = user;
           state.isAuthenticated = true;
+          state.estateStatusMessage = null;
         }
       }
     },
@@ -226,6 +271,7 @@ const authSlice = createSlice({
       .addCase(login.pending, (state) => {
         state.isLoading = true;
         state.error = null;
+        state.estateStatusMessage = null;
       })
       .addCase(login.fulfilled, (state, action) => {
         state.isLoading = false;
@@ -234,10 +280,17 @@ const authSlice = createSlice({
         state.refreshToken = action.payload.refreshToken;
         state.isAuthenticated = true;
         state.error = null;
+        state.estateStatusMessage = null;
       })
       .addCase(login.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload as string;
+        const message = action.payload as string;
+        if (isEstateStatusMessage(message)) {
+          state.estateStatusMessage = message;
+          state.error = null;
+        } else {
+          state.error = message;
+        }
       });
 
     // Register Customer
@@ -259,11 +312,32 @@ const authSlice = createSlice({
         state.error = action.payload as string;
       });
 
+    // Register Estate
+    builder
+      .addCase(registerEstate.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+        state.estateRegistrationError = null;
+        state.estateRegistrationSuccess = false;
+      })
+      .addCase(registerEstate.fulfilled, (state, action: PayloadAction<Estate>) => {
+        state.isLoading = false;
+        state.estateRegistrationSuccess = true;
+        state.lastRegisteredEstate = action.payload;
+        state.estateRegistrationError = null;
+      })
+      .addCase(registerEstate.rejected, (state, action) => {
+        state.isLoading = false;
+        state.estateRegistrationSuccess = false;
+        state.estateRegistrationError = action.payload as string;
+      });
+
     // Verify OTP
     builder
       .addCase(verifyOTP.pending, (state) => {
         state.isLoading = true;
         state.error = null;
+        state.estateStatusMessage = null;
       })
       .addCase(verifyOTP.fulfilled, (state, action) => {
         state.isLoading = false;
@@ -272,9 +346,34 @@ const authSlice = createSlice({
         state.refreshToken = action.payload.refreshToken;
         state.isAuthenticated = true;
         state.error = null;
+        state.estateStatusMessage = null;
       })
       .addCase(verifyOTP.rejected, (state, action) => {
         state.isLoading = false;
+        const message = action.payload as string;
+        if (isEstateStatusMessage(message)) {
+          state.estateStatusMessage = message;
+          state.error = null;
+        } else {
+          state.error = message;
+        }
+      });
+
+    // Reset Password
+    builder
+      .addCase(resetPassword.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+        state.resetPasswordMessage = null;
+      })
+      .addCase(resetPassword.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.resetPasswordMessage = action.payload;
+        state.error = null;
+      })
+      .addCase(resetPassword.rejected, (state, action) => {
+        state.isLoading = false;
+        state.resetPasswordMessage = null;
         state.error = action.payload as string;
       });
 
@@ -289,6 +388,6 @@ const authSlice = createSlice({
   },
 });
 
-export const { logout, setUser, clearError, restoreAuth } = authSlice.actions;
+export const { logout, setUser, clearError, restoreAuth, clearEstateStatusMessage, clearResetPasswordMessage, resetEstateRegistration } = authSlice.actions;
 export default authSlice.reducer;
 

@@ -1,11 +1,12 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { usersApi } from '../api/usersApi';
-import { UsersState, User, CreateUserRequest, UpdateUserRequest, UserFilters } from '../types';
+import { UsersState, User, CreateUserRequest, UpdateUserRequest, UserFilters, CreateStaffRequest, PaginatedResponse } from '../types';
 
 const initialState: UsersState = {
   users: [],
   selectedUser: null,
   filters: {},
+  pagination: null,
   isLoading: false,
   error: null,
 };
@@ -15,8 +16,8 @@ export const fetchUsers = createAsyncThunk(
   'users/fetchUsers',
   async (filters?: UserFilters, { rejectWithValue }) => {
     try {
-      const users = await usersApi.getAllUsers(filters);
-      return users;
+      const response = await usersApi.getAllUsers(filters);
+      return response;
     } catch (error: any) {
       const message = error.response?.data?.message;
       const errorMsg = Array.isArray(message) ? message.join(', ') : (message || 'خطا در دریافت لیست کاربران');
@@ -49,6 +50,19 @@ export const createUser = createAsyncThunk(
   }
 );
 
+export const createStaff = createAsyncThunk(
+  'users/createStaff',
+  async (data: CreateStaffRequest, { rejectWithValue }) => {
+    try {
+      const user = await usersApi.createStaff(data);
+      return user;
+    } catch (error: any) {
+      const message = error.response?.data?.message;
+      const errorMsg = Array.isArray(message) ? message.join(', ') : (message || 'خطا در ایجاد کاربر');
+      return rejectWithValue(errorMsg);
+    }
+  }
+);
 export const updateUser = createAsyncThunk(
   'users/updateUser',
   async ({ id, data }: { id: string; data: UpdateUserRequest }, { rejectWithValue }) => {
@@ -96,7 +110,8 @@ const usersSlice = createSlice({
       })
       .addCase(fetchUsers.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.users = action.payload;
+        state.users = action.payload.data;
+        state.pagination = action.payload.meta;
         state.error = null;
       })
       .addCase(fetchUsers.rejected, (state, action) => {
@@ -132,6 +147,22 @@ const usersSlice = createSlice({
         state.error = null;
       })
       .addCase(createUser.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      });
+
+    // Create Staff
+    builder
+      .addCase(createStaff.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(createStaff.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.users.push(action.payload);
+        state.error = null;
+      })
+      .addCase(createStaff.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
       });

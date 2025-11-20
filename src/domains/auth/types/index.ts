@@ -1,4 +1,4 @@
-import { User, AuthResponse, LoginRequest, RegisterCustomerRequest, SendOTPRequest, VerifyOTPRequest, ForgotPasswordRequest, ResetPasswordRequest, RefreshTokenRequest, RegisterConsultantRequest, RegisterMemberRequest, RegisterAdminRequest } from '../../../shared/types';
+import { User, AuthResponse, LoginRequest, RegisterCustomerRequest, SendOTPRequest, VerifyOTPRequest, ForgotPasswordRequest, ResetPasswordRequest, RefreshTokenRequest, RegisterConsultantRequest, RegisterMemberRequest, RegisterAdminRequest, RegisterEstateRequest, Estate } from '../../../shared/types';
 
 export interface AuthState {
   user: User | null;
@@ -7,6 +7,11 @@ export interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  estateStatusMessage: string | null;
+  estateRegistrationSuccess: boolean;
+  estateRegistrationError: string | null;
+  lastRegisteredEstate: Estate | null;
+  resetPasswordMessage: string | null;
 }
 
 export type {
@@ -22,5 +27,7 @@ export type {
   RegisterConsultantRequest,
   RegisterMemberRequest,
   RegisterAdminRequest,
+  RegisterEstateRequest,
+  Estate,
 };
 

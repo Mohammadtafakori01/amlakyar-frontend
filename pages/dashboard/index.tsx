@@ -1,30 +1,34 @@
-import { useEffect } from 'react';
-import { useRouter } from 'next/router';
-import {
-  Box,
-  Typography,
-  Grid,
-  Card,
-  CardContent,
-  Paper,
-} from '@mui/material';
+import { useEffect, useRef } from 'react';
 import DashboardLayout from '../../src/shared/components/Layout/DashboardLayout';
 import PrivateRoute from '../../src/shared/components/guards/PrivateRoute';
 import { useAuth } from '../../src/domains/auth/hooks/useAuth';
 import { useProfile } from '../../src/domains/profile/hooks/useProfile';
-import { UserRole } from '../../src/shared/types';
+import { UserRole, EstateStatus } from '../../src/shared/types';
 import Loading from '../../src/shared/components/common/Loading';
+import { useEstates } from '../../src/domains/estates/hooks/useEstates';
 
 export default function Dashboard() {
-  const router = useRouter();
   const { user, isAuthenticated } = useAuth();
   const { profile, fetchProfile, isLoading: profileLoading } = useProfile();
+  const {
+    currentEstate,
+    isCurrentEstateLoading,
+    fetchCurrentEstate,
+  } = useEstates();
+  const estateFetchRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (isAuthenticated && user && !profile && !profileLoading) {
       fetchProfile();
     }
   }, [isAuthenticated, user, profile, profileLoading, fetchProfile]);
+
+  useEffect(() => {
+    if (user?.estateId && estateFetchRef.current !== user.estateId) {
+      estateFetchRef.current = user.estateId;
+      fetchCurrentEstate(user.estateId);
+    }
+  }, [user?.estateId, fetchCurrentEstate]);
 
   const getRoleLabel = (role: UserRole): string => {
     const labels: Record<UserRole, string> = {
@@ -50,90 +54,117 @@ export default function Dashboard() {
     return messages[role] || 'به داشبورد خوش آمدید';
   };
 
+  const pillClass = (tone: 'success' | 'warning' | 'error' | 'neutral') => {
+    const map: Record<typeof tone, string> = {
+      success: 'bg-green-100 text-green-700 border-green-200',
+      warning: 'bg-amber-100 text-amber-700 border-amber-200',
+      error: 'bg-red-100 text-red-700 border-red-200',
+      neutral: 'bg-gray-100 text-gray-600 border-gray-200',
+    };
+    return `inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${map[tone]}`;
+  };
+
+  const estateStatusLabel = () => {
+    if (currentEstate?.status === EstateStatus.APPROVED || user.isApproved) return { label: 'تایید شده', tone: 'success' as const };
+    if (currentEstate?.status === EstateStatus.REJECTED) return { label: 'رد شده', tone: 'error' as const };
+    return { label: 'در انتظار تایید', tone: 'warning' as const };
+  };
+
+  const accessMessages: Record<UserRole, string> = {
+    [UserRole.CUSTOMER]: 'شما به عنوان مشتری می‌توانید پروفایل خود را مشاهده کنید.',
+    [UserRole.CONSULTANT]: 'شما به عنوان مشاور می‌توانید پروفایل خود را مشاهده کنید.',
+    [UserRole.SECRETARY]: 'شما به عنوان منشی می‌توانید پروفایل خود را مشاهده کنید.',
+    [UserRole.SUPERVISOR]: 'شما می‌توانید مشاوران را ثبت و مدیریت کنید.',
+    [UserRole.ADMIN]: 'شما می‌توانید اعضای املاک را ثبت و مدیریت کنید.',
+    [UserRole.MASTER]: 'شما دسترسی کامل به تمام بخش‌های سیستم دارید.',
+  };
+
   return (
     <PrivateRoute>
       <DashboardLayout>
         {profileLoading ? (
           <Loading />
         ) : (
-          <Box>
-            <Typography variant="h4" gutterBottom sx={{ textAlign: 'right', direction: 'rtl' }}>
-              {getWelcomeMessage(user.role)}
-            </Typography>
-            <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-              {user.firstName} {user.lastName} - {getRoleLabel(user.role)}
-            </Typography>
+          <div className="space-y-6 text-right">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">{getWelcomeMessage(user.role)}</h1>
+              <p className="mt-1 text-gray-500">
+                {user.firstName} {user.lastName} - {getRoleLabel(user.role)}
+              </p>
+              <div className="mt-4 flex flex-wrap justify-end gap-2">
+                <span className={pillClass(user.isActive ? 'success' : 'neutral')}>
+                  {user.isActive ? 'حساب فعال' : 'حساب غیرفعال'}
+                </span>
+                <span className={pillClass(estateStatusLabel().tone)}>{estateStatusLabel().label}</span>
+              </div>
+            </div>
 
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h6" gutterBottom sx={{ textAlign: 'right', direction: 'rtl' }}>
-                      اطلاعات کاربری
-                    </Typography>
-                    {profile && (
-                      <Box sx={{ mt: 2 }}>
-                        <Typography variant="body2" color="text.secondary">
-                          نام: {profile.firstName} {profile.lastName}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          شماره موبایل: {profile.phoneNumber}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          کد ملی: {profile.nationalId}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          نقش: {getRoleLabel(profile.role)}
-                        </Typography>
-                      </Box>
-                    )}
-                  </CardContent>
-                </Card>
-              </Grid>
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                <h2 className="text-xl font-semibold text-gray-800">اطلاعات کاربری</h2>
+                {profile ? (
+                  <dl className="mt-4 space-y-2 text-sm text-gray-600">
+                    <div>
+                      <dt className="font-medium text-gray-800">نام</dt>
+                      <dd>{profile.firstName} {profile.lastName}</dd>
+                    </div>
+                    <div>
+                      <dt className="font-medium text-gray-800">شماره موبایل</dt>
+                      <dd>{profile.phoneNumber}</dd>
+                    </div>
+                    <div>
+                      <dt className="font-medium text-gray-800">کد ملی</dt>
+                      <dd>{profile.nationalId}</dd>
+                    </div>
+                    <div>
+                      <dt className="font-medium text-gray-800">نقش</dt>
+                      <dd>{getRoleLabel(profile.role)}</dd>
+                    </div>
+                  </dl>
+                ) : (
+                  <p className="mt-4 text-sm text-gray-500">اطلاعات پروفایل در دسترس نیست.</p>
+                )}
+              </div>
 
-              <Grid item xs={12} md={6}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h6" gutterBottom sx={{ textAlign: 'right', direction: 'rtl' }}>
-                      دسترسی‌ها
-                    </Typography>
-                    <Box sx={{ mt: 2 }}>
-                      {user.role === UserRole.CUSTOMER && (
-                        <Typography variant="body2" color="text.secondary">
-                          شما به عنوان مشتری می‌توانید پروفایل خود را مشاهده کنید.
-                        </Typography>
-                      )}
-                      {user.role === UserRole.CONSULTANT && (
-                        <Typography variant="body2" color="text.secondary">
-                          شما به عنوان مشاور می‌توانید پروفایل خود را مشاهده کنید.
-                        </Typography>
-                      )}
-                      {user.role === UserRole.SECRETARY && (
-                        <Typography variant="body2" color="text.secondary">
-                          شما به عنوان منشی می‌توانید پروفایل خود را مشاهده کنید.
-                        </Typography>
-                      )}
-                      {user.role === UserRole.SUPERVISOR && (
-                        <Typography variant="body2" color="text.secondary">
-                          شما می‌توانید مشاوران را ثبت و مدیریت کنید.
-                        </Typography>
-                      )}
-                      {user.role === UserRole.ADMIN && (
-                        <Typography variant="body2" color="text.secondary">
-                          شما می‌توانید اعضای املاک را ثبت و مدیریت کنید.
-                        </Typography>
-                      )}
-                      {user.role === UserRole.MASTER && (
-                        <Typography variant="body2" color="text.secondary">
-                          شما دسترسی کامل به تمام بخش‌های سیستم دارید.
-                        </Typography>
-                      )}
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Grid>
-            </Grid>
-          </Box>
+              {user.estateId && (
+                <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                  <h2 className="text-xl font-semibold text-gray-800">وضعیت املاک شما</h2>
+                  {isCurrentEstateLoading && !currentEstate ? (
+                    <Loading />
+                  ) : currentEstate ? (
+                    <div className="mt-4 space-y-2 text-sm text-gray-600">
+                      <span className={pillClass(estateStatusLabel().tone)}>{estateStatusLabel().label}</span>
+                      <p>نام واحد: {currentEstate.establishmentName}</p>
+                      <p>شناسه صنفی: {currentEstate.guildId}</p>
+                      <p>تلفن ثابت: {currentEstate.fixedPhone}</p>
+                      <p>آدرس: {currentEstate.address}</p>
+                    </div>
+                  ) : (
+                    <p className="mt-4 text-sm text-gray-500">اطلاعاتی برای املاک شما یافت نشد.</p>
+                  )}
+
+                  {user.role === UserRole.ADMIN && currentEstate?.status === EstateStatus.PENDING && (
+                    <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                      درخواست ثبت املاک شما در انتظار تایید مستر است. به محض تایید، دسترسی کامل فعال می‌شود.
+                    </div>
+                  )}
+
+                  {user.role === UserRole.ADMIN && currentEstate?.status === EstateStatus.REJECTED && (
+                    <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 space-y-2">
+                      <p>درخواست ثبت املاک شما رد شده است.</p>
+                      {currentEstate.rejectionReason && <p>علت رد: {currentEstate.rejectionReason}</p>}
+                      <p>لطفا پس از اصلاح اطلاعات دوباره اقدام کنید یا با پشتیبانی تماس بگیرید.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                <h2 className="text-xl font-semibold text-gray-800">دسترسی‌ها</h2>
+                <p className="mt-3 text-sm text-gray-600">{accessMessages[user.role]}</p>
+              </div>
+            </div>
+          </div>
         )}
       </DashboardLayout>
     </PrivateRoute>

@@ -18,3 +18,18 @@ export const validateOTPCode = (code: string): boolean => {
   return /^\d{6}$/.test(code);
 };
 
+// Guild ID validation (6-12 digits)
+export const validateGuildId = (guildId: string): boolean => {
+  return /^\d{6,12}$/.test(guildId);
+};
+
+// Fixed phone validation (starts with 0 and 11 digits)
+export const validateFixedPhone = (phone: string): boolean => {
+  return /^0\d{10}$/.test(phone);
+};
+
+// Generic required text (min 3 chars when trimmed)
+export const validateRequiredText = (value: string): boolean => {
+  return value.trim().length >= 3;
+};
+
