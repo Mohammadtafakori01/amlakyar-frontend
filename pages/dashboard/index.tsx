@@ -65,7 +65,8 @@ export default function Dashboard() {
   };
 
   const estateStatusLabel = () => {
-    if (currentEstate?.status === EstateStatus.APPROVED || user.isApproved) return { label: 'تایید شده', tone: 'success' as const };
+    const userData = profile || user;
+    if (currentEstate?.status === EstateStatus.APPROVED || userData?.isApproved) return { label: 'تایید شده', tone: 'success' as const };
     if (currentEstate?.status === EstateStatus.REJECTED) return { label: 'رد شده', tone: 'error' as const };
     return { label: 'در انتظار تایید', tone: 'warning' as const };
   };
@@ -84,19 +85,31 @@ export default function Dashboard() {
       <DashboardLayout>
         {profileLoading ? (
           <Loading />
+        ) : !profile && !user ? (
+          <div className="space-y-6 text-right">
+            <p className="text-gray-500">در حال بارگذاری اطلاعات کاربر...</p>
+          </div>
         ) : (
           <div className="space-y-6 text-right">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">{getWelcomeMessage(user.role)}</h1>
-              <p className="mt-1 text-gray-500">
-                {user.firstName} {user.lastName} - {getRoleLabel(user.role)}
-              </p>
-              <div className="mt-4 flex flex-wrap justify-end gap-2">
-                <span className={pillClass(user.isActive ? 'success' : 'neutral')}>
-                  {user.isActive ? 'حساب فعال' : 'حساب غیرفعال'}
-                </span>
-                <span className={pillClass(estateStatusLabel().tone)}>{estateStatusLabel().label}</span>
-              </div>
+              {(() => {
+                const userData = profile || user;
+                if (!userData) return null;
+                return (
+                  <>
+                    <h1 className="text-3xl font-bold text-gray-900">{getWelcomeMessage(userData.role)}</h1>
+                    <p className="mt-1 text-gray-500">
+                      {userData.firstName} {userData.lastName} - {getRoleLabel(userData.role)}
+                    </p>
+                    <div className="mt-4 flex flex-wrap justify-end gap-2">
+                      <span className={pillClass(userData.isActive ? 'success' : 'neutral')}>
+                        {userData.isActive ? 'حساب فعال' : 'حساب غیرفعال'}
+                      </span>
+                      <span className={pillClass(estateStatusLabel().tone)}>{estateStatusLabel().label}</span>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -126,43 +139,51 @@ export default function Dashboard() {
                 )}
               </div>
 
-              {user.estateId && (
-                <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-                  <h2 className="text-xl font-semibold text-gray-800">وضعیت املاک شما</h2>
-                  {isCurrentEstateLoading && !currentEstate ? (
-                    <Loading />
-                  ) : currentEstate ? (
-                    <div className="mt-4 space-y-2 text-sm text-gray-600">
-                      <span className={pillClass(estateStatusLabel().tone)}>{estateStatusLabel().label}</span>
-                      <p>نام واحد: {currentEstate.establishmentName}</p>
-                      <p>شناسه صنفی: {currentEstate.guildId}</p>
-                      <p>تلفن ثابت: {currentEstate.fixedPhone}</p>
-                      <p>آدرس: {currentEstate.address}</p>
-                    </div>
-                  ) : (
-                    <p className="mt-4 text-sm text-gray-500">اطلاعاتی برای املاک شما یافت نشد.</p>
-                  )}
+              {(() => {
+                const userData = profile || user;
+                if (!userData) return null;
+                return (
+                  <>
+                    {userData.estateId && (
+                      <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                        <h2 className="text-xl font-semibold text-gray-800">وضعیت املاک شما</h2>
+                        {isCurrentEstateLoading && !currentEstate ? (
+                          <Loading />
+                        ) : currentEstate ? (
+                          <div className="mt-4 space-y-2 text-sm text-gray-600">
+                            <span className={pillClass(estateStatusLabel().tone)}>{estateStatusLabel().label}</span>
+                            <p>نام واحد: {currentEstate.establishmentName}</p>
+                            <p>شناسه صنفی: {currentEstate.guildId}</p>
+                            <p>تلفن ثابت: {currentEstate.fixedPhone}</p>
+                            <p>آدرس: {currentEstate.address}</p>
+                          </div>
+                        ) : (
+                          <p className="mt-4 text-sm text-gray-500">اطلاعاتی برای املاک شما یافت نشد.</p>
+                        )}
 
-                  {user.role === UserRole.ADMIN && currentEstate?.status === EstateStatus.PENDING && (
-                    <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-                      درخواست ثبت املاک شما در انتظار تایید مستر است. به محض تایید، دسترسی کامل فعال می‌شود.
-                    </div>
-                  )}
+                        {userData.role === UserRole.ADMIN && currentEstate?.status === EstateStatus.PENDING && (
+                          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                            درخواست ثبت املاک شما در انتظار تایید مستر است. به محض تایید، دسترسی کامل فعال می‌شود.
+                          </div>
+                        )}
 
-                  {user.role === UserRole.ADMIN && currentEstate?.status === EstateStatus.REJECTED && (
-                    <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 space-y-2">
-                      <p>درخواست ثبت املاک شما رد شده است.</p>
-                      {currentEstate.rejectionReason && <p>علت رد: {currentEstate.rejectionReason}</p>}
-                      <p>لطفا پس از اصلاح اطلاعات دوباره اقدام کنید یا با پشتیبانی تماس بگیرید.</p>
-                    </div>
-                  )}
-                </div>
-              )}
+                        {userData.role === UserRole.ADMIN && currentEstate?.status === EstateStatus.REJECTED && (
+                          <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 space-y-2">
+                            <p>درخواست ثبت املاک شما رد شده است.</p>
+                            {currentEstate.rejectionReason && <p>علت رد: {currentEstate.rejectionReason}</p>}
+                            <p>لطفا پس از اصلاح اطلاعات دوباره اقدام کنید یا با پشتیبانی تماس بگیرید.</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
-              <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-                <h2 className="text-xl font-semibold text-gray-800">دسترسی‌ها</h2>
-                <p className="mt-3 text-sm text-gray-600">{accessMessages[user.role]}</p>
-              </div>
+                    <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                      <h2 className="text-xl font-semibold text-gray-800">دسترسی‌ها</h2>
+                      <p className="mt-3 text-sm text-gray-600">{accessMessages[userData.role] || 'دسترسی‌های شما در حال بارگذاری است...'}</p>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </div>
         )}

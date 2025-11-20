@@ -12,7 +12,7 @@ import {
 } from 'react-icons/fi';
 import { useDispatch } from 'react-redux';
 import { AppDispatch } from '../src/app/store';
-import { login, registerEstate, sendOTP, verifyOTP, forgotPassword, resetPassword } from '../src/domains/auth/store/authSlice';
+import { login, registerCustomer, registerEstate, sendOTP, verifyOTP, forgotPassword, resetPassword } from '../src/domains/auth/store/authSlice';
 import { useAuth } from '../src/domains/auth/hooks/useAuth';
 import ErrorDisplay from '../src/shared/components/common/ErrorDisplay';
 import PublicRoute from '../src/shared/components/guards/PublicRoute';
@@ -93,11 +93,22 @@ export default function Home() {
   const [tabValue, setTabValue] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showCustomerPassword, setShowCustomerPassword] = useState(false);
+  const [showCustomerConfirmPassword, setShowCustomerConfirmPassword] = useState(false);
   const [loginMethod, setLoginMethod] = useState<'password' | 'otp' | 'forgot'>('password');
+  const [registrationType, setRegistrationType] = useState<'customer' | 'estate'>('customer');
 
   // Login form
   const [loginPhone, setLoginPhone] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+
+  // Customer registration form
+  const [customerFirstName, setCustomerFirstName] = useState('');
+  const [customerLastName, setCustomerLastName] = useState('');
+  const [customerNationalId, setCustomerNationalId] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerPassword, setCustomerPassword] = useState('');
+  const [customerConfirmPassword, setCustomerConfirmPassword] = useState('');
 
   // Estate registration form
   const [estateGuildId, setEstateGuildId] = useState('');
@@ -155,6 +166,8 @@ export default function Home() {
       setResetStep('phone');
       setOtpCountdown(0);
       setResetCountdown(0);
+    } else if (newValue === 1) {
+      setRegistrationType('customer');
     }
   };
 
@@ -177,6 +190,32 @@ export default function Home() {
       return;
     }
     await dispatch(login({ phoneNumber: loginPhone, password: loginPassword }));
+  };
+
+  const handleCustomerRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    clearEstateStatusMessage();
+    clearResetPasswordMessage();
+    
+    if (!validatePhoneNumber(customerPhone) || 
+        !validateNationalId(customerNationalId) ||
+        !validatePassword(customerPassword) ||
+        !validateRequiredText(customerFirstName) ||
+        !validateRequiredText(customerLastName)) {
+      return;
+    }
+    
+    if (customerPassword !== customerConfirmPassword) {
+      return;
+    }
+    
+    await dispatch(registerCustomer({
+      firstName: customerFirstName.trim(),
+      lastName: customerLastName.trim(),
+      nationalId: customerNationalId,
+      phoneNumber: customerPhone,
+      password: customerPassword,
+    }));
   };
 
   const handleEstateRegister = async (e: React.FormEvent) => {
@@ -433,6 +472,27 @@ export default function Home() {
               ))}
             </div>
 
+            {/* Customer/Estate Registration Toggle */}
+            {tabValue === 1 && (
+              <div className="mt-4 grid grid-cols-2 gap-1 rounded-2xl border border-gray-100 bg-gray-50 p-1 text-sm font-semibold text-gray-500">
+                {[
+                  { label: 'مشتری', icon: <FiUser className="h-4 w-4" />, value: 'customer' as const },
+                  { label: 'املاک', icon: <FiBriefcase className="h-4 w-4" />, value: 'estate' as const },
+                ].map(({ label, icon, value }) => (
+                  <button
+                    key={label}
+                    onClick={() => setRegistrationType(value)}
+                    className={`flex items-center justify-center gap-2 rounded-2xl px-3 py-2 transition ${
+                      registrationType === value ? 'bg-white text-primary-700 shadow' : 'hover:text-gray-700'
+                    }`}
+                  >
+                    {icon}
+                    <span>{label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
             <ErrorDisplay error={error} />
 
             <TabPanel value={tabValue} index={0}>
@@ -648,6 +708,97 @@ export default function Home() {
             </TabPanel>
 
             <TabPanel value={tabValue} index={1}>
+              {registrationType === 'customer' ? (
+                <div className="flex flex-col gap-4">
+                  <AlertBox variant="info" icon={<FiUser className="text-xl" />}>
+                    برای ثبت‌نام به عنوان مشتری، اطلاعات خود را وارد کنید. پس از ثبت‌نام، می‌توانید از تمام امکانات پلتفرم استفاده کنید.
+                  </AlertBox>
+
+                  {error && (
+                    <AlertBox variant="error">{error}</AlertBox>
+                  )}
+
+                  <form className="flex flex-col gap-4" onSubmit={handleCustomerRegister}>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      {renderIconInput({
+                        label: 'نام',
+                        icon: <FiUser />,
+                        value: customerFirstName,
+                        onChange: (e) => setCustomerFirstName(e.target.value),
+                        required: true,
+                        errorText: customerFirstName.length > 0 && !validateRequiredText(customerFirstName) ? 'حداقل ۳ کاراکتر' : undefined,
+                      })}
+                      {renderIconInput({
+                        label: 'نام خانوادگی',
+                        icon: <FiUser />,
+                        value: customerLastName,
+                        onChange: (e) => setCustomerLastName(e.target.value),
+                        required: true,
+                        errorText: customerLastName.length > 0 && !validateRequiredText(customerLastName) ? 'حداقل ۳ کاراکتر' : undefined,
+                      })}
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      {renderIconInput({
+                        label: 'کد ملی',
+                        icon: <FiShield />,
+                        value: customerNationalId,
+                        onChange: (e) => setCustomerNationalId(formatNationalId(e.target.value)),
+                        maxLength: 10,
+                        required: true,
+                        errorText: customerNationalId.length > 0 && !validateNationalId(customerNationalId) ? 'کد ملی باید ۱۰ رقم باشد' : undefined,
+                      })}
+                      {renderIconInput({
+                        label: 'شماره موبایل',
+                        icon: <FiPhone />,
+                        value: customerPhone,
+                        onChange: (e) => setCustomerPhone(formatPhoneNumber(e.target.value)),
+                        placeholder: '09123456789',
+                        maxLength: 11,
+                        required: true,
+                        errorText: customerPhone.length > 0 && !validatePhoneNumber(customerPhone) ? 'شماره موبایل معتبر نیست' : undefined,
+                      })}
+                    </div>
+                    {renderIconInput({
+                      label: 'رمز عبور',
+                      icon: <FiLock />,
+                      type: showCustomerPassword ? 'text' : 'password',
+                      value: customerPassword,
+                      onChange: (e) => setCustomerPassword(e.target.value),
+                      required: true,
+                      isPasswordToggle: true,
+                      showToggle: showCustomerPassword,
+                      onToggle: () => setShowCustomerPassword((prev) => !prev),
+                      errorText: customerPassword.length > 0 && !validatePassword(customerPassword) ? 'رمز عبور باید حداقل ۶ کاراکتر باشد' : undefined,
+                    })}
+                    {renderIconInput({
+                      label: 'تکرار رمز عبور',
+                      icon: <FiLock />,
+                      type: showCustomerConfirmPassword ? 'text' : 'password',
+                      value: customerConfirmPassword,
+                      onChange: (e) => setCustomerConfirmPassword(e.target.value),
+                      required: true,
+                      isPasswordToggle: true,
+                      showToggle: showCustomerConfirmPassword,
+                      onToggle: () => setShowCustomerConfirmPassword((prev) => !prev),
+                      errorText: customerConfirmPassword.length > 0 && customerPassword !== customerConfirmPassword ? 'رمز عبور با تکرار آن یکسان نیست' : undefined,
+                    })}
+                    <PrimaryButton
+                      type="submit"
+                      disabled={
+                        isLoading ||
+                        !validatePhoneNumber(customerPhone) ||
+                        !validateNationalId(customerNationalId) ||
+                        !validatePassword(customerPassword) ||
+                        !validateRequiredText(customerFirstName) ||
+                        !validateRequiredText(customerLastName) ||
+                        customerPassword !== customerConfirmPassword
+                      }
+                    >
+                      {isLoading ? <Spinner /> : 'ثبت‌نام'}
+                    </PrimaryButton>
+                  </form>
+                </div>
+              ) : (
               <div className="flex flex-col gap-4">
                 <AlertBox variant="info" icon={<FiBriefcase className="text-xl" />}>
                   برای دسترسی به پنل املاک ابتدا اطلاعات واحد صنفی و مدیر خود را ثبت کنید. پس از تأیید مستر، مدیر املاک فعال خواهد شد.
@@ -808,6 +959,7 @@ export default function Home() {
                   </form>
                 )}
               </div>
+              )}
             </TabPanel>
           </div>
         </div>
