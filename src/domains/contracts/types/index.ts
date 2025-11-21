@@ -39,6 +39,21 @@ export enum RelationshipType {
   OTHER = 'OTHER',
 }
 
+// Payment Enums
+export enum PaymentType {
+  MORTGAGE = 'MORTGAGE',           // رهن (برای اجاره‌نامه)
+  DOWN_PAYMENT = 'DOWN_PAYMENT',   // پیش‌پرداخت (برای مبایعه‌نامه)
+  BILL_OF_SALE = 'BILL_OF_SALE',   // قبض رسید (برای مبایعه‌نامه)
+}
+
+export enum PaymentMethod {
+  CARD_TO_CARD = 'CARD_TO_CARD',           // کارت به کارت
+  SHABA = 'SHABA',                         // شبا / پل پایا سانتا
+  ACCOUNT_TO_ACCOUNT = 'ACCOUNT_TO_ACCOUNT', // حساب به حساب
+  CHECK = 'CHECK',                         // چک
+  CASH = 'CASH',                           // نقد
+}
+
 // Contract Party Types
 export interface NaturalPerson {
   firstName: string;
@@ -71,6 +86,18 @@ export interface ContractParty {
   firstName?: string;
   lastName?: string;
   nationalId?: string;
+  // NEW: Additional natural person fields
+  childOf?: string;              // فرزند (نام پدر)
+  idCardNumber?: string;         // شماره شناسنامه
+  issuedFrom?: string;           // صادره از (محل صدور)
+  birthDate?: string;            // متولد (YYYY-MM-DD format)
+  phone?: string;                // تلفن
+  postalCode?: string;           // کد پستی (10 digits)
+  address?: string;              // آدرس
+  resident?: string;              // ساكن (محل سکونت)
+  authorityType?: string;        // نوع اختیار (وکالت/قیومیت/ولایت/وصايت)
+  authorityDocumentNumber?: string;  // شماره مدرک اختیار
+  authorityDocumentDate?: string;    // تاریخ مدرک اختیار (YYYY-MM-DD)
   // Legal person fields
   companyName?: string;
   registrationNumber?: string;
@@ -97,6 +124,12 @@ export interface PropertyAmenities {
   ventilationSystem?: string;
 }
 
+export interface PropertyUtilityType {
+  electricity?: string;  // اختصاصی/اشتراکی
+  water?: string;        // اختصاصی/اشتراکی
+  gas?: string;          // اختصاصی/اشتراکی
+}
+
 export interface PropertyDetails {
   propertyType?: string;
   usageType?: string;
@@ -116,6 +149,17 @@ export interface PropertyDetails {
   parkingCount?: number;
   parkingNumbers?: string[];
   amenities?: PropertyAmenities;
+  // NEW: Additional property fields
+  bedroomCount?: number;                    // تعداد اتاق خواب
+  bedroomArea?: number;                     // مساحت اتاق خواب (متر مربع)
+  utilityType?: PropertyUtilityType;        // نوع خدمات
+  heatingStatus?: string;                   // وضعیت شوفاژ (روشن/غیر روشن)
+  coolerType?: string;                      // نوع کولر
+  phoneNumber?: string;                     // شماره تلفن
+  phoneStatus?: string;                    // وضعیت تلفن (دایر/غیر دایر)
+  ownershipDocumentPage?: string;           // صفحه سند
+  ownershipDocumentBook?: string;           // دفتر سند
+  propertyShareType?: string;               // نوع سهم (دانگ/دستگاه/یک باب)
 }
 
 // Contract Terms
@@ -129,6 +173,43 @@ export interface ContractTerms {
   usagePurpose?: string;
   occupantCount?: number;
   customTerms?: string;
+  // NEW: Article 6 conditions
+  permittedUse?: string;                    // نوع استفاده مجاز (مسکونی/تجاری/اداری)
+  hasTransferRight?: boolean;               // حق انتقال به غیر (دارد/ندارد)
+  lessorOwnershipConfirmed?: boolean;       // تأیید مالکیت موجر (default: true)
+  rentPaymentDeadline?: string;             // مهلت پرداخت (اول/آخر ماه)
+  utilityCostsResponsibility?: string;      // مسئولیت هزینه‌های مصرفی
+  maintenanceFeesResponsibility?: string;   // مسئولیت شارژ ساختمان
+  majorRepairsResponsibility?: string;      // مسئولیت تعمیرات اساسی
+  minorRepairsResponsibility?: string;      // مسئولیت تعمیرات جزئی
+  propertyTaxResponsibility?: string;       // مسئولیت مالیات ملک
+  incomeTaxResponsibility?: string;         // مسئولیت مالیات درآمد
+  goodwillRights?: string;                  // حق سرقفلی
+  returnCondition?: string;                  // شرایط بازگشت ملک
+  lessorLoanReturnObligation?: boolean;     // تعهد موجر به بازگشت قرض الحسنه (default: true)
+  lesseeRepairRight?: boolean;              // حق مستاجر برای تعمیرات ضروری
+  renewalConditions?: string;               // شرایط تمدید
+  earlyTerminationNotice?: number;          // مهلت اخطار فسخ (روز)
+  earlyTerminationPayment?: number;         // پرداخت اضافی برای فسخ زودهنگام (ریال)
+  propertyTransferNotification?: boolean;   // اطلاع‌رسانی انتقال ملک (default: true)
+  loanReturnDelayPenalty?: number;          // جریمه تأخیر بازگشت قرض الحسنه (ریال)
+}
+
+// Payment Entry Types
+export interface PaymentEntry {
+  id?: string;
+  paymentType: PaymentType;
+  amount: number;                           // مبلغ (ریال)
+  paymentMethod: PaymentMethod;
+  order?: number;                           // ترتیب (برای چندین ورودی)
+  description?: string;                     // توضیحات
+  // Method-specific fields
+  checkNumber?: string;                     // شماره چک (برای CHECK)
+  accountNumber?: string;                   // شماره حساب (برای ACCOUNT_TO_ACCOUNT)
+  cardNumber?: string;                      // شماره کارت (برای CARD_TO_CARD)
+  shabaNumber?: string;                     // شماره شبا (برای SHABA)
+  bankName?: string;                        // نام بانک (برای CHECK, ACCOUNT_TO_ACCOUNT)
+  branchName?: string;                      // نام شعبه (اختیاری برای CHECK, ACCOUNT_TO_ACCOUNT)
 }
 
 // Contract Model
@@ -138,13 +219,27 @@ export interface Contract {
   type: ContractType;
   status: ContractStatus;
   contractDate: string;
-  startDate: string;
-  endDate: string;
-  rentalAmount?: number;
+  startDate?: string;        // برای RENTAL
+  endDate?: string;          // برای RENTAL
+  rentalAmount?: number;     // فقط برای RENTAL
+  purchaseAmount?: number;   // فقط برای PURCHASE
   depositAmount?: number;
+  // NEW: Administrative fields
+  consultancyNumber?: string;               // شماره مشاوره املاک
+  registrationArea?: string;                // حوزه ثبتي
+  registrationOffice?: string;              // دفتر ثبت
+  consultantRegistrationVolume?: string;    // جلد ثبت مشاور
+  consultantRegistrationNumber?: string;    // شماره ثبت مشاور
+  consultantRegistrationDate?: string;       // تاریخ ثبت مشاور (YYYY-MM-DD)
+  witness1Name?: string;                    // نام شاهد 1
+  witness2Name?: string;                    // نام شاهد 2
+  legalExpertName?: string;                 // نام کارشناس حقوقی
+  consultantFee?: number;                   // حق الزحمه مشاور (ریال)
+  contractCopies?: number;                  // تعداد نسخ قرارداد (default: 3)
   parties?: ContractParty[];
   propertyDetails?: PropertyDetails;
   terms?: ContractTerms;
+  paymentEntries?: PaymentEntry[];          // روش‌های پرداخت
   createdAt: string;
   updatedAt: string;
 }
@@ -164,6 +259,18 @@ export interface AddPartyRequest {
   firstName?: string;
   lastName?: string;
   nationalId?: string;
+  // NEW: Additional natural person fields
+  childOf?: string;
+  idCardNumber?: string;
+  issuedFrom?: string;
+  birthDate?: string;
+  phone?: string;
+  postalCode?: string;
+  address?: string;
+  resident?: string;
+  authorityType?: string;
+  authorityDocumentNumber?: string;
+  authorityDocumentDate?: string;
   // Legal person
   companyName?: string;
   registrationNumber?: string;
@@ -186,32 +293,74 @@ export interface UpdateTermsRequest extends ContractTerms {}
 
 export interface SaveDraftRequest {
   contractDate?: string;
-  startDate?: string;
-  endDate?: string;
-  rentalAmount?: number;
+  startDate?: string;        // برای RENTAL
+  endDate?: string;          // برای RENTAL
+  rentalAmount?: number;     // فقط برای RENTAL
+  purchaseAmount?: number;   // فقط برای PURCHASE
   depositAmount?: number;
+  // NEW: Administrative fields
+  consultancyNumber?: string;
+  registrationArea?: string;
+  registrationOffice?: string;
+  consultantRegistrationVolume?: string;
+  consultantRegistrationNumber?: string;
+  consultantRegistrationDate?: string;
+  witness1Name?: string;
+  witness2Name?: string;
+  legalExpertName?: string;
+  consultantFee?: number;
+  contractCopies?: number;
+  paymentEntries?: PaymentEntry[];          // روش‌های پرداخت
 }
 
 export interface CreateContractFullRequest {
   type: ContractType;
   contractDate?: string;
-  startDate?: string;
-  endDate?: string;
-  rentalAmount?: number;
+  startDate?: string;        // برای RENTAL
+  endDate?: string;          // برای RENTAL
+  rentalAmount?: number;     // فقط برای RENTAL
+  purchaseAmount?: number;   // فقط برای PURCHASE
   depositAmount?: number;
+  // NEW: Administrative fields
+  consultancyNumber?: string;
+  registrationArea?: string;
+  registrationOffice?: string;
+  consultantRegistrationVolume?: string;
+  consultantRegistrationNumber?: string;
+  consultantRegistrationDate?: string;
+  witness1Name?: string;
+  witness2Name?: string;
+  legalExpertName?: string;
+  consultantFee?: number;
+  contractCopies?: number;
   parties?: {
     parties: AddPartyRequest[];
   };
   propertyDetails?: PropertyDetails;
   terms?: ContractTerms;
+  paymentEntries?: PaymentEntry[];          // روش‌های پرداخت
 }
 
 export interface UpdateContractRequest {
   contractDate?: string;
-  startDate?: string;
-  endDate?: string;
-  rentalAmount?: number;
+  startDate?: string;        // برای RENTAL
+  endDate?: string;          // برای RENTAL
+  rentalAmount?: number;     // فقط برای RENTAL
+  purchaseAmount?: number;   // فقط برای PURCHASE
   depositAmount?: number;
+  // NEW: Administrative fields
+  consultancyNumber?: string;
+  registrationArea?: string;
+  registrationOffice?: string;
+  consultantRegistrationVolume?: string;
+  consultantRegistrationNumber?: string;
+  consultantRegistrationDate?: string;
+  witness1Name?: string;
+  witness2Name?: string;
+  legalExpertName?: string;
+  consultantFee?: number;
+  contractCopies?: number;
+  paymentEntries?: PaymentEntry[];          // روش‌های پرداخت
 }
 
 export interface UpdateContractStatusRequest {
@@ -239,4 +388,5 @@ export interface ContractsState {
   isSearching: boolean;
   searchQuery: string | null;
 }
+
 

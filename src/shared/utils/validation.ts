@@ -33,3 +33,17 @@ export const validateRequiredText = (value: string): boolean => {
   return value.trim().length >= 3;
 };
 
+// Postal code validation (exactly 10 digits)
+export const validatePostalCode = (postalCode: string): boolean => {
+  return /^\d{10}$/.test(postalCode);
+};
+
+// Date validation (YYYY-MM-DD format)
+export const validateDate = (date: string): boolean => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return false;
+  }
+  const parsedDate = new Date(date);
+  return parsedDate instanceof Date && !isNaN(parsedDate.getTime());
+};
+

@@ -226,6 +226,20 @@ export const updateContractStatus = createAsyncThunk(
   }
 );
 
+export const deleteContract = createAsyncThunk(
+  'contracts/delete',
+  async (id: string, { rejectWithValue }) => {
+    try {
+      await contractsApi.deleteContract(id);
+      return id;
+    } catch (error: any) {
+      const message = error.response?.data?.message;
+      const errorMsg = Array.isArray(message) ? message.join(', ') : (message || 'خطا در حذف قرارداد');
+      return rejectWithValue(errorMsg);
+    }
+  }
+);
+
 const contractsSlice = createSlice({
   name: 'contracts',
   initialState,
@@ -540,6 +554,29 @@ const contractsSlice = createSlice({
         state.error = null;
       })
       .addCase(updateContractStatus.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      });
+
+    // Delete Contract
+    builder
+      .addCase(deleteContract.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(deleteContract.fulfilled, (state, action) => {
+        state.isLoading = false;
+        // Remove contract from list
+        state.contracts = state.contracts.filter(c => c.id !== action.payload);
+        // Clear selected contract if it was deleted
+        if (state.selectedContract?.id === action.payload) {
+          state.selectedContract = null;
+        }
+        // Remove from search results if present
+        state.searchResults = state.searchResults.filter(c => c.id !== action.payload);
+        state.error = null;
+      })
+      .addCase(deleteContract.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
       });

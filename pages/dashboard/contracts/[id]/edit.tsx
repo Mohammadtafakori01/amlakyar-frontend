@@ -15,6 +15,9 @@ import {
   PartyEntityType,
   ShareType,
   RelationshipType,
+  PaymentType,
+  PaymentMethod,
+  PaymentEntry,
   AddPartyRequest,
   UpdateContractRequest,
   ContractParty,
@@ -38,6 +41,141 @@ export default function EditContractPage() {
 
   // Step 1: Contract Type (read-only, just for display)
   const [contractType, setContractType] = useState<ContractType>(ContractType.RENTAL);
+
+  // Helper function to get party labels based on contract type
+  const getPartyTypeLabel = (partyType: PartyType): string => {
+    if (contractType === ContractType.PURCHASE) {
+      return partyType === PartyType.LANDLORD ? 'فروشنده' : 'خریدار';
+    }
+    return partyType === PartyType.LANDLORD ? 'موجر' : 'مستاجر';
+  };
+
+  // Helper functions for payment labels
+  const getPaymentTypeLabel = (type: PaymentType): string => {
+    const labels: Record<PaymentType, string> = {
+      [PaymentType.MORTGAGE]: 'رهن',
+      [PaymentType.DOWN_PAYMENT]: 'پیش‌پرداخت',
+      [PaymentType.BILL_OF_SALE]: 'قبض رسید',
+    };
+    return labels[type];
+  };
+
+  const getPaymentMethodLabel = (method: PaymentMethod): string => {
+    const labels: Record<PaymentMethod, string> = {
+      [PaymentMethod.CARD_TO_CARD]: 'کارت به کارت',
+      [PaymentMethod.SHABA]: 'شبا / پل پایا سانتا',
+      [PaymentMethod.ACCOUNT_TO_ACCOUNT]: 'حساب به حساب',
+      [PaymentMethod.CHECK]: 'چک',
+      [PaymentMethod.CASH]: 'نقد',
+    };
+    return labels[method];
+  };
+
+  // Payment Entries
+  const [paymentEntries, setPaymentEntries] = useState<PaymentEntry[]>([]);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [editingPaymentIndex, setEditingPaymentIndex] = useState<number | null>(null);
+  const [currentPayment, setCurrentPayment] = useState<Partial<PaymentEntry>>({
+    paymentType: PaymentType.MORTGAGE,
+    paymentMethod: PaymentMethod.CASH,
+    amount: 0,
+    order: 0,
+  });
+
+  // Payment entries handlers (same as create form)
+  const handleAddPayment = () => {
+    const defaultType = contractType === ContractType.RENTAL 
+      ? PaymentType.MORTGAGE 
+      : PaymentType.DOWN_PAYMENT;
+    setCurrentPayment({
+      paymentType: defaultType,
+      paymentMethod: PaymentMethod.CASH,
+      amount: 0,
+      order: paymentEntries.length,
+    });
+    setEditingPaymentIndex(null);
+    setShowPaymentModal(true);
+  };
+
+  const handleEditPayment = (index: number) => {
+    setCurrentPayment({ ...paymentEntries[index] });
+    setEditingPaymentIndex(index);
+    setShowPaymentModal(true);
+  };
+
+  const handleDeletePayment = (index: number) => {
+    const updated = paymentEntries.filter((_, i) => i !== index);
+    updated.forEach((entry, i) => {
+      entry.order = i;
+    });
+    setPaymentEntries(updated);
+  };
+
+  const handleSavePayment = () => {
+    if (!currentPayment.paymentType || !currentPayment.paymentMethod || !currentPayment.amount || currentPayment.amount <= 0) {
+      setSnackbar({ open: true, message: 'لطفا تمام فیلدهای الزامی را پر کنید', severity: 'error' });
+      return;
+    }
+
+    if (currentPayment.paymentMethod === PaymentMethod.CHECK) {
+      if (!currentPayment.checkNumber || !currentPayment.bankName) {
+        setSnackbar({ open: true, message: 'شماره چک و نام بانک الزامی است', severity: 'error' });
+        return;
+      }
+    } else if (currentPayment.paymentMethod === PaymentMethod.ACCOUNT_TO_ACCOUNT) {
+      if (!currentPayment.accountNumber || !currentPayment.bankName) {
+        setSnackbar({ open: true, message: 'شماره حساب و نام بانک الزامی است', severity: 'error' });
+        return;
+      }
+    } else if (currentPayment.paymentMethod === PaymentMethod.SHABA) {
+      if (!currentPayment.shabaNumber) {
+        setSnackbar({ open: true, message: 'شماره شبا الزامی است', severity: 'error' });
+        return;
+      }
+    } else if (currentPayment.paymentMethod === PaymentMethod.CARD_TO_CARD) {
+      if (!currentPayment.cardNumber) {
+        setSnackbar({ open: true, message: 'شماره کارت الزامی است', severity: 'error' });
+        return;
+      }
+    }
+
+    const paymentEntry: PaymentEntry = {
+      id: currentPayment.id,
+      paymentType: currentPayment.paymentType!,
+      paymentMethod: currentPayment.paymentMethod!,
+      amount: currentPayment.amount!,
+      order: currentPayment.order ?? paymentEntries.length,
+      description: currentPayment.description,
+      checkNumber: currentPayment.checkNumber,
+      accountNumber: currentPayment.accountNumber,
+      cardNumber: currentPayment.cardNumber,
+      shabaNumber: currentPayment.shabaNumber,
+      bankName: currentPayment.bankName,
+      branchName: currentPayment.branchName,
+    };
+
+    if (editingPaymentIndex !== null) {
+      const updated = [...paymentEntries];
+      updated[editingPaymentIndex] = paymentEntry;
+      setPaymentEntries(updated);
+    } else {
+      setPaymentEntries([...paymentEntries, paymentEntry]);
+    }
+
+    setShowPaymentModal(false);
+    setCurrentPayment({});
+    setEditingPaymentIndex(null);
+  };
+
+  const getPaymentTotal = (type: PaymentType): number => {
+    return paymentEntries
+      .filter(entry => entry.paymentType === type)
+      .reduce((sum, entry) => sum + entry.amount, 0);
+  };
+
+  const getAllPaymentsTotal = (): number => {
+    return paymentEntries.reduce((sum, entry) => sum + entry.amount, 0);
+  };
 
   // Step 2: Parties
   const [parties, setParties] = useState<AddPartyRequest[]>([]);
@@ -68,6 +206,21 @@ export default function EditContractPage() {
     storageNumbers: [] as string[],
     parkingCount: '',
     parkingNumbers: [] as string[],
+    // NEW: Additional property fields
+    bedroomCount: '',
+    bedroomArea: '',
+    utilityType: {
+      electricity: '',
+      water: '',
+      gas: '',
+    },
+    heatingStatus: '',
+    coolerType: '',
+    phoneNumber: '',
+    phoneStatus: '',
+    ownershipDocumentPage: '',
+    ownershipDocumentBook: '',
+    propertyShareType: '',
     amenities: {
       flooring: '',
       bathroom: '',
@@ -91,6 +244,26 @@ export default function EditContractPage() {
     usagePurpose: '',
     occupantCount: '',
     customTerms: '',
+    // NEW: Article 6 conditions
+    permittedUse: '',
+    hasTransferRight: false,
+    lessorOwnershipConfirmed: true,
+    rentPaymentDeadline: '',
+    utilityCostsResponsibility: '',
+    maintenanceFeesResponsibility: '',
+    majorRepairsResponsibility: '',
+    minorRepairsResponsibility: '',
+    propertyTaxResponsibility: '',
+    incomeTaxResponsibility: '',
+    goodwillRights: '',
+    returnCondition: '',
+    lessorLoanReturnObligation: true,
+    lesseeRepairRight: false,
+    renewalConditions: '',
+    earlyTerminationNotice: '',
+    earlyTerminationPayment: '',
+    propertyTransferNotification: true,
+    loanReturnDelayPenalty: '',
   });
 
   // Step 5: Finalize
@@ -99,7 +272,20 @@ export default function EditContractPage() {
     startDate: '',
     endDate: '',
     rentalAmount: '',
+    purchaseAmount: '',
     depositAmount: '',
+    // NEW: Administrative fields
+    consultancyNumber: '',
+    registrationArea: '',
+    registrationOffice: '',
+    consultantRegistrationVolume: '',
+    consultantRegistrationNumber: '',
+    consultantRegistrationDate: '',
+    witness1Name: '',
+    witness2Name: '',
+    legalExpertName: '',
+    consultantFee: '',
+    contractCopies: '3',
   });
 
   useEffect(() => {
@@ -139,6 +325,18 @@ export default function EditContractPage() {
           firstName: party.firstName,
           lastName: party.lastName,
           nationalId: party.nationalId,
+          // NEW: Additional natural person fields
+          childOf: party.childOf,
+          idCardNumber: party.idCardNumber,
+          issuedFrom: party.issuedFrom,
+          birthDate: party.birthDate,
+          phone: party.phone,
+          postalCode: party.postalCode,
+          address: party.address,
+          resident: party.resident,
+          authorityType: party.authorityType,
+          authorityDocumentNumber: party.authorityDocumentNumber,
+          authorityDocumentDate: party.authorityDocumentDate,
           companyName: party.companyName,
           registrationNumber: party.registrationNumber,
           companyNationalId: party.companyNationalId,
@@ -172,6 +370,17 @@ export default function EditContractPage() {
           storageNumbers: pd.storageNumbers || [],
           parkingCount: pd.parkingCount?.toString() || '',
           parkingNumbers: pd.parkingNumbers || [],
+          // NEW: Additional property fields
+          bedroomCount: pd.bedroomCount?.toString() || '',
+          bedroomArea: pd.bedroomArea?.toString() || '',
+          utilityType: pd.utilityType || { electricity: '', water: '', gas: '' },
+          heatingStatus: pd.heatingStatus || '',
+          coolerType: pd.coolerType || '',
+          phoneNumber: pd.phoneNumber || '',
+          phoneStatus: pd.phoneStatus || '',
+          ownershipDocumentPage: pd.ownershipDocumentPage || '',
+          ownershipDocumentBook: pd.ownershipDocumentBook || '',
+          propertyShareType: pd.propertyShareType || '',
           amenities: {
             flooring: pd.amenities?.flooring || '',
             bathroom: pd.amenities?.bathroom || '',
@@ -198,6 +407,26 @@ export default function EditContractPage() {
           usagePurpose: t.usagePurpose || '',
           occupantCount: t.occupantCount?.toString() || '',
           customTerms: t.customTerms || '',
+          // NEW: Article 6 conditions
+          permittedUse: t.permittedUse || '',
+          hasTransferRight: t.hasTransferRight || false,
+          lessorOwnershipConfirmed: t.lessorOwnershipConfirmed !== undefined ? t.lessorOwnershipConfirmed : true,
+          rentPaymentDeadline: t.rentPaymentDeadline || '',
+          utilityCostsResponsibility: t.utilityCostsResponsibility || '',
+          maintenanceFeesResponsibility: t.maintenanceFeesResponsibility || '',
+          majorRepairsResponsibility: t.majorRepairsResponsibility || '',
+          minorRepairsResponsibility: t.minorRepairsResponsibility || '',
+          propertyTaxResponsibility: t.propertyTaxResponsibility || '',
+          incomeTaxResponsibility: t.incomeTaxResponsibility || '',
+          goodwillRights: t.goodwillRights || '',
+          returnCondition: t.returnCondition || '',
+          lessorLoanReturnObligation: t.lessorLoanReturnObligation !== undefined ? t.lessorLoanReturnObligation : true,
+          lesseeRepairRight: t.lesseeRepairRight || false,
+          renewalConditions: t.renewalConditions || '',
+          earlyTerminationNotice: t.earlyTerminationNotice?.toString() || '',
+          earlyTerminationPayment: t.earlyTerminationPayment?.toString() || '',
+          propertyTransferNotification: t.propertyTransferNotification !== undefined ? t.propertyTransferNotification : true,
+          loanReturnDelayPenalty: t.loanReturnDelayPenalty?.toString() || '',
         });
       }
       
@@ -207,8 +436,28 @@ export default function EditContractPage() {
         startDate: selectedContract.startDate || '',
         endDate: selectedContract.endDate || '',
         rentalAmount: selectedContract.rentalAmount?.toString() || '',
+        purchaseAmount: selectedContract.purchaseAmount?.toString() || '',
         depositAmount: selectedContract.depositAmount?.toString() || '',
+        // NEW: Administrative fields
+        consultancyNumber: selectedContract.consultancyNumber || '',
+        registrationArea: selectedContract.registrationArea || '',
+        registrationOffice: selectedContract.registrationOffice || '',
+        consultantRegistrationVolume: selectedContract.consultantRegistrationVolume || '',
+        consultantRegistrationNumber: selectedContract.consultantRegistrationNumber || '',
+        consultantRegistrationDate: selectedContract.consultantRegistrationDate || '',
+        witness1Name: selectedContract.witness1Name || '',
+        witness2Name: selectedContract.witness2Name || '',
+        legalExpertName: selectedContract.legalExpertName || '',
+        consultantFee: selectedContract.consultantFee?.toString() || '',
+        contractCopies: selectedContract.contractCopies?.toString() || '3',
       });
+
+      // Load payment entries
+      if (selectedContract.paymentEntries && selectedContract.paymentEntries.length > 0) {
+        setPaymentEntries(selectedContract.paymentEntries);
+      } else {
+        setPaymentEntries([]);
+      }
     }
   }, [selectedContract, contractId, isDataLoaded]);
 
@@ -404,6 +653,17 @@ export default function EditContractPage() {
         storageNumbers: propertyDetails.storageNumbers?.length > 0 ? propertyDetails.storageNumbers : undefined,
         parkingCount: propertyDetails.parkingCount ? parseInt(propertyDetails.parkingCount) : undefined,
         parkingNumbers: propertyDetails.parkingNumbers?.length > 0 ? propertyDetails.parkingNumbers : undefined,
+        // NEW: Additional property fields
+        bedroomCount: propertyDetails.bedroomCount ? parseInt(propertyDetails.bedroomCount) : undefined,
+        bedroomArea: propertyDetails.bedroomArea ? parseFloat(propertyDetails.bedroomArea) : undefined,
+        utilityType: (propertyDetails.utilityType?.electricity || propertyDetails.utilityType?.water || propertyDetails.utilityType?.gas) ? propertyDetails.utilityType : undefined,
+        heatingStatus: propertyDetails.heatingStatus?.trim() || undefined,
+        coolerType: propertyDetails.coolerType?.trim() || undefined,
+        phoneNumber: propertyDetails.phoneNumber?.trim() || undefined,
+        phoneStatus: propertyDetails.phoneStatus?.trim() || undefined,
+        ownershipDocumentPage: propertyDetails.ownershipDocumentPage?.trim() || undefined,
+        ownershipDocumentBook: propertyDetails.ownershipDocumentBook?.trim() || undefined,
+        propertyShareType: propertyDetails.propertyShareType?.trim() || undefined,
         amenities: propertyDetails.amenities || undefined,
       };
       
@@ -467,6 +727,26 @@ export default function EditContractPage() {
         usagePurpose: terms.usagePurpose || undefined,
         occupantCount: terms.occupantCount ? parseInt(terms.occupantCount) : undefined,
         customTerms: terms.customTerms || undefined,
+        // NEW: Article 6 conditions
+        permittedUse: terms.permittedUse?.trim() || undefined,
+        hasTransferRight: terms.hasTransferRight,
+        lessorOwnershipConfirmed: terms.lessorOwnershipConfirmed,
+        rentPaymentDeadline: terms.rentPaymentDeadline?.trim() || undefined,
+        utilityCostsResponsibility: terms.utilityCostsResponsibility?.trim() || undefined,
+        maintenanceFeesResponsibility: terms.maintenanceFeesResponsibility?.trim() || undefined,
+        majorRepairsResponsibility: terms.majorRepairsResponsibility?.trim() || undefined,
+        minorRepairsResponsibility: terms.minorRepairsResponsibility?.trim() || undefined,
+        propertyTaxResponsibility: terms.propertyTaxResponsibility?.trim() || undefined,
+        incomeTaxResponsibility: terms.incomeTaxResponsibility?.trim() || undefined,
+        goodwillRights: terms.goodwillRights?.trim() || undefined,
+        returnCondition: terms.returnCondition?.trim() || undefined,
+        lessorLoanReturnObligation: terms.lessorLoanReturnObligation,
+        lesseeRepairRight: terms.lesseeRepairRight,
+        renewalConditions: terms.renewalConditions?.trim() || undefined,
+        earlyTerminationNotice: terms.earlyTerminationNotice ? parseInt(terms.earlyTerminationNotice) : undefined,
+        earlyTerminationPayment: terms.earlyTerminationPayment ? parseFloat(terms.earlyTerminationPayment) : undefined,
+        propertyTransferNotification: terms.propertyTransferNotification,
+        loanReturnDelayPenalty: terms.loanReturnDelayPenalty ? parseFloat(terms.loanReturnDelayPenalty) : undefined,
       };
       
       const result = await updateTerms(currentContractId, termsData);
@@ -510,10 +790,24 @@ export default function EditContractPage() {
     try {
       const updateData: UpdateContractRequest = {
         contractDate: draftData.contractDate || undefined,
-        startDate: draftData.startDate || undefined,
-        endDate: draftData.endDate || undefined,
-        rentalAmount: draftData.rentalAmount ? parseFloat(draftData.rentalAmount) : undefined,
+        startDate: contractType === ContractType.RENTAL ? (draftData.startDate || undefined) : undefined,
+        endDate: contractType === ContractType.RENTAL ? (draftData.endDate || undefined) : undefined,
+        rentalAmount: contractType === ContractType.RENTAL ? (draftData.rentalAmount ? parseFloat(draftData.rentalAmount) : undefined) : undefined,
+        purchaseAmount: contractType === ContractType.PURCHASE ? (draftData.purchaseAmount ? parseFloat(draftData.purchaseAmount) : undefined) : undefined,
         depositAmount: draftData.depositAmount ? parseFloat(draftData.depositAmount) : undefined,
+        paymentEntries: paymentEntries.length > 0 ? paymentEntries : undefined,
+        // NEW: Administrative fields
+        consultancyNumber: draftData.consultancyNumber?.trim() || undefined,
+        registrationArea: draftData.registrationArea?.trim() || undefined,
+        registrationOffice: draftData.registrationOffice?.trim() || undefined,
+        consultantRegistrationVolume: draftData.consultantRegistrationVolume?.trim() || undefined,
+        consultantRegistrationNumber: draftData.consultantRegistrationNumber?.trim() || undefined,
+        consultantRegistrationDate: draftData.consultantRegistrationDate || undefined,
+        witness1Name: draftData.witness1Name?.trim() || undefined,
+        witness2Name: draftData.witness2Name?.trim() || undefined,
+        legalExpertName: draftData.legalExpertName?.trim() || undefined,
+        consultantFee: draftData.consultantFee ? parseFloat(draftData.consultantFee) : undefined,
+        contractCopies: draftData.contractCopies ? parseInt(draftData.contractCopies) : undefined,
       };
       await updateContract(currentContractId, updateData);
       setSnackbar({ open: true, message: 'پیش‌نویس با موفقیت ذخیره شد', severity: 'success' });
@@ -543,22 +837,39 @@ export default function EditContractPage() {
         return;
       }
       
-      // IMPORTANT: Save financial data before finalizing
+      // IMPORTANT: Save financial and administrative data before finalizing
       // The finalizeContract endpoint doesn't accept financial data, so we need to save it first
       const updateData: UpdateContractRequest = {
         contractDate: draftData.contractDate || undefined,
-        startDate: draftData.startDate || undefined,
-        endDate: draftData.endDate || undefined,
-        rentalAmount: draftData.rentalAmount ? parseFloat(draftData.rentalAmount) : undefined,
+        startDate: contractType === ContractType.RENTAL ? (draftData.startDate || undefined) : undefined,
+        endDate: contractType === ContractType.RENTAL ? (draftData.endDate || undefined) : undefined,
+        rentalAmount: contractType === ContractType.RENTAL ? (draftData.rentalAmount ? parseFloat(draftData.rentalAmount) : undefined) : undefined,
+        purchaseAmount: contractType === ContractType.PURCHASE ? (draftData.purchaseAmount ? parseFloat(draftData.purchaseAmount) : undefined) : undefined,
         depositAmount: draftData.depositAmount ? parseFloat(draftData.depositAmount) : undefined,
+        paymentEntries: paymentEntries.length > 0 ? paymentEntries : undefined,
+        // NEW: Administrative fields
+        consultancyNumber: draftData.consultancyNumber?.trim() || undefined,
+        registrationArea: draftData.registrationArea?.trim() || undefined,
+        registrationOffice: draftData.registrationOffice?.trim() || undefined,
+        consultantRegistrationVolume: draftData.consultantRegistrationVolume?.trim() || undefined,
+        consultantRegistrationNumber: draftData.consultantRegistrationNumber?.trim() || undefined,
+        consultantRegistrationDate: draftData.consultantRegistrationDate || undefined,
+        witness1Name: draftData.witness1Name?.trim() || undefined,
+        witness2Name: draftData.witness2Name?.trim() || undefined,
+        legalExpertName: draftData.legalExpertName?.trim() || undefined,
+        consultantFee: draftData.consultantFee ? parseFloat(draftData.consultantFee) : undefined,
+        contractCopies: draftData.contractCopies ? parseInt(draftData.contractCopies) : undefined,
       };
       
       // Only update if there's data to save
-      const hasFinancialData = updateData.rentalAmount || updateData.depositAmount || updateData.contractDate || updateData.startDate || updateData.endDate;
-      if (hasFinancialData) {
-        console.log('Saving financial data before finalizing...');
+      const hasData = updateData.rentalAmount || updateData.purchaseAmount || updateData.depositAmount || updateData.contractDate || updateData.startDate || updateData.endDate ||
+        updateData.paymentEntries || updateData.consultancyNumber || updateData.registrationArea || updateData.registrationOffice || updateData.consultantRegistrationVolume ||
+        updateData.consultantRegistrationNumber || updateData.consultantRegistrationDate || updateData.witness1Name || updateData.witness2Name ||
+        updateData.legalExpertName || updateData.consultantFee || updateData.contractCopies;
+      if (hasData) {
+        console.log('Saving financial and administrative data before finalizing...');
         await updateContract(currentContractId, updateData);
-        console.log('Financial data saved successfully');
+        console.log('Data saved successfully');
       }
       
       const result = await finalizeContract(currentContractId);
@@ -674,8 +985,8 @@ export default function EditContractPage() {
                 onChange={(e) => setCurrentParty({ ...currentParty, partyType: e.target.value as PartyType })}
                 className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
               >
-                <option value={PartyType.LANDLORD}>موجر</option>
-                <option value={PartyType.TENANT}>مستاجر</option>
+                <option value={PartyType.LANDLORD}>{getPartyTypeLabel(PartyType.LANDLORD)}</option>
+                <option value={PartyType.TENANT}>{getPartyTypeLabel(PartyType.TENANT)}</option>
               </select>
             </div>
 
@@ -757,6 +1068,129 @@ export default function EditContractPage() {
                     maxLength={10}
                     className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
                   />
+                </div>
+              </div>
+              {/* NEW: Additional natural person fields */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-gray-600">فرزند</label>
+                  <input
+                    type="text"
+                    value={currentParty.childOf || ''}
+                    onChange={(e) => setCurrentParty({ ...currentParty, childOf: e.target.value })}
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                    placeholder="نام پدر"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-gray-600">شماره شناسنامه</label>
+                  <input
+                    type="text"
+                    value={currentParty.idCardNumber || ''}
+                    onChange={(e) => setCurrentParty({ ...currentParty, idCardNumber: e.target.value })}
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-gray-600">صادره از</label>
+                  <input
+                    type="text"
+                    value={currentParty.issuedFrom || ''}
+                    onChange={(e) => setCurrentParty({ ...currentParty, issuedFrom: e.target.value })}
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                    placeholder="محل صدور"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-gray-600">متولد</label>
+                  <input
+                    type="date"
+                    value={currentParty.birthDate || ''}
+                    onChange={(e) => setCurrentParty({ ...currentParty, birthDate: e.target.value })}
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-gray-600">تلفن</label>
+                  <input
+                    type="text"
+                    value={currentParty.phone || ''}
+                    onChange={(e) => setCurrentParty({ ...currentParty, phone: e.target.value })}
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                    placeholder="09123456789"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-gray-600">کد پستی</label>
+                  <input
+                    type="text"
+                    value={currentParty.postalCode || ''}
+                    onChange={(e) => setCurrentParty({ ...currentParty, postalCode: e.target.value })}
+                    maxLength={10}
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                    placeholder="1234567890"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-gray-600">آدرس</label>
+                  <textarea
+                    value={currentParty.address || ''}
+                    onChange={(e) => setCurrentParty({ ...currentParty, address: e.target.value })}
+                    rows={2}
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-gray-600">ساكن</label>
+                  <input
+                    type="text"
+                    value={currentParty.resident || ''}
+                    onChange={(e) => setCurrentParty({ ...currentParty, resident: e.target.value })}
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                    placeholder="محل سکونت"
+                  />
+                </div>
+              </div>
+              {/* Authority section */}
+              <div className="border-t border-gray-200 pt-4 mt-4">
+                <h4 className="text-sm font-semibold text-gray-700 mb-3">اطلاعات اختیار (در صورت وجود)</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-gray-600">نوع اختیار</label>
+                    <select
+                      value={currentParty.authorityType || ''}
+                      onChange={(e) => setCurrentParty({ ...currentParty, authorityType: e.target.value })}
+                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                    >
+                      <option value="">انتخاب کنید</option>
+                      <option value="وکالت">وکالت</option>
+                      <option value="قیومیت">قیومیت</option>
+                      <option value="ولایت">ولایت</option>
+                      <option value="وصايت">وصايت</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-gray-600">شماره مدرک اختیار</label>
+                    <input
+                      type="text"
+                      value={currentParty.authorityDocumentNumber || ''}
+                      onChange={(e) => setCurrentParty({ ...currentParty, authorityDocumentNumber: e.target.value })}
+                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                      disabled={!currentParty.authorityType}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-gray-600">تاریخ مدرک اختیار</label>
+                    <input
+                      type="date"
+                      value={currentParty.authorityDocumentDate || ''}
+                      onChange={(e) => setCurrentParty({ ...currentParty, authorityDocumentDate: e.target.value })}
+                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                      disabled={!currentParty.authorityType}
+                    />
+                  </div>
                 </div>
               </div>
             </>
@@ -881,7 +1315,7 @@ export default function EditContractPage() {
                 <div key={index} className="flex items-center justify-between border-b border-gray-100 pb-3">
                   <div>
                     <span className="font-semibold">
-                      {party.partyType === PartyType.LANDLORD ? 'موجر' : 'مستاجر'} -{' '}
+                      {getPartyTypeLabel(party.partyType)} -{' '}
                       {party.partyRole === PartyRole.PRINCIPAL ? 'اصیل' : party.partyRole === PartyRole.REPRESENTATIVE ? 'نماینده' : 'وکیل'} -{' '}
                       {party.entityType === PartyEntityType.NATURAL
                         ? `${party.firstName} ${party.lastName}`
@@ -902,8 +1336,8 @@ export default function EditContractPage() {
             </div>
             <div className="mt-4 pt-4 border-t border-gray-200">
               <div className="text-sm text-gray-600">
-                <div>موجرین: مجموع {landlordParties.reduce((sum, p) => sum + p.shareValue, 0)} {landlordParties[0]?.shareType === ShareType.DANG ? 'دانگ' : 'درصد'}</div>
-                <div>مستاجرین: مجموع {tenantParties.reduce((sum, p) => sum + p.shareValue, 0)} {tenantParties[0]?.shareType === ShareType.DANG ? 'دانگ' : 'درصد'}</div>
+                <div>{getPartyTypeLabel(PartyType.LANDLORD)}ان: مجموع {landlordParties.reduce((sum, p) => sum + p.shareValue, 0)} {landlordParties[0]?.shareType === ShareType.DANG ? 'دانگ' : 'درصد'}</div>
+                <div>{getPartyTypeLabel(PartyType.TENANT)}ان: مجموع {tenantParties.reduce((sum, p) => sum + p.shareValue, 0)} {tenantParties[0]?.shareType === ShareType.DANG ? 'دانگ' : 'درصد'}</div>
               </div>
             </div>
           </div>
@@ -1052,6 +1486,161 @@ export default function EditContractPage() {
             onChange={(e) => setPropertyDetails({ ...propertyDetails, parkingCount: e.target.value })}
             className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
           />
+        </div>
+        {/* NEW: Additional property fields */}
+        <div>
+          <label className="mb-1 block text-sm font-semibold text-gray-600">تعداد اتاق خواب</label>
+          <input
+            type="number"
+            value={propertyDetails.bedroomCount || ''}
+            onChange={(e) => setPropertyDetails({ ...propertyDetails, bedroomCount: e.target.value })}
+            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-semibold text-gray-600">مساحت اتاق خواب (متر مربع)</label>
+          <input
+            type="number"
+            value={propertyDetails.bedroomArea || ''}
+            onChange={(e) => setPropertyDetails({ ...propertyDetails, bedroomArea: e.target.value })}
+            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-semibold text-gray-600">وضعیت شوفاژ</label>
+          <select
+            value={propertyDetails.heatingStatus || ''}
+            onChange={(e) => setPropertyDetails({ ...propertyDetails, heatingStatus: e.target.value })}
+            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+          >
+            <option value="">انتخاب کنید</option>
+            <option value="روشن">روشن</option>
+            <option value="غیر روشن">غیر روشن</option>
+          </select>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-semibold text-gray-600">نوع کولر</label>
+          <input
+            type="text"
+            value={propertyDetails.coolerType || ''}
+            onChange={(e) => setPropertyDetails({ ...propertyDetails, coolerType: e.target.value })}
+            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            placeholder="مثال: اسپلیت"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-semibold text-gray-600">شماره تلفن</label>
+          <input
+            type="text"
+            value={propertyDetails.phoneNumber || ''}
+            onChange={(e) => setPropertyDetails({ ...propertyDetails, phoneNumber: e.target.value })}
+            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            placeholder="02112345678"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-semibold text-gray-600">وضعیت تلفن</label>
+          <select
+            value={propertyDetails.phoneStatus || ''}
+            onChange={(e) => setPropertyDetails({ ...propertyDetails, phoneStatus: e.target.value })}
+            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+          >
+            <option value="">انتخاب کنید</option>
+            <option value="دایر">دایر</option>
+            <option value="غیر دایر">غیر دایر</option>
+          </select>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-semibold text-gray-600">صفحه سند</label>
+          <input
+            type="text"
+            value={propertyDetails.ownershipDocumentPage || ''}
+            onChange={(e) => setPropertyDetails({ ...propertyDetails, ownershipDocumentPage: e.target.value })}
+            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-semibold text-gray-600">دفتر سند</label>
+          <input
+            type="text"
+            value={propertyDetails.ownershipDocumentBook || ''}
+            onChange={(e) => setPropertyDetails({ ...propertyDetails, ownershipDocumentBook: e.target.value })}
+            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-semibold text-gray-600">نوع سهم</label>
+          <select
+            value={propertyDetails.propertyShareType || ''}
+            onChange={(e) => setPropertyDetails({ ...propertyDetails, propertyShareType: e.target.value })}
+            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+          >
+            <option value="">انتخاب کنید</option>
+            <option value="دانگ">دانگ</option>
+            <option value="دستگاه">دستگاه</option>
+            <option value="یک باب">یک باب</option>
+          </select>
+        </div>
+      </div>
+
+      {/* NEW: Utility Type Section */}
+      <div className="rounded-2xl border border-gray-200 bg-white p-6 mt-6">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">نوع خدمات</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-gray-600">برق</label>
+            <select
+              value={propertyDetails.utilityType?.electricity || ''}
+              onChange={(e) => setPropertyDetails({ 
+                ...propertyDetails, 
+                utilityType: { 
+                  ...propertyDetails.utilityType, 
+                  electricity: e.target.value 
+                } 
+              })}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            >
+              <option value="">انتخاب کنید</option>
+              <option value="اختصاصی">اختصاصی</option>
+              <option value="اشتراکی">اشتراکی</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-gray-600">آب</label>
+            <select
+              value={propertyDetails.utilityType?.water || ''}
+              onChange={(e) => setPropertyDetails({ 
+                ...propertyDetails, 
+                utilityType: { 
+                  ...propertyDetails.utilityType, 
+                  water: e.target.value 
+                } 
+              })}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            >
+              <option value="">انتخاب کنید</option>
+              <option value="اختصاصی">اختصاصی</option>
+              <option value="اشتراکی">اشتراکی</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-gray-600">گاز</label>
+            <select
+              value={propertyDetails.utilityType?.gas || ''}
+              onChange={(e) => setPropertyDetails({ 
+                ...propertyDetails, 
+                utilityType: { 
+                  ...propertyDetails.utilityType, 
+                  gas: e.target.value 
+                } 
+              })}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            >
+              <option value="">انتخاب کنید</option>
+              <option value="اختصاصی">اختصاصی</option>
+              <option value="اشتراکی">اشتراکی</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -1225,6 +1814,214 @@ export default function EditContractPage() {
           />
         </div>
       </div>
+
+      {/* NEW: Article 6 Conditions */}
+      <div className="rounded-2xl border border-gray-200 bg-white p-6 mt-6">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">ماده 6 - شرایط قرارداد</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-gray-600">نوع استفاده مجاز</label>
+            <select
+              value={terms.permittedUse}
+              onChange={(e) => setTerms({ ...terms, permittedUse: e.target.value })}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            >
+              <option value="">انتخاب کنید</option>
+              <option value="مسکونی">مسکونی</option>
+              <option value="تجاری">تجاری</option>
+              <option value="اداری">اداری</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-gray-600">مهلت پرداخت</label>
+            <select
+              value={terms.rentPaymentDeadline}
+              onChange={(e) => setTerms({ ...terms, rentPaymentDeadline: e.target.value })}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            >
+              <option value="">انتخاب کنید</option>
+              <option value="اول">اول ماه</option>
+              <option value="آخر">آخر ماه</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-gray-600">مسئولیت هزینه‌های مصرفی</label>
+            <select
+              value={terms.utilityCostsResponsibility}
+              onChange={(e) => setTerms({ ...terms, utilityCostsResponsibility: e.target.value })}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            >
+              <option value="">انتخاب کنید</option>
+              <option value="موجر">موجر</option>
+              <option value="مستاجر">مستاجر</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-gray-600">مسئولیت شارژ ساختمان</label>
+            <select
+              value={terms.maintenanceFeesResponsibility}
+              onChange={(e) => setTerms({ ...terms, maintenanceFeesResponsibility: e.target.value })}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            >
+              <option value="">انتخاب کنید</option>
+              <option value="موجر">موجر</option>
+              <option value="مستاجر">مستاجر</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-gray-600">مسئولیت تعمیرات اساسی</label>
+            <select
+              value={terms.majorRepairsResponsibility}
+              onChange={(e) => setTerms({ ...terms, majorRepairsResponsibility: e.target.value })}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            >
+              <option value="">انتخاب کنید</option>
+              <option value="موجر">موجر</option>
+              <option value="مستاجر">مستاجر</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-gray-600">مسئولیت تعمیرات جزئی</label>
+            <select
+              value={terms.minorRepairsResponsibility}
+              onChange={(e) => setTerms({ ...terms, minorRepairsResponsibility: e.target.value })}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            >
+              <option value="">انتخاب کنید</option>
+              <option value="موجر">موجر</option>
+              <option value="مستاجر">مستاجر</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-gray-600">مسئولیت مالیات ملک</label>
+            <select
+              value={terms.propertyTaxResponsibility}
+              onChange={(e) => setTerms({ ...terms, propertyTaxResponsibility: e.target.value })}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            >
+              <option value="">انتخاب کنید</option>
+              <option value="موجر">موجر</option>
+              <option value="مستاجر">مستاجر</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-gray-600">مسئولیت مالیات درآمد</label>
+            <select
+              value={terms.incomeTaxResponsibility}
+              onChange={(e) => setTerms({ ...terms, incomeTaxResponsibility: e.target.value })}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            >
+              <option value="">انتخاب کنید</option>
+              <option value="موجر">موجر</option>
+              <option value="مستاجر">مستاجر</option>
+            </select>
+          </div>
+          <div className="md:col-span-2">
+            <label className="mb-1 block text-sm font-semibold text-gray-600">حق سرقفلی</label>
+            <textarea
+              value={terms.goodwillRights}
+              onChange={(e) => setTerms({ ...terms, goodwillRights: e.target.value })}
+              rows={2}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+              placeholder="شرایط حق سرقفلی..."
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="mb-1 block text-sm font-semibold text-gray-600">شرایط بازگشت ملک</label>
+            <textarea
+              value={terms.returnCondition}
+              onChange={(e) => setTerms({ ...terms, returnCondition: e.target.value })}
+              rows={2}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+              placeholder="شرایط بازگشت ملک..."
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-gray-600">مهلت اخطار فسخ (روز)</label>
+            <input
+              type="number"
+              value={terms.earlyTerminationNotice}
+              onChange={(e) => setTerms({ ...terms, earlyTerminationNotice: e.target.value })}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-gray-600">پرداخت اضافی برای فسخ زودهنگام (ریال)</label>
+            <input
+              type="number"
+              value={terms.earlyTerminationPayment}
+              onChange={(e) => setTerms({ ...terms, earlyTerminationPayment: e.target.value })}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-gray-600">جریمه تأخیر بازگشت قرض الحسنه (ریال)</label>
+            <input
+              type="number"
+              value={terms.loanReturnDelayPenalty}
+              onChange={(e) => setTerms({ ...terms, loanReturnDelayPenalty: e.target.value })}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="mb-1 block text-sm font-semibold text-gray-600">شرایط تمدید</label>
+            <textarea
+              value={terms.renewalConditions}
+              onChange={(e) => setTerms({ ...terms, renewalConditions: e.target.value })}
+              rows={2}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+              placeholder="شرایط تمدید قرارداد..."
+            />
+          </div>
+          <div className="flex items-center gap-4">
+            <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600">
+              <input
+                type="checkbox"
+                checked={terms.hasTransferRight}
+                onChange={(e) => setTerms({ ...terms, hasTransferRight: e.target.checked })}
+                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              حق انتقال به غیر
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600">
+              <input
+                type="checkbox"
+                checked={terms.lessorOwnershipConfirmed}
+                onChange={(e) => setTerms({ ...terms, lessorOwnershipConfirmed: e.target.checked })}
+                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              تأیید مالکیت موجر
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600">
+              <input
+                type="checkbox"
+                checked={terms.lessorLoanReturnObligation}
+                onChange={(e) => setTerms({ ...terms, lessorLoanReturnObligation: e.target.checked })}
+                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              تعهد موجر به بازگشت قرض الحسنه
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600">
+              <input
+                type="checkbox"
+                checked={terms.lesseeRepairRight}
+                onChange={(e) => setTerms({ ...terms, lesseeRepairRight: e.target.checked })}
+                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              حق مستاجر برای تعمیرات ضروری
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600">
+              <input
+                type="checkbox"
+                checked={terms.propertyTransferNotification}
+                onChange={(e) => setTerms({ ...terms, propertyTransferNotification: e.target.checked })}
+                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              اطلاع‌رسانی انتقال ملک
+            </label>
+          </div>
+        </div>
+      </div>
     </div>
   );
 
@@ -1244,26 +2041,26 @@ export default function EditContractPage() {
             className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
           />
         </div>
-        <div>
-          <label className="mb-1 block text-sm font-semibold text-gray-600">تاریخ شروع</label>
-          <input
-            type="date"
-            value={draftData.startDate}
-            onChange={(e) => setDraftData({ ...draftData, startDate: e.target.value })}
-            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-semibold text-gray-600">تاریخ پایان</label>
-          <input
-            type="date"
-            value={draftData.endDate}
-            onChange={(e) => setDraftData({ ...draftData, endDate: e.target.value })}
-            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-          />
-        </div>
         {contractType === ContractType.RENTAL && (
           <>
+            <div>
+              <label className="mb-1 block text-sm font-semibold text-gray-600">تاریخ شروع</label>
+              <input
+                type="date"
+                value={draftData.startDate}
+                onChange={(e) => setDraftData({ ...draftData, startDate: e.target.value })}
+                className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-semibold text-gray-600">تاریخ پایان</label>
+              <input
+                type="date"
+                value={draftData.endDate}
+                onChange={(e) => setDraftData({ ...draftData, endDate: e.target.value })}
+                className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+              />
+            </div>
             <div>
               <label className="mb-1 block text-sm font-semibold text-gray-600">مبلغ اجاره (ریال)</label>
               <input
@@ -1284,7 +2081,510 @@ export default function EditContractPage() {
             </div>
           </>
         )}
+        {contractType === ContractType.PURCHASE && (
+          <>
+            <div>
+              <label className="mb-1 block text-sm font-semibold text-gray-600">مبلغ خرید (ریال)</label>
+              <input
+                type="number"
+                value={draftData.purchaseAmount}
+                onChange={(e) => setDraftData({ ...draftData, purchaseAmount: e.target.value })}
+                className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-semibold text-gray-600">پیش‌پرداخت (ریال)</label>
+              <input
+                type="number"
+                value={draftData.depositAmount}
+                onChange={(e) => setDraftData({ ...draftData, depositAmount: e.target.value })}
+                className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+              />
+            </div>
+          </>
+        )}
       </div>
+
+      {/* NEW: Administrative Fields */}
+      <div className="rounded-2xl border border-gray-200 bg-white p-6 mt-6">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">اطلاعات اداری</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-gray-600">شماره مشاوره املاک</label>
+            <input
+              type="text"
+              value={draftData.consultancyNumber}
+              onChange={(e) => setDraftData({ ...draftData, consultancyNumber: e.target.value })}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-gray-600">حوزه ثبتي</label>
+            <input
+              type="text"
+              value={draftData.registrationArea}
+              onChange={(e) => setDraftData({ ...draftData, registrationArea: e.target.value })}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-gray-600">دفتر ثبت</label>
+            <input
+              type="text"
+              value={draftData.registrationOffice}
+              onChange={(e) => setDraftData({ ...draftData, registrationOffice: e.target.value })}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-gray-600">جلد ثبت مشاور</label>
+            <input
+              type="text"
+              value={draftData.consultantRegistrationVolume}
+              onChange={(e) => setDraftData({ ...draftData, consultantRegistrationVolume: e.target.value })}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-gray-600">شماره ثبت مشاور</label>
+            <input
+              type="text"
+              value={draftData.consultantRegistrationNumber}
+              onChange={(e) => setDraftData({ ...draftData, consultantRegistrationNumber: e.target.value })}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-gray-600">تاریخ ثبت مشاور</label>
+            <input
+              type="date"
+              value={draftData.consultantRegistrationDate}
+              onChange={(e) => setDraftData({ ...draftData, consultantRegistrationDate: e.target.value })}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-gray-600">نام شاهد 1</label>
+            <input
+              type="text"
+              value={draftData.witness1Name}
+              onChange={(e) => setDraftData({ ...draftData, witness1Name: e.target.value })}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-gray-600">نام شاهد 2</label>
+            <input
+              type="text"
+              value={draftData.witness2Name}
+              onChange={(e) => setDraftData({ ...draftData, witness2Name: e.target.value })}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-gray-600">نام کارشناس حقوقی</label>
+            <input
+              type="text"
+              value={draftData.legalExpertName}
+              onChange={(e) => setDraftData({ ...draftData, legalExpertName: e.target.value })}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-gray-600">حق الزحمه مشاور (ریال)</label>
+            <input
+              type="number"
+              value={draftData.consultantFee}
+              onChange={(e) => setDraftData({ ...draftData, consultantFee: e.target.value })}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-gray-600">تعداد نسخ قرارداد</label>
+            <input
+              type="number"
+              value={draftData.contractCopies}
+              onChange={(e) => setDraftData({ ...draftData, contractCopies: e.target.value })}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+              min="1"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Payment Methods Section - Same as create form */}
+      <div className="rounded-2xl border border-gray-200 bg-white p-6 mt-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-800">روش‌های پرداخت</h3>
+          <button
+            onClick={handleAddPayment}
+            className="inline-flex items-center gap-2 rounded-2xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700"
+          >
+            <FiCheck />
+            افزودن پرداخت
+          </button>
+        </div>
+
+        {contractType === ContractType.RENTAL && (
+          <div className="mb-6">
+            <h4 className="text-sm font-semibold text-gray-700 mb-2">رهن</h4>
+            {paymentEntries.filter(e => e.paymentType === PaymentType.MORTGAGE).length === 0 ? (
+              <p className="text-sm text-gray-500">هیچ پرداختی ثبت نشده است</p>
+            ) : (
+              <div className="space-y-2">
+                {paymentEntries
+                  .filter(e => e.paymentType === PaymentType.MORTGAGE)
+                  .map((entry, index) => {
+                    const originalIndex = paymentEntries.findIndex(e => e === entry);
+                    return (
+                      <div key={index} className="flex items-center justify-between border border-gray-200 rounded-lg p-3">
+                        <div className="flex-1">
+                          <div className="text-sm font-semibold">{getPaymentMethodLabel(entry.paymentMethod)}</div>
+                          <div className="text-sm text-gray-600">
+                            مبلغ: {entry.amount.toLocaleString('fa-IR')} ریال
+                            {entry.checkNumber && ` | شماره چک: ${entry.checkNumber}`}
+                            {entry.accountNumber && ` | شماره حساب: ${entry.accountNumber}`}
+                            {entry.cardNumber && ` | شماره کارت: ${entry.cardNumber}`}
+                            {entry.shabaNumber && ` | شماره شبا: ${entry.shabaNumber}`}
+                            {entry.bankName && ` | بانک: ${entry.bankName}`}
+                            {entry.branchName && ` | شعبه: ${entry.branchName}`}
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEditPayment(originalIndex)}
+                            className="text-primary-600 hover:text-primary-700 text-sm"
+                          >
+                            ویرایش
+                          </button>
+                          <button
+                            onClick={() => handleDeletePayment(originalIndex)}
+                            className="text-red-600 hover:text-red-700 text-sm"
+                          >
+                            حذف
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                <div className="text-sm font-semibold text-gray-700 mt-2">
+                  مجموع رهن: {getPaymentTotal(PaymentType.MORTGAGE).toLocaleString('fa-IR')} ریال
+                  {draftData.depositAmount && (
+                    <span className={getPaymentTotal(PaymentType.MORTGAGE) === parseFloat(draftData.depositAmount) ? 'text-green-600' : 'text-red-600'}>
+                      {' '}(مبلغ ودیعه: {parseFloat(draftData.depositAmount).toLocaleString('fa-IR')} ریال)
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {contractType === ContractType.PURCHASE && (
+          <>
+            <div className="mb-6">
+              <h4 className="text-sm font-semibold text-gray-700 mb-2">پیش‌پرداخت</h4>
+              {paymentEntries.filter(e => e.paymentType === PaymentType.DOWN_PAYMENT).length === 0 ? (
+                <p className="text-sm text-gray-500">هیچ پرداختی ثبت نشده است</p>
+              ) : (
+                <div className="space-y-2">
+                  {paymentEntries
+                    .filter(e => e.paymentType === PaymentType.DOWN_PAYMENT)
+                    .map((entry, index) => {
+                      const originalIndex = paymentEntries.findIndex(e => e === entry);
+                      return (
+                        <div key={index} className="flex items-center justify-between border border-gray-200 rounded-lg p-3">
+                          <div className="flex-1">
+                            <div className="text-sm font-semibold">{getPaymentMethodLabel(entry.paymentMethod)}</div>
+                            <div className="text-sm text-gray-600">
+                              مبلغ: {entry.amount.toLocaleString('fa-IR')} ریال
+                              {entry.checkNumber && ` | شماره چک: ${entry.checkNumber}`}
+                              {entry.accountNumber && ` | شماره حساب: ${entry.accountNumber}`}
+                              {entry.cardNumber && ` | شماره کارت: ${entry.cardNumber}`}
+                              {entry.shabaNumber && ` | شماره شبا: ${entry.shabaNumber}`}
+                              {entry.bankName && ` | بانک: ${entry.bankName}`}
+                              {entry.branchName && ` | شعبه: ${entry.branchName}`}
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleEditPayment(originalIndex)}
+                              className="text-primary-600 hover:text-primary-700 text-sm"
+                            >
+                              ویرایش
+                            </button>
+                            <button
+                              onClick={() => handleDeletePayment(originalIndex)}
+                              className="text-red-600 hover:text-red-700 text-sm"
+                            >
+                              حذف
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  <div className="text-sm font-semibold text-gray-700 mt-2">
+                    مجموع پیش‌پرداخت: {getPaymentTotal(PaymentType.DOWN_PAYMENT).toLocaleString('fa-IR')} ریال
+                    {draftData.depositAmount && (
+                      <span className={getPaymentTotal(PaymentType.DOWN_PAYMENT) === parseFloat(draftData.depositAmount) ? 'text-green-600' : 'text-red-600'}>
+                        {' '}(پیش‌پرداخت: {parseFloat(draftData.depositAmount).toLocaleString('fa-IR')} ریال)
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="mb-6">
+              <h4 className="text-sm font-semibold text-gray-700 mb-2">قبض رسید</h4>
+              {paymentEntries.filter(e => e.paymentType === PaymentType.BILL_OF_SALE).length === 0 ? (
+                <p className="text-sm text-gray-500">هیچ پرداختی ثبت نشده است</p>
+              ) : (
+                <div className="space-y-2">
+                  {paymentEntries
+                    .filter(e => e.paymentType === PaymentType.BILL_OF_SALE)
+                    .map((entry, index) => {
+                      const originalIndex = paymentEntries.findIndex(e => e === entry);
+                      return (
+                        <div key={index} className="flex items-center justify-between border border-gray-200 rounded-lg p-3">
+                          <div className="flex-1">
+                            <div className="text-sm font-semibold">{getPaymentMethodLabel(entry.paymentMethod)}</div>
+                            <div className="text-sm text-gray-600">
+                              مبلغ: {entry.amount.toLocaleString('fa-IR')} ریال
+                              {entry.checkNumber && ` | شماره چک: ${entry.checkNumber}`}
+                              {entry.accountNumber && ` | شماره حساب: ${entry.accountNumber}`}
+                              {entry.cardNumber && ` | شماره کارت: ${entry.cardNumber}`}
+                              {entry.shabaNumber && ` | شماره شبا: ${entry.shabaNumber}`}
+                              {entry.bankName && ` | بانک: ${entry.bankName}`}
+                              {entry.branchName && ` | شعبه: ${entry.branchName}`}
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleEditPayment(originalIndex)}
+                              className="text-primary-600 hover:text-primary-700 text-sm"
+                            >
+                              ویرایش
+                            </button>
+                            <button
+                              onClick={() => handleDeletePayment(originalIndex)}
+                              className="text-red-600 hover:text-red-700 text-sm"
+                            >
+                              حذف
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  <div className="text-sm font-semibold text-gray-700 mt-2">
+                    مجموع قبض رسید: {getPaymentTotal(PaymentType.BILL_OF_SALE).toLocaleString('fa-IR')} ریال
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-gray-200 pt-4">
+              <div className="text-sm font-semibold text-gray-700">
+                مجموع کل پرداخت‌ها: {getAllPaymentsTotal().toLocaleString('fa-IR')} ریال
+                {draftData.purchaseAmount && (
+                  <span className={getAllPaymentsTotal() <= parseFloat(draftData.purchaseAmount) ? 'text-green-600' : 'text-red-600'}>
+                    {' '}(مبلغ خرید: {parseFloat(draftData.purchaseAmount).toLocaleString('fa-IR')} ریال)
+                  </span>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Payment Modal - Same as create form */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">
+              {editingPaymentIndex !== null ? 'ویرایش پرداخت' : 'افزودن پرداخت'}
+            </h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="mb-1 block text-sm font-semibold text-gray-600">نوع پرداخت</label>
+                <select
+                  value={currentPayment.paymentType || ''}
+                  onChange={(e) => setCurrentPayment({ ...currentPayment, paymentType: e.target.value as PaymentType })}
+                  className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                >
+                  {contractType === ContractType.RENTAL ? (
+                    <option value={PaymentType.MORTGAGE}>رهن</option>
+                  ) : (
+                    <>
+                      <option value={PaymentType.DOWN_PAYMENT}>پیش‌پرداخت</option>
+                      <option value={PaymentType.BILL_OF_SALE}>قبض رسید</option>
+                    </>
+                  )}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-semibold text-gray-600">مبلغ (ریال)</label>
+                <input
+                  type="number"
+                  value={currentPayment.amount || ''}
+                  onChange={(e) => setCurrentPayment({ ...currentPayment, amount: parseFloat(e.target.value) || 0 })}
+                  className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                  min="0"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-semibold text-gray-600">روش پرداخت</label>
+                <select
+                  value={currentPayment.paymentMethod || ''}
+                  onChange={(e) => {
+                    const method = e.target.value as PaymentMethod;
+                    setCurrentPayment({
+                      ...currentPayment,
+                      paymentMethod: method,
+                      checkNumber: undefined,
+                      accountNumber: undefined,
+                      cardNumber: undefined,
+                      shabaNumber: undefined,
+                      bankName: undefined,
+                      branchName: undefined,
+                    });
+                  }}
+                  className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                >
+                  <option value={PaymentMethod.CASH}>نقد</option>
+                  <option value={PaymentMethod.CARD_TO_CARD}>کارت به کارت</option>
+                  <option value={PaymentMethod.SHABA}>شبا / پل پایا سانتا</option>
+                  <option value={PaymentMethod.ACCOUNT_TO_ACCOUNT}>حساب به حساب</option>
+                  <option value={PaymentMethod.CHECK}>چک</option>
+                </select>
+              </div>
+
+              {currentPayment.paymentMethod === PaymentMethod.CHECK && (
+                <>
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-gray-600">شماره چک *</label>
+                    <input
+                      type="text"
+                      value={currentPayment.checkNumber || ''}
+                      onChange={(e) => setCurrentPayment({ ...currentPayment, checkNumber: e.target.value })}
+                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-gray-600">نام بانک *</label>
+                    <input
+                      type="text"
+                      value={currentPayment.bankName || ''}
+                      onChange={(e) => setCurrentPayment({ ...currentPayment, bankName: e.target.value })}
+                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-gray-600">نام شعبه</label>
+                    <input
+                      type="text"
+                      value={currentPayment.branchName || ''}
+                      onChange={(e) => setCurrentPayment({ ...currentPayment, branchName: e.target.value })}
+                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                    />
+                  </div>
+                </>
+              )}
+
+              {currentPayment.paymentMethod === PaymentMethod.ACCOUNT_TO_ACCOUNT && (
+                <>
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-gray-600">شماره حساب *</label>
+                    <input
+                      type="text"
+                      value={currentPayment.accountNumber || ''}
+                      onChange={(e) => setCurrentPayment({ ...currentPayment, accountNumber: e.target.value })}
+                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-gray-600">نام بانک *</label>
+                    <input
+                      type="text"
+                      value={currentPayment.bankName || ''}
+                      onChange={(e) => setCurrentPayment({ ...currentPayment, bankName: e.target.value })}
+                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-gray-600">نام شعبه</label>
+                    <input
+                      type="text"
+                      value={currentPayment.branchName || ''}
+                      onChange={(e) => setCurrentPayment({ ...currentPayment, branchName: e.target.value })}
+                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                    />
+                  </div>
+                </>
+              )}
+
+              {currentPayment.paymentMethod === PaymentMethod.SHABA && (
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-gray-600">شماره شبا *</label>
+                  <input
+                    type="text"
+                    value={currentPayment.shabaNumber || ''}
+                    onChange={(e) => setCurrentPayment({ ...currentPayment, shabaNumber: e.target.value })}
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                    placeholder="IR + 24 digits"
+                  />
+                </div>
+              )}
+
+              {currentPayment.paymentMethod === PaymentMethod.CARD_TO_CARD && (
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-gray-600">شماره کارت *</label>
+                  <input
+                    type="text"
+                    value={currentPayment.cardNumber || ''}
+                    onChange={(e) => setCurrentPayment({ ...currentPayment, cardNumber: e.target.value })}
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                    placeholder="16 digits"
+                    maxLength={16}
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="mb-1 block text-sm font-semibold text-gray-600">توضیحات</label>
+                <textarea
+                  value={currentPayment.description || ''}
+                  onChange={(e) => setCurrentPayment({ ...currentPayment, description: e.target.value })}
+                  rows={2}
+                  className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={() => {
+                  setShowPaymentModal(false);
+                  setCurrentPayment({});
+                  setEditingPaymentIndex(null);
+                }}
+                className="flex-1 rounded-2xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 hover:border-gray-300 hover:bg-gray-50"
+              >
+                انصراف
+              </button>
+              <button
+                onClick={handleSavePayment}
+                className="flex-1 rounded-2xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700"
+              >
+                ذخیره
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 

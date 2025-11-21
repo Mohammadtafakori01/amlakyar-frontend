@@ -15,6 +15,7 @@ import {
   fetchContractById,
   updateContract,
   updateContractStatus,
+  deleteContract,
   setSelectedContract,
   setFilters,
   clearError,
@@ -53,10 +54,12 @@ export const useContracts = () => {
     fetchContractById: (id: string) => dispatch(fetchContractById(id)),
     updateContract: (id: string, data: UpdateContractRequest) => dispatch(updateContract({ id, data })),
     updateContractStatus: (id: string, data: UpdateContractStatusRequest) => dispatch(updateContractStatus({ id, data })),
+    deleteContract: (id: string) => dispatch(deleteContract(id)),
     setSelectedContract: (contract: any) => dispatch(setSelectedContract(contract)),
     setFilters: (filters: ContractFilters) => dispatch(setFilters(filters)),
     clearError: () => dispatch(clearError()),
     clearSearch: () => dispatch(clearSearch()),
   };
 };
+
 

@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { useDispatch } from 'react-redux';
 import { useRouter } from 'next/router';
-import { FiPlus, FiEdit2, FiEye, FiFilter, FiChevronRight, FiChevronLeft, FiSearch, FiX, FiFileText } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiEye, FiFilter, FiChevronRight, FiChevronLeft, FiSearch, FiX, FiFileText, FiTrash2 } from 'react-icons/fi';
 import DashboardLayout from '../../../src/shared/components/Layout/DashboardLayout';
 import PrivateRoute from '../../../src/shared/components/guards/PrivateRoute';
 import RoleGuard from '../../../src/shared/components/guards/RoleGuard';
@@ -30,6 +30,7 @@ export default function ContractsPage() {
     searchResults,
     isSearching,
     searchQuery,
+    deleteContract,
   } = useContracts();
   const { user: currentUser } = useAuth();
 
@@ -117,6 +118,22 @@ export default function ContractsPage() {
   const handleSearchKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       handleSearch();
+    }
+  };
+
+  const handleDeleteContract = async (contractId: string) => {
+    if (!window.confirm('آیا از حذف این قرارداد اطمینان دارید؟ این عمل قابل بازگشت نیست.')) {
+      return;
+    }
+
+    try {
+      await deleteContract(contractId);
+      setSnackbar({ open: true, message: 'قرارداد با موفقیت حذف شد', severity: 'success' });
+      // Refresh the list
+      dispatch(fetchContractsThunk({ ...filters, page: currentPage, limit: pageSize }));
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || err.message || 'خطا در حذف قرارداد';
+      setSnackbar({ open: true, message: errorMessage, severity: 'error' });
     }
   };
 
@@ -310,7 +327,6 @@ export default function ContractsPage() {
                         <th className="px-4 py-3">نوع</th>
                         <th className="px-4 py-3">وضعیت</th>
                         <th className="px-4 py-3">تاریخ قرارداد</th>
-                        <th className="px-4 py-3">مبلغ اجاره</th>
                         <th className="px-4 py-3">عملیات</th>
                       </tr>
                     </thead>
@@ -326,9 +342,6 @@ export default function ContractsPage() {
                           </td>
                           <td className="px-4 py-3">{contract.contractDate}</td>
                           <td className="px-4 py-3">
-                            {contract.rentalAmount ? contract.rentalAmount.toLocaleString('fa-IR') : '-'}
-                          </td>
-                          <td className="px-4 py-3">
                             <div className="flex gap-2">
                               <button
                                 onClick={() => router.push(`/dashboard/contracts/${contract.id}`)}
@@ -338,13 +351,22 @@ export default function ContractsPage() {
                                 <FiEye />
                               </button>
                               {contract.status === ContractStatus.DRAFT && (
-                                <button
-                                  onClick={() => router.push(`/dashboard/contracts/${contract.id}/edit`)}
-                                  className="rounded-full border border-gray-200 p-2 text-gray-600 hover:border-primary-200 hover:text-primary-600"
-                                  title="ویرایش"
-                                >
-                                  <FiEdit2 />
-                                </button>
+                                <>
+                                  <button
+                                    onClick={() => router.push(`/dashboard/contracts/${contract.id}/edit`)}
+                                    className="rounded-full border border-gray-200 p-2 text-gray-600 hover:border-primary-200 hover:text-primary-600"
+                                    title="ویرایش"
+                                  >
+                                    <FiEdit2 />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteContract(contract.id)}
+                                    className="rounded-full border border-red-200 p-2 text-red-600 hover:border-red-300 hover:bg-red-50"
+                                    title="حذف"
+                                  >
+                                    <FiTrash2 />
+                                  </button>
+                                </>
                               )}
                             </div>
                           </td>
@@ -375,7 +397,6 @@ export default function ContractsPage() {
                       <th className="px-4 py-3">نوع</th>
                       <th className="px-4 py-3">وضعیت</th>
                       <th className="px-4 py-3">تاریخ قرارداد</th>
-                      <th className="px-4 py-3">مبلغ اجاره</th>
                       <th className="px-4 py-3">عملیات</th>
                     </tr>
                   </thead>
@@ -391,9 +412,6 @@ export default function ContractsPage() {
                         </td>
                         <td className="px-4 py-3">{contract.contractDate}</td>
                         <td className="px-4 py-3">
-                          {contract.rentalAmount ? contract.rentalAmount.toLocaleString('fa-IR') : '-'}
-                        </td>
-                        <td className="px-4 py-3">
                           <div className="flex gap-2">
                             <button
                               onClick={() => router.push(`/dashboard/contracts/${contract.id}`)}
@@ -403,13 +421,22 @@ export default function ContractsPage() {
                               <FiEye />
                             </button>
                             {contract.status === ContractStatus.DRAFT && (
-                              <button
-                                onClick={() => router.push(`/dashboard/contracts/${contract.id}/edit`)}
-                                className="rounded-full border border-gray-200 p-2 text-gray-600 hover:border-primary-200 hover:text-primary-600"
-                                title="ویرایش"
-                              >
-                                <FiEdit2 />
-                              </button>
+                              <>
+                                <button
+                                  onClick={() => router.push(`/dashboard/contracts/${contract.id}/edit`)}
+                                  className="rounded-full border border-gray-200 p-2 text-gray-600 hover:border-primary-200 hover:text-primary-600"
+                                  title="ویرایش"
+                                >
+                                  <FiEdit2 />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteContract(contract.id)}
+                                  className="rounded-full border border-red-200 p-2 text-red-600 hover:border-red-300 hover:bg-red-50"
+                                  title="حذف"
+                                >
+                                  <FiTrash2 />
+                                </button>
+                              </>
                             )}
                           </div>
                         </td>
@@ -516,4 +543,5 @@ export default function ContractsPage() {
     </PrivateRoute>
   );
 }
+
 

@@ -120,6 +120,11 @@ export const contractsApi = {
     });
     return response.data;
   },
+
+  // Delete contract (only DRAFT contracts)
+  deleteContract: async (id: string): Promise<void> => {
+    await apiClient.delete(`/contracts/${id}`);
+  },
 };
 
 // Re-export ContractParty type for API usage
