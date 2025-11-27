@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useState } from 'react';
-import { FiCheck, FiRefreshCw, FiX, FiUsers } from 'react-icons/fi';
+import { useCallback, useEffect, useState, useRef } from 'react';
+import { FiCheck, FiRefreshCw, FiX, FiUsers, FiEdit2, FiTrash2, FiChevronRight, FiChevronLeft, FiFilter, FiPlus } from 'react-icons/fi';
 import DashboardLayout from '../../../src/shared/components/Layout/DashboardLayout';
 import PrivateRoute from '../../../src/shared/components/guards/PrivateRoute';
 import RoleGuard from '../../../src/shared/components/guards/RoleGuard';
 import ErrorDisplay from '../../../src/shared/components/common/ErrorDisplay';
 import Loading from '../../../src/shared/components/common/Loading';
 import { useEstates } from '../../../src/domains/estates/hooks/useEstates';
-import { EstateStatus, UserRole, User } from '../../../src/shared/types';
+import { EstateStatus, UserRole, User, UpdateEstateRequest, Estate, CreateEstateByMasterRequest, SetEstateStatusRequest } from '../../../src/shared/types';
 import { estatesApi } from '../../../src/domains/estates/api/estatesApi';
+import { validatePhoneNumber, validateNationalId, validatePassword, validateGuildId, validateFixedPhone, validateRequiredText } from '../../../src/shared/utils/validation';
 
 const Spinner = ({ size = 16 }: { size?: number }) => (
   <span
@@ -28,17 +29,31 @@ const statusBadge = (status: EstateStatus) => {
 
 export default function EstatesManagementPage() {
   const {
+    estates,
+    pagination,
     pendingEstates,
     approvedEstates,
+    isLoading,
     isPendingLoading,
     isApprovedLoading,
+    isUpdating,
+    isDeleting,
+    isCreating,
+    isSettingStatus,
     pendingEstatesError,
     approvedEstatesError,
     error,
+    filters,
+    fetchEstates,
     fetchPendingEstates,
     fetchApprovedEstates,
     approveEstate,
     rejectEstate,
+    updateEstate,
+    deleteEstate,
+    createEstateByMaster,
+    setEstateStatus,
+    setFilters,
   } = useEstates();
 
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
@@ -47,18 +62,6 @@ export default function EstatesManagementPage() {
     severity: 'success',
   });
   const [approvingId, setApprovingId] = useState<string | null>(null);
-  const [rejectDialog, setRejectDialog] = useState<{
-    open: boolean;
-    estateId: string | null;
-    estateName: string;
-    reason: string;
-  }>({
-    open: false,
-    estateId: null,
-    estateName: '',
-    reason: '',
-  });
-  const [rejectSubmitting, setRejectSubmitting] = useState(false);
   const [membersDialog, setMembersDialog] = useState<{
     open: boolean;
     estateId: string | null;
@@ -71,6 +74,63 @@ export default function EstatesManagementPage() {
   const [members, setMembers] = useState<User[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
   const [membersError, setMembersError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [statusFilter, setStatusFilter] = useState<EstateStatus | 'ALL'>('ALL');
+  const [editDialog, setEditDialog] = useState<{
+    open: boolean;
+    estate: Estate | null;
+    formData: UpdateEstateRequest;
+  }>({
+    open: false,
+    estate: null,
+    formData: {},
+  });
+  const [deleteDialog, setDeleteDialog] = useState<{
+    open: boolean;
+    estateId: string | null;
+    estateName: string;
+  }>({
+    open: false,
+    estateId: null,
+    estateName: '',
+  });
+  const [createDialog, setCreateDialog] = useState<{
+    open: boolean;
+    formData: CreateEstateByMasterRequest;
+  }>({
+    open: false,
+    formData: {
+      guildId: '',
+      establishmentName: '',
+      fixedPhone: '',
+      address: '',
+      admin: {
+        phoneNumber: '',
+        firstName: '',
+        lastName: '',
+        nationalId: '',
+        password: '',
+      },
+      autoApprove: false,
+    },
+  });
+  const [statusDialog, setStatusDialog] = useState<{
+    open: boolean;
+    estateId: string | null;
+    estateName: string;
+    currentStatus: EstateStatus;
+    newStatus: EstateStatus;
+    reason: string;
+  }>({
+    open: false,
+    estateId: null,
+    estateName: '',
+    currentStatus: EstateStatus.PENDING,
+    newStatus: EstateStatus.APPROVED,
+    reason: '',
+  });
+  const hasFetched = useRef(false);
 
   const refreshPending = useCallback(() => {
     fetchPendingEstates();
@@ -79,6 +139,28 @@ export default function EstatesManagementPage() {
   const refreshApproved = useCallback(() => {
     fetchApprovedEstates();
   }, [fetchApprovedEstates]);
+
+  // Initial fetch for main estates list
+  useEffect(() => {
+    if (!hasFetched.current) {
+      fetchEstates({ page: 1, limit: pageSize, status: statusFilter !== 'ALL' ? statusFilter : undefined });
+      hasFetched.current = true;
+    }
+  }, []);
+
+  // Fetch when page, pageSize, or status filter changes
+  useEffect(() => {
+    if (hasFetched.current) {
+      fetchEstates({ page: currentPage, limit: pageSize, status: statusFilter !== 'ALL' ? statusFilter : undefined });
+    }
+  }, [currentPage, pageSize, statusFilter, fetchEstates]);
+
+  // Sync currentPage with pagination.page from API response
+  useEffect(() => {
+    if (pagination && pagination.page !== currentPage) {
+      setCurrentPage(pagination.page);
+    }
+  }, [pagination?.page]);
 
   useEffect(() => {
     refreshPending();
@@ -92,11 +174,13 @@ export default function EstatesManagementPage() {
     }
   }, [snackbar.open]);
 
+  // Legacy approve/reject handlers (kept for backward compatibility)
   const handleApprove = async (estateId: string) => {
     setApprovingId(estateId);
     try {
-      await approveEstate(estateId).unwrap();
+      await setEstateStatus(estateId, { status: EstateStatus.APPROVED }).unwrap();
       setSnackbar({ open: true, message: 'املاکی با موفقیت تایید شد', severity: 'success' });
+      fetchEstates({ page: currentPage, limit: pageSize, status: statusFilter !== 'ALL' ? statusFilter : undefined });
       refreshPending();
       refreshApproved();
     } catch (err: any) {
@@ -107,31 +191,140 @@ export default function EstatesManagementPage() {
     }
   };
 
-  const handleRejectOpen = (estateId: string, estateName: string) => {
-    setRejectDialog({ open: true, estateId, estateName, reason: '' });
+  const handleStatusChangeOpen = (estate: Estate) => {
+    setStatusDialog({
+      open: true,
+      estateId: estate.id,
+      estateName: estate.establishmentName,
+      currentStatus: estate.status,
+      newStatus: estate.status === EstateStatus.APPROVED ? EstateStatus.REJECTED : EstateStatus.APPROVED,
+      reason: '',
+    });
   };
 
-  const handleRejectClose = () => {
-    setRejectDialog({ open: false, estateId: null, estateName: '', reason: '' });
+  const handleStatusChangeClose = () => {
+    setStatusDialog({
+      open: false,
+      estateId: null,
+      estateName: '',
+      currentStatus: EstateStatus.PENDING,
+      newStatus: EstateStatus.APPROVED,
+      reason: '',
+    });
   };
 
-  const handleRejectSubmit = async () => {
-    if (!rejectDialog.estateId) {
-      return;
-    }
-    setRejectSubmitting(true);
+  const handleStatusChangeSubmit = async () => {
+    if (!statusDialog.estateId) return;
     try {
-      const reason = rejectDialog.reason.trim() || undefined;
-      await rejectEstate(rejectDialog.estateId, reason).unwrap();
-      setSnackbar({ open: true, message: 'املاکی با موفقیت رد شد', severity: 'success' });
+      const data: SetEstateStatusRequest = {
+        status: statusDialog.newStatus,
+        reason: statusDialog.reason.trim() || undefined,
+      };
+      await setEstateStatus(statusDialog.estateId, data).unwrap();
+      const statusLabel = statusDialog.newStatus === EstateStatus.APPROVED ? 'تایید' : statusDialog.newStatus === EstateStatus.REJECTED ? 'رد' : 'در انتظار تایید';
+      setSnackbar({ open: true, message: `املاکی با موفقیت ${statusLabel} شد`, severity: 'success' });
+      fetchEstates({ page: currentPage, limit: pageSize, status: statusFilter !== 'ALL' ? statusFilter : undefined });
       refreshPending();
       refreshApproved();
-      handleRejectClose();
+      handleStatusChangeClose();
     } catch (err: any) {
-      const message = err?.message || 'خطا در رد املاکی';
+      const message = err?.message || 'خطا در تغییر وضعیت املاکی';
       setSnackbar({ open: true, message, severity: 'error' });
-    } finally {
-      setRejectSubmitting(false);
+    }
+  };
+
+  const handleCreateOpen = () => {
+    setCreateDialog({
+      open: true,
+      formData: {
+        guildId: '',
+        establishmentName: '',
+        fixedPhone: '',
+        address: '',
+        admin: {
+          phoneNumber: '',
+          firstName: '',
+          lastName: '',
+          nationalId: '',
+          password: '',
+        },
+        autoApprove: false,
+      },
+    });
+  };
+
+  const handleCreateClose = () => {
+    setCreateDialog({
+      open: false,
+      formData: {
+        guildId: '',
+        establishmentName: '',
+        fixedPhone: '',
+        address: '',
+        admin: {
+          phoneNumber: '',
+          firstName: '',
+          lastName: '',
+          nationalId: '',
+          password: '',
+        },
+        autoApprove: false,
+      },
+    });
+  };
+
+  const handleCreateSubmit = async () => {
+    const { formData } = createDialog;
+    
+    // Validation
+    if (!validateGuildId(formData.guildId)) {
+      setSnackbar({ open: true, message: 'شناسه صنفی باید 6 تا 12 رقم باشد', severity: 'error' });
+      return;
+    }
+    if (!validateRequiredText(formData.establishmentName)) {
+      setSnackbar({ open: true, message: 'نام واحد باید حداقل 3 کاراکتر باشد', severity: 'error' });
+      return;
+    }
+    if (!validateFixedPhone(formData.fixedPhone)) {
+      setSnackbar({ open: true, message: 'تلفن ثابت باید با 0 شروع شده و 11 رقم باشد', severity: 'error' });
+      return;
+    }
+    if (!validateRequiredText(formData.address)) {
+      setSnackbar({ open: true, message: 'آدرس باید حداقل 3 کاراکتر باشد', severity: 'error' });
+      return;
+    }
+    if (!validatePhoneNumber(formData.admin.phoneNumber)) {
+      setSnackbar({ open: true, message: 'شماره موبایل مدیر باید با 09 شروع شده و 11 رقم باشد', severity: 'error' });
+      return;
+    }
+    if (!validateRequiredText(formData.admin.firstName)) {
+      setSnackbar({ open: true, message: 'نام مدیر باید حداقل 3 کاراکتر باشد', severity: 'error' });
+      return;
+    }
+    if (!validateRequiredText(formData.admin.lastName)) {
+      setSnackbar({ open: true, message: 'نام خانوادگی مدیر باید حداقل 3 کاراکتر باشد', severity: 'error' });
+      return;
+    }
+    if (!validateNationalId(formData.admin.nationalId)) {
+      setSnackbar({ open: true, message: 'کد ملی باید 10 رقم باشد', severity: 'error' });
+      return;
+    }
+    if (!validatePassword(formData.admin.password)) {
+      setSnackbar({ open: true, message: 'رمز عبور باید حداقل 6 کاراکتر باشد', severity: 'error' });
+      return;
+    }
+
+    try {
+      await createEstateByMaster(formData).unwrap();
+      setSnackbar({ open: true, message: 'املاکی با موفقیت ایجاد شد', severity: 'success' });
+      fetchEstates({ page: 1, limit: pageSize, status: statusFilter !== 'ALL' ? statusFilter : undefined });
+      setCurrentPage(1);
+      refreshPending();
+      refreshApproved();
+      handleCreateClose();
+    } catch (err: any) {
+      const message = err?.message || 'خطا در ایجاد املاکی';
+      setSnackbar({ open: true, message, severity: 'error' });
     }
   };
 
@@ -169,6 +362,66 @@ export default function EstatesManagementPage() {
     return labels[role] || role;
   };
 
+  const handleEditOpen = (estate: Estate) => {
+    setEditDialog({
+      open: true,
+      estate,
+      formData: {
+        establishmentName: estate.establishmentName,
+        address: estate.address,
+        guildId: estate.guildId,
+        fixedPhone: estate.fixedPhone,
+      },
+    });
+  };
+
+  const handleEditClose = () => {
+    setEditDialog({ open: false, estate: null, formData: {} });
+  };
+
+  const handleEditSubmit = async () => {
+    if (!editDialog.estate) return;
+    try {
+      await updateEstate(editDialog.estate.id, editDialog.formData).unwrap();
+      setSnackbar({ open: true, message: 'املاکی با موفقیت به‌روزرسانی شد', severity: 'success' });
+      fetchEstates({ page: currentPage, limit: pageSize, status: statusFilter !== 'ALL' ? statusFilter : undefined });
+      refreshPending();
+      refreshApproved();
+      handleEditClose();
+    } catch (err: any) {
+      const message = err?.message || 'خطا در به‌روزرسانی املاکی';
+      setSnackbar({ open: true, message, severity: 'error' });
+    }
+  };
+
+  const handleDeleteOpen = (estateId: string, estateName: string) => {
+    setDeleteDialog({ open: true, estateId, estateName });
+  };
+
+  const handleDeleteClose = () => {
+    setDeleteDialog({ open: false, estateId: null, estateName: '' });
+  };
+
+  const handleDeleteSubmit = async () => {
+    if (!deleteDialog.estateId) return;
+    try {
+      await deleteEstate(deleteDialog.estateId).unwrap();
+      setSnackbar({ open: true, message: 'املاکی با موفقیت حذف شد', severity: 'success' });
+      fetchEstates({ page: currentPage, limit: pageSize, status: statusFilter !== 'ALL' ? statusFilter : undefined });
+      refreshPending();
+      refreshApproved();
+      handleDeleteClose();
+    } catch (err: any) {
+      const message = err?.message || 'خطا در حذف املاکی';
+      setSnackbar({ open: true, message, severity: 'error' });
+    }
+  };
+
+  const handleStatusFilterChange = (status: EstateStatus | 'ALL') => {
+    setStatusFilter(status);
+    setCurrentPage(1);
+  };
+
   const InfoCard = ({ title, value, description }: { title: string; value: number; description: string }) => (
     <div className="flex-1 rounded-2xl border border-gray-100 bg-white px-6 py-4 text-right shadow-sm">
       <p className="text-sm font-semibold text-gray-500">{title}</p>
@@ -201,7 +454,161 @@ export default function EstatesManagementPage() {
             <div className="flex flex-col gap-3 md:flex-row">
               <InfoCard title="در انتظار تایید" value={pendingEstates.length} description="درخواست‌های جدید" />
               <InfoCard title="تایید شده" value={approvedEstates.length} description="املاکی‌های فعال" />
+              <InfoCard title="کل املاکی‌ها" value={pagination?.total || 0} description="مجموع" />
             </div>
+
+            {/* Main CRUD Section */}
+            <section className="space-y-3">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <h2 className="text-2xl font-semibold text-gray-900">لیست املاکی‌ها</h2>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={handleCreateOpen}
+                    className="inline-flex items-center gap-2 rounded-2xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-700"
+                  >
+                    <FiPlus /> ایجاد املاکی جدید
+                  </button>
+                  <div className="flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-3 py-2">
+                    <FiFilter className="text-gray-500" />
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => handleStatusFilterChange(e.target.value as EstateStatus | 'ALL')}
+                      className="border-0 bg-transparent text-sm font-semibold text-gray-700 focus:outline-none"
+                    >
+                      <option value="ALL">همه وضعیت‌ها</option>
+                      <option value={EstateStatus.PENDING}>در انتظار تایید</option>
+                      <option value={EstateStatus.APPROVED}>تایید شده</option>
+                      <option value={EstateStatus.REJECTED}>رد شده</option>
+                    </select>
+                  </div>
+                  <button
+                    onClick={() => fetchEstates({ page: currentPage, limit: pageSize, status: statusFilter !== 'ALL' ? statusFilter : undefined })}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:border-primary-200 hover:text-primary-600"
+                  >
+                    <FiRefreshCw /> به‌روزرسانی
+                  </button>
+                </div>
+              </div>
+
+              {isLoading ? (
+                <Loading />
+              ) : estates.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-8 text-sm text-gray-500">
+                  املاکی یافت نشد.
+                </div>
+              ) : (
+                <>
+                  <TableWrapper>
+                    <table className="min-w-full text-right">
+                      <thead>
+                        <tr>
+                          <th className={tableHeadClass}>نام واحد</th>
+                          <th className={tableHeadClass}>شناسه صنفی</th>
+                          <th className={tableHeadClass}>آدرس</th>
+                          <th className={tableHeadClass}>تلفن ثابت</th>
+                          <th className={tableHeadClass}>مدیر</th>
+                          <th className={tableHeadClass}>وضعیت</th>
+                          <th className={tableHeadClass}>عملیات</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {estates.map((estate) => {
+                          const { label, classes } = statusBadge(estate.status);
+                          return (
+                            <tr key={estate.id} className="hover:bg-gray-50">
+                              <td className={tableCellClass}>{estate.establishmentName}</td>
+                              <td className={tableCellClass}>{estate.guildId}</td>
+                              <td className={tableCellClass}>{estate.address}</td>
+                              <td className={tableCellClass}>{estate.fixedPhone}</td>
+                              <td className={tableCellClass}>
+                                {estate.admin ? `${estate.admin.firstName} ${estate.admin.lastName}` : '—'}
+                              </td>
+                              <td className={tableCellClass}>
+                                <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${classes}`}>
+                                  {label}
+                                </span>
+                              </td>
+                              <td className={`${tableCellClass} min-w-[200px]`}>
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    onClick={() => handleEditOpen(estate)}
+                                    disabled={isUpdating}
+                                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-primary-200 px-3 py-2 text-sm font-semibold text-primary-600 transition hover:border-primary-300 hover:bg-primary-50 disabled:opacity-50"
+                                  >
+                                    <FiEdit2 /> ویرایش
+                                  </button>
+                                  <button
+                                    onClick={() => handleStatusChangeOpen(estate)}
+                                    disabled={isSettingStatus}
+                                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-amber-200 px-3 py-2 text-sm font-semibold text-amber-600 transition hover:border-amber-300 hover:bg-amber-50 disabled:opacity-50"
+                                  >
+                                    <FiCheck /> تغییر وضعیت
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteOpen(estate.id, estate.establishmentName)}
+                                    disabled={isDeleting}
+                                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 transition hover:border-red-300 hover:bg-red-50 disabled:opacity-50"
+                                  >
+                                    <FiTrash2 /> حذف
+                                  </button>
+                                  <button
+                                    onClick={() => handleMembersOpen(estate.id, estate.establishmentName)}
+                                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-600 transition hover:border-gray-300 hover:bg-gray-50"
+                                  >
+                                    <FiUsers /> اعضا
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </TableWrapper>
+
+                  {/* Pagination */}
+                  {pagination && pagination.totalPages > 1 && (
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="text-sm text-gray-600">
+                        نمایش {((currentPage - 1) * pageSize) + 1} تا {Math.min(currentPage * pageSize, pagination.total)} از {pagination.total} املاکی
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={pageSize}
+                          onChange={(e) => {
+                            setPageSize(Number(e.target.value));
+                            setCurrentPage(1);
+                          }}
+                          className="rounded-2xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 focus:border-primary-500 focus:outline-none"
+                        >
+                          <option value={10}>10</option>
+                          <option value={25}>25</option>
+                          <option value={50}>50</option>
+                          <option value={100}>100</option>
+                        </select>
+                        <button
+                          onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                          disabled={!pagination.hasPrevious}
+                          className="rounded-2xl border border-gray-200 bg-white p-2 text-gray-600 transition hover:border-primary-200 hover:text-primary-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <FiChevronRight />
+                        </button>
+                        <span className="text-sm font-semibold text-gray-700">
+                          صفحه {currentPage} از {pagination.totalPages}
+                        </span>
+                        <button
+                          onClick={() => setCurrentPage((prev) => Math.min(pagination.totalPages, prev + 1))}
+                          disabled={!pagination.hasNext}
+                          className="rounded-2xl border border-gray-200 bg-white p-2 text-gray-600 transition hover:border-primary-200 hover:text-primary-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <FiChevronLeft />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </section>
 
             <section className="space-y-3">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -248,20 +655,11 @@ export default function EstatesManagementPage() {
                           <td className={`${tableCellClass} min-w-[200px]`}>
                             <div className="flex flex-wrap gap-2">
                               <button
-                                onClick={() => handleApprove(estate.id)}
-                                disabled={approvingId === estate.id}
-                                className={`inline-flex flex-1 items-center justify-center gap-2 rounded-2xl px-3 py-2 text-sm font-semibold text-white transition ${
-                                  approvingId === estate.id ? 'bg-green-300' : 'bg-green-600 hover:bg-green-700'
-                                }`}
+                                onClick={() => handleStatusChangeOpen(estate)}
+                                disabled={isSettingStatus}
+                                className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border border-amber-200 px-3 py-2 text-sm font-semibold text-amber-600 transition hover:border-amber-300 hover:bg-amber-50 disabled:opacity-50"
                               >
-                                {approvingId === estate.id ? <Spinner size={18} /> : <FiCheck />}
-                                تایید املاکی
-                              </button>
-                              <button
-                                onClick={() => handleRejectOpen(estate.id, estate.establishmentName)}
-                                className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 transition hover:border-red-300 hover:bg-red-50"
-                              >
-                                <FiX /> رد املاکی
+                                <FiCheck /> تغییر وضعیت
                               </button>
                               <button
                                 onClick={() => handleMembersOpen(estate.id, estate.establishmentName)}
@@ -345,34 +743,194 @@ export default function EstatesManagementPage() {
             </section>
           </div>
 
-          {rejectDialog.open && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-              <div className="w-full max-w-lg rounded-2xl bg-white p-6 text-right shadow-2xl">
-                <h3 className="text-xl font-semibold text-gray-900">رد درخواست املاکی {rejectDialog.estateName}</h3>
-                <p className="mt-2 text-sm text-gray-500">
-                  می‌توانید علت رد شدن درخواست را وارد کنید تا برای مدیر املاکی ارسال شود.
-                </p>
-                <textarea
-                  className="mt-4 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                  rows={4}
-                  value={rejectDialog.reason}
-                  onChange={(e) => setRejectDialog((prev) => ({ ...prev, reason: e.target.value }))}
-                  placeholder="مثلاً مدارک آپلود شده ناقص است..."
-                />
-                <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+          {/* Create Estate Dialog */}
+          {createDialog.open && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 overflow-y-auto py-8">
+              <div className="w-full max-w-2xl rounded-2xl bg-white p-6 text-right shadow-2xl my-auto">
+                <h3 className="text-xl font-semibold text-gray-900">ایجاد املاکی جدید</h3>
+                <div className="mt-4 space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">شناسه صنفی *</label>
+                    <input
+                      type="text"
+                      value={createDialog.formData.guildId}
+                      onChange={(e) => setCreateDialog((prev) => ({ ...prev, formData: { ...prev.formData, guildId: e.target.value } }))}
+                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                      placeholder="1234567890"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">نام واحد *</label>
+                    <input
+                      type="text"
+                      value={createDialog.formData.establishmentName}
+                      onChange={(e) => setCreateDialog((prev) => ({ ...prev, formData: { ...prev.formData, establishmentName: e.target.value } }))}
+                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                      placeholder="دفتر املاک جدید"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">تلفن ثابت *</label>
+                    <input
+                      type="text"
+                      value={createDialog.formData.fixedPhone}
+                      onChange={(e) => setCreateDialog((prev) => ({ ...prev, formData: { ...prev.formData, fixedPhone: e.target.value } }))}
+                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                      placeholder="02112345678"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">آدرس *</label>
+                    <textarea
+                      value={createDialog.formData.address}
+                      onChange={(e) => setCreateDialog((prev) => ({ ...prev, formData: { ...prev.formData, address: e.target.value } }))}
+                      className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                      rows={3}
+                      placeholder="تهران، خیابان ولیعصر"
+                    />
+                  </div>
+                  <div className="border-t border-gray-200 pt-4">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-3">اطلاعات مدیر</h4>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1">شماره موبایل *</label>
+                        <input
+                          type="text"
+                          value={createDialog.formData.admin.phoneNumber}
+                          onChange={(e) => setCreateDialog((prev) => ({ ...prev, formData: { ...prev.formData, admin: { ...prev.formData.admin, phoneNumber: e.target.value } } }))}
+                          className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                          placeholder="09123456789"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-1">نام *</label>
+                          <input
+                            type="text"
+                            value={createDialog.formData.admin.firstName}
+                            onChange={(e) => setCreateDialog((prev) => ({ ...prev, formData: { ...prev.formData, admin: { ...prev.formData.admin, firstName: e.target.value } } }))}
+                            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                            placeholder="علی"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-1">نام خانوادگی *</label>
+                          <input
+                            type="text"
+                            value={createDialog.formData.admin.lastName}
+                            onChange={(e) => setCreateDialog((prev) => ({ ...prev, formData: { ...prev.formData, admin: { ...prev.formData.admin, lastName: e.target.value } } }))}
+                            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                            placeholder="احمدی"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1">کد ملی *</label>
+                        <input
+                          type="text"
+                          value={createDialog.formData.admin.nationalId}
+                          onChange={(e) => setCreateDialog((prev) => ({ ...prev, formData: { ...prev.formData, admin: { ...prev.formData.admin, nationalId: e.target.value } } }))}
+                          className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                          placeholder="1234567890"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1">رمز عبور *</label>
+                        <input
+                          type="password"
+                          value={createDialog.formData.admin.password}
+                          onChange={(e) => setCreateDialog((prev) => ({ ...prev, formData: { ...prev.formData, admin: { ...prev.formData.admin, password: e.target.value } } }))}
+                          className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                          placeholder="حداقل 6 کاراکتر"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="autoApprove"
+                      checked={createDialog.formData.autoApprove}
+                      onChange={(e) => setCreateDialog((prev) => ({ ...prev, formData: { ...prev.formData, autoApprove: e.target.checked } }))}
+                      className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                    />
+                    <label htmlFor="autoApprove" className="text-sm font-semibold text-gray-700">
+                      تایید خودکار املاکی و مدیر
+                    </label>
+                  </div>
+                </div>
+                <div className="mt-6 flex flex-col gap-2 sm:flex-row">
                   <button
-                    onClick={handleRejectClose}
+                    onClick={handleCreateClose}
                     className="flex-1 rounded-2xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 transition hover:border-gray-300 hover:bg-gray-50"
-                    disabled={rejectSubmitting}
+                    disabled={isCreating}
                   >
                     انصراف
                   </button>
                   <button
-                    onClick={handleRejectSubmit}
-                    className="flex-1 rounded-2xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
-                    disabled={rejectSubmitting}
+                    onClick={handleCreateSubmit}
+                    className="flex-1 rounded-2xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:bg-primary-300"
+                    disabled={isCreating}
                   >
-                    {rejectSubmitting ? <Spinner /> : 'ثبت رد املاکی'}
+                    {isCreating ? <Spinner /> : 'ایجاد املاکی'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Status Change Dialog */}
+          {statusDialog.open && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+              <div className="w-full max-w-lg rounded-2xl bg-white p-6 text-right shadow-2xl">
+                <h3 className="text-xl font-semibold text-gray-900">تغییر وضعیت املاکی: {statusDialog.estateName}</h3>
+                <p className="mt-2 text-sm text-gray-500">
+                  وضعیت فعلی: <span className="font-semibold">{statusBadge(statusDialog.currentStatus).label}</span>
+                </p>
+                <div className="mt-4">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">وضعیت جدید *</label>
+                  <select
+                    value={statusDialog.newStatus}
+                    onChange={(e) => setStatusDialog((prev) => ({ ...prev, newStatus: e.target.value as EstateStatus }))}
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                  >
+                    <option value={EstateStatus.PENDING}>در انتظار تایید</option>
+                    <option value={EstateStatus.APPROVED}>تایید شده</option>
+                    <option value={EstateStatus.REJECTED}>رد شده</option>
+                  </select>
+                </div>
+                {statusDialog.newStatus === EstateStatus.REJECTED && (
+                  <div className="mt-4">
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">علت رد (اختیاری)</label>
+                    <textarea
+                      value={statusDialog.reason}
+                      onChange={(e) => setStatusDialog((prev) => ({ ...prev, reason: e.target.value }))}
+                      className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                      rows={3}
+                      placeholder="مثلاً مدارک ناقص است..."
+                    />
+                  </div>
+                )}
+                <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+                  <button
+                    onClick={handleStatusChangeClose}
+                    className="flex-1 rounded-2xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 transition hover:border-gray-300 hover:bg-gray-50"
+                    disabled={isSettingStatus}
+                  >
+                    انصراف
+                  </button>
+                  <button
+                    onClick={handleStatusChangeSubmit}
+                    className={`flex-1 rounded-2xl px-4 py-2 text-sm font-semibold text-white transition disabled:cursor-not-allowed ${
+                      statusDialog.newStatus === EstateStatus.APPROVED
+                        ? 'bg-green-600 hover:bg-green-700 disabled:bg-green-300'
+                        : statusDialog.newStatus === EstateStatus.REJECTED
+                        ? 'bg-red-600 hover:bg-red-700 disabled:bg-red-300'
+                        : 'bg-amber-600 hover:bg-amber-700 disabled:bg-amber-300'
+                    }`}
+                    disabled={isSettingStatus}
+                  >
+                    {isSettingStatus ? <Spinner /> : `تغییر به ${statusBadge(statusDialog.newStatus).label}`}
                   </button>
                 </div>
               </div>
@@ -487,6 +1045,104 @@ export default function EstatesManagementPage() {
                       </table>
                     </div>
                   )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Edit Dialog */}
+          {editDialog.open && editDialog.estate && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+              <div className="w-full max-w-lg rounded-2xl bg-white p-6 text-right shadow-2xl">
+                <h3 className="text-xl font-semibold text-gray-900">ویرایش املاکی: {editDialog.estate.establishmentName}</h3>
+                <div className="mt-4 space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">نام واحد</label>
+                    <input
+                      type="text"
+                      value={editDialog.formData.establishmentName || ''}
+                      onChange={(e) => setEditDialog((prev) => ({ ...prev, formData: { ...prev.formData, establishmentName: e.target.value } }))}
+                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                      placeholder="نام واحد"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">شناسه صنفی</label>
+                    <input
+                      type="text"
+                      value={editDialog.formData.guildId || ''}
+                      onChange={(e) => setEditDialog((prev) => ({ ...prev, formData: { ...prev.formData, guildId: e.target.value } }))}
+                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                      placeholder="شناسه صنفی"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">آدرس</label>
+                    <textarea
+                      value={editDialog.formData.address || ''}
+                      onChange={(e) => setEditDialog((prev) => ({ ...prev, formData: { ...prev.formData, address: e.target.value } }))}
+                      className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                      rows={3}
+                      placeholder="آدرس"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">تلفن ثابت</label>
+                    <input
+                      type="text"
+                      value={editDialog.formData.fixedPhone || ''}
+                      onChange={(e) => setEditDialog((prev) => ({ ...prev, formData: { ...prev.formData, fixedPhone: e.target.value } }))}
+                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                      placeholder="تلفن ثابت"
+                    />
+                  </div>
+                </div>
+                <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+                  <button
+                    onClick={handleEditClose}
+                    className="flex-1 rounded-2xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 transition hover:border-gray-300 hover:bg-gray-50"
+                    disabled={isUpdating}
+                  >
+                    انصراف
+                  </button>
+                  <button
+                    onClick={handleEditSubmit}
+                    className="flex-1 rounded-2xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:bg-primary-300"
+                    disabled={isUpdating}
+                  >
+                    {isUpdating ? <Spinner /> : 'ذخیره تغییرات'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Delete Confirmation Dialog */}
+          {deleteDialog.open && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+              <div className="w-full max-w-lg rounded-2xl bg-white p-6 text-right shadow-2xl">
+                <h3 className="text-xl font-semibold text-gray-900">حذف املاکی</h3>
+                <p className="mt-2 text-sm text-gray-500">
+                  آیا از حذف املاکی <strong>{deleteDialog.estateName}</strong> اطمینان دارید؟
+                </p>
+                <p className="mt-2 text-xs text-red-600">
+                  توجه: در صورت وجود اعضای فعال، حذف امکان‌پذیر نیست.
+                </p>
+                <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+                  <button
+                    onClick={handleDeleteClose}
+                    className="flex-1 rounded-2xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 transition hover:border-gray-300 hover:bg-gray-50"
+                    disabled={isDeleting}
+                  >
+                    انصراف
+                  </button>
+                  <button
+                    onClick={handleDeleteSubmit}
+                    className="flex-1 rounded-2xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? <Spinner /> : 'حذف'}
+                  </button>
                 </div>
               </div>
             </div>

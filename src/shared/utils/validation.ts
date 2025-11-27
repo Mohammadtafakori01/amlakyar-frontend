@@ -47,3 +47,15 @@ export const validateDate = (date: string): boolean => {
   return parsedDate instanceof Date && !isNaN(parsedDate.getTime());
 };
 
+// Unique code validation (alphanumeric, min 3 chars)
+export const validateUniqueCode = (code: string): boolean => {
+  return /^[a-zA-Z0-9\-_]{3,}$/.test(code);
+};
+
+// Price validation (positive number)
+export const validatePrice = (price: number | string | undefined | null): boolean => {
+  if (price === undefined || price === null) return true; // Optional field
+  const num = typeof price === 'string' ? parseFloat(price) : price;
+  return !isNaN(num) && num >= 0;
+};
+

@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { useDispatch } from 'react-redux';
 import { useRouter } from 'next/router';
-import { FiPlus, FiEdit2, FiEye, FiFilter, FiChevronRight, FiChevronLeft, FiSearch, FiX, FiFileText, FiTrash2 } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiEye, FiFilter, FiChevronRight, FiChevronLeft, FiSearch, FiX, FiFileText, FiTrash2, FiArchive } from 'react-icons/fi';
 import DashboardLayout from '../../../src/shared/components/Layout/DashboardLayout';
 import PrivateRoute from '../../../src/shared/components/guards/PrivateRoute';
 import RoleGuard from '../../../src/shared/components/guards/RoleGuard';
@@ -31,6 +31,7 @@ export default function ContractsPage() {
     isSearching,
     searchQuery,
     deleteContract,
+    fetchArchive,
   } = useContracts();
   const { user: currentUser } = useAuth();
 
@@ -41,6 +42,10 @@ export default function ContractsPage() {
   const hasFetched = useRef(false);
   const [searchInput, setSearchInput] = useState('');
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
+  const [activeTab, setActiveTab] = useState<'contracts' | 'archive'>('contracts');
+  const [archiveYear, setArchiveYear] = useState<number>(new Date().getFullYear() - 621);
+  const [archiveContracts, setArchiveContracts] = useState<any[]>([]);
+  const [isLoadingArchive, setIsLoadingArchive] = useState(false);
 
   const [localFilters, setLocalFilters] = useState<ContractFilters>({
     type: filters?.type,
@@ -136,6 +141,32 @@ export default function ContractsPage() {
       setSnackbar({ open: true, message: errorMessage, severity: 'error' });
     }
   };
+
+  const handleArchiveYearChange = async (year: number) => {
+    setArchiveYear(year);
+    setIsLoadingArchive(true);
+    try {
+      const result = await fetchArchive(year);
+      if (fetchArchive.fulfilled.match(result)) {
+        setArchiveContracts(result.payload);
+      } else {
+        setArchiveContracts([]);
+      }
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || err.message || 'خطا در بارگذاری بایگانی';
+      setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+      setArchiveContracts([]);
+    } finally {
+      setIsLoadingArchive(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'archive' && archiveContracts.length === 0 && !isLoadingArchive) {
+      handleArchiveYearChange(archiveYear);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   const getContractTypeLabel = (type: ContractType): string => {
     return type === ContractType.RENTAL ? 'اجاره‌نامه' : 'مبایعه‌نامه';
@@ -309,9 +340,99 @@ export default function ContractsPage() {
               </div>
             )}
 
+            {/* Tabs */}
+            <div className="flex gap-2 border-b border-gray-200">
+              <button
+                onClick={() => setActiveTab('contracts')}
+                className={`px-4 py-2 font-semibold transition-colors ${
+                  activeTab === 'contracts'
+                    ? 'border-b-2 border-primary-600 text-primary-600'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                قراردادها
+              </button>
+              <button
+                onClick={() => setActiveTab('archive')}
+                className={`px-4 py-2 font-semibold transition-colors ${
+                  activeTab === 'archive'
+                    ? 'border-b-2 border-primary-600 text-primary-600'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <FiArchive className="inline ml-2" />
+                بایگانی
+              </button>
+            </div>
+
             <ErrorDisplay error={error} />
 
-            {(isLoading || isSearching) ? (
+            {activeTab === 'archive' ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <label className="text-sm font-semibold text-gray-700">سال:</label>
+                  <input
+                    type="number"
+                    value={archiveYear}
+                    onChange={(e) => handleArchiveYearChange(parseInt(e.target.value) || archiveYear)}
+                    className="rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 w-32"
+                  />
+                  <button
+                    onClick={() => handleArchiveYearChange(archiveYear)}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:border-primary-200 hover:text-primary-600"
+                  >
+                    <FiSearch /> جستجو
+                  </button>
+                </div>
+
+                {isLoadingArchive ? (
+                  <Loading />
+                ) : archiveContracts.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-8 text-sm text-gray-500">
+                    قراردادی در بایگانی سال {archiveYear} یافت نشد.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm">
+                    <table className="min-w-full text-right text-sm text-gray-800">
+                      <thead>
+                        <tr className="bg-gray-50 text-xs font-semibold uppercase text-gray-500">
+                          <th className="px-4 py-3">شماره قرارداد</th>
+                          <th className="px-4 py-3">نوع</th>
+                          <th className="px-4 py-3">وضعیت</th>
+                          <th className="px-4 py-3">تاریخ قرارداد</th>
+                          <th className="px-4 py-3">عملیات</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {archiveContracts.map((contract) => (
+                          <tr key={contract.id} className="border-t border-gray-100 hover:bg-gray-50">
+                            <td className="px-4 py-3 font-semibold">{contract.contractNumber}</td>
+                            <td className="px-4 py-3">{getContractTypeLabel(contract.type)}</td>
+                            <td className="px-4 py-3">
+                              <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${getStatusColor(contract.status)}`}>
+                                {getStatusLabel(contract.status)}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">{contract.contractDate}</td>
+                            <td className="px-4 py-3">
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => router.push(`/dashboard/contracts/${contract.id}`)}
+                                  className="rounded-full border border-gray-200 p-2 text-gray-600 hover:border-primary-200 hover:text-primary-600"
+                                  title="مشاهده جزئیات"
+                                >
+                                  <FiEye className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            ) : (isLoading || isSearching) ? (
               <Loading />
             ) : searchQuery ? (
               searchResults.length === 0 ? (

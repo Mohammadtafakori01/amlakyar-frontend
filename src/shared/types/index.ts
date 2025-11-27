@@ -181,8 +181,37 @@ export interface RegisterEstateRequest {
   };
 }
 
+export interface CreateEstateByMasterRequest {
+  guildId: string;
+  establishmentName: string;
+  fixedPhone: string;
+  address: string;
+  admin: {
+    phoneNumber: string;
+    firstName: string;
+    lastName: string;
+    nationalId: string;
+    password: string;
+  };
+  autoApprove?: boolean;
+}
+
 export interface EstateFilters {
   status?: EstateStatus;
+  page?: number;
+  limit?: number;
+}
+
+export interface UpdateEstateRequest {
+  establishmentName?: string;
+  address?: string;
+  guildId?: string;
+  fixedPhone?: string;
+}
+
+export interface SetEstateStatusRequest {
+  status: EstateStatus;
+  reason?: string;
 }
 
 export interface RejectEstateRequest {

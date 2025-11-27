@@ -10,6 +10,9 @@ import {
   FiHome,
   FiFileText,
   FiX,
+  FiFolder,
+  FiPhone,
+  FiClipboard,
 } from 'react-icons/fi';
 import { useAuth } from '../../../domains/auth/hooks/useAuth';
 import { UserRole } from '../../../shared/types';
@@ -59,6 +62,24 @@ const menuItems: MenuItem[] = [
     icon: <FiFileText className="w-5 h-5" />,
     path: '/dashboard/contracts',
     roles: [UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.MASTER],
+  },
+  {
+    text: 'فایل‌های ملکی',
+    icon: <FiFolder className="w-5 h-5" />,
+    path: '/dashboard/property-files',
+    roles: [UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.SECRETARY, UserRole.CONSULTANT],
+  },
+  {
+    text: 'دفترچه تلفن',
+    icon: <FiPhone className="w-5 h-5" />,
+    path: '/dashboard/contacts',
+    roles: [UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.SECRETARY, UserRole.CONSULTANT],
+  },
+  {
+    text: 'ثبت مراجعات',
+    icon: <FiClipboard className="w-5 h-5" />,
+    path: '/dashboard/client-logs',
+    roles: [UserRole.ADMIN, UserRole.SECRETARY],
   },
 ];
 

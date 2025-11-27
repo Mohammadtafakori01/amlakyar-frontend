@@ -1,5 +1,5 @@
 import apiClient from '../../../shared/api/client';
-import { Estate, RegisterEstateRequest, EstateFilters, RejectEstateRequest, User } from '../../../shared/types';
+import { Estate, RegisterEstateRequest, CreateEstateByMasterRequest, EstateFilters, RejectEstateRequest, UpdateEstateRequest, SetEstateStatusRequest, User, PaginatedResponse } from '../../../shared/types';
 
 export const estatesApi = {
   registerEstate: async (data: RegisterEstateRequest): Promise<Estate> => {
@@ -7,15 +7,26 @@ export const estatesApi = {
     return response.data;
   },
 
-  getEstates: async (filters?: EstateFilters): Promise<Estate[]> => {
+  createEstateByMaster: async (data: CreateEstateByMasterRequest): Promise<Estate> => {
+    const response = await apiClient.post<Estate>('/estates/master', data);
+    return response.data;
+  },
+
+  getEstates: async (filters?: EstateFilters): Promise<PaginatedResponse<Estate>> => {
     const params = new URLSearchParams();
     if (filters?.status) {
       params.append('status', filters.status);
     }
+    if (filters?.page) {
+      params.append('page', filters.page.toString());
+    }
+    if (filters?.limit) {
+      params.append('limit', filters.limit.toString());
+    }
 
     const query = params.toString();
     const url = query ? `/estates?${query}` : '/estates';
-    const response = await apiClient.get<Estate[]>(url);
+    const response = await apiClient.get<PaginatedResponse<Estate>>(url);
     return response.data;
   },
 
@@ -44,9 +55,23 @@ export const estatesApi = {
     return response.data;
   },
 
+  setEstateStatus: async (id: string, data: SetEstateStatusRequest): Promise<Estate> => {
+    const response = await apiClient.patch<Estate>(`/estates/${id}/status`, data);
+    return response.data;
+  },
+
   getEstateMembers: async (estateId: string): Promise<User[]> => {
     const response = await apiClient.get<User[]>(`/estates/${estateId}/members`);
     return response.data;
+  },
+
+  updateEstate: async (id: string, data: UpdateEstateRequest): Promise<Estate> => {
+    const response = await apiClient.patch<Estate>(`/estates/${id}`, data);
+    return response.data;
+  },
+
+  deleteEstate: async (id: string): Promise<void> => {
+    await apiClient.delete(`/estates/${id}`);
   },
 };
 

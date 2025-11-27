@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { estatesApi } from '../api/estatesApi';
-import { EstatesState, Estate, EstateFilters, RejectEstateRequest } from '../types';
+import { EstatesState, Estate, EstateFilters, RejectEstateRequest, UpdateEstateRequest, PaginatedResponse, CreateEstateByMasterRequest, SetEstateStatusRequest } from '../types';
+import { PaginationMeta, EstateStatus } from '../../../shared/types';
 
 const initialState: EstatesState = {
   estates: [],
@@ -9,10 +10,15 @@ const initialState: EstatesState = {
   selectedEstate: null,
   currentEstate: null,
   filters: {},
+  pagination: null,
   isLoading: false,
   isPendingLoading: false,
   isApprovedLoading: false,
   isCurrentEstateLoading: false,
+  isUpdating: false,
+  isDeleting: false,
+  isCreating: false,
+  isSettingStatus: false,
   error: null,
   pendingEstatesError: null,
   approvedEstatesError: null,
@@ -31,8 +37,8 @@ export const fetchEstates = createAsyncThunk(
   'estates/fetchEstates',
   async (filters?: EstateFilters, { rejectWithValue }) => {
     try {
-      const estates = await estatesApi.getEstates(filters);
-      return estates;
+      const response = await estatesApi.getEstates(filters);
+      return response;
     } catch (error: any) {
       return rejectWithValue(normalizeError(error, 'خطا در دریافت لیست املاک'));
     }
@@ -110,6 +116,54 @@ export const rejectEstate = createAsyncThunk(
   }
 );
 
+export const updateEstate = createAsyncThunk(
+  'estates/updateEstate',
+  async ({ id, data }: { id: string; data: UpdateEstateRequest }, { rejectWithValue }) => {
+    try {
+      const estate = await estatesApi.updateEstate(id, data);
+      return estate;
+    } catch (error: any) {
+      return rejectWithValue(normalizeError(error, 'خطا در به‌روزرسانی املاکی'));
+    }
+  }
+);
+
+export const deleteEstate = createAsyncThunk(
+  'estates/deleteEstate',
+  async (id: string, { rejectWithValue }) => {
+    try {
+      await estatesApi.deleteEstate(id);
+      return id;
+    } catch (error: any) {
+      return rejectWithValue(normalizeError(error, 'خطا در حذف املاکی'));
+    }
+  }
+);
+
+export const createEstateByMaster = createAsyncThunk(
+  'estates/createEstateByMaster',
+  async (data: CreateEstateByMasterRequest, { rejectWithValue }) => {
+    try {
+      const estate = await estatesApi.createEstateByMaster(data);
+      return estate;
+    } catch (error: any) {
+      return rejectWithValue(normalizeError(error, 'خطا در ایجاد املاکی'));
+    }
+  }
+);
+
+export const setEstateStatus = createAsyncThunk(
+  'estates/setEstateStatus',
+  async ({ id, data }: { id: string; data: SetEstateStatusRequest }, { rejectWithValue }) => {
+    try {
+      const estate = await estatesApi.setEstateStatus(id, data);
+      return estate;
+    } catch (error: any) {
+      return rejectWithValue(normalizeError(error, 'خطا در تغییر وضعیت املاکی'));
+    }
+  }
+);
+
 const estatesSlice = createSlice({
   name: 'estates',
   initialState,
@@ -131,9 +185,10 @@ const estatesSlice = createSlice({
         state.isLoading = true;
         state.error = null;
       })
-      .addCase(fetchEstates.fulfilled, (state, action: PayloadAction<Estate[]>) => {
+      .addCase(fetchEstates.fulfilled, (state, action: PayloadAction<PaginatedResponse<Estate>>) => {
         state.isLoading = false;
-        state.estates = action.payload;
+        state.estates = action.payload.data;
+        state.pagination = action.payload.meta;
         state.error = null;
       })
       .addCase(fetchEstates.rejected, (state, action) => {
@@ -247,6 +302,120 @@ const estatesSlice = createSlice({
         }
       })
       .addCase(rejectEstate.rejected, (state, action) => {
+        state.error = action.payload as string;
+      });
+
+    builder
+      .addCase(updateEstate.pending, (state) => {
+        state.isUpdating = true;
+        state.error = null;
+      })
+      .addCase(updateEstate.fulfilled, (state, action: PayloadAction<Estate>) => {
+        state.isUpdating = false;
+        const updatedEstate = action.payload;
+        state.estates = state.estates.map((estate) =>
+          estate.id === updatedEstate.id ? updatedEstate : estate
+        );
+        state.pendingEstates = state.pendingEstates.map((estate) =>
+          estate.id === updatedEstate.id ? updatedEstate : estate
+        );
+        state.approvedEstates = state.approvedEstates.map((estate) =>
+          estate.id === updatedEstate.id ? updatedEstate : estate
+        );
+        if (state.selectedEstate?.id === updatedEstate.id) {
+          state.selectedEstate = updatedEstate;
+        }
+        if (state.currentEstate?.id === updatedEstate.id) {
+          state.currentEstate = updatedEstate;
+        }
+        state.error = null;
+      })
+      .addCase(updateEstate.rejected, (state, action) => {
+        state.isUpdating = false;
+        state.error = action.payload as string;
+      });
+
+    builder
+      .addCase(deleteEstate.pending, (state) => {
+        state.isDeleting = true;
+        state.error = null;
+      })
+      .addCase(deleteEstate.fulfilled, (state, action: PayloadAction<string>) => {
+        state.isDeleting = false;
+        const deletedId = action.payload;
+        state.estates = state.estates.filter((estate) => estate.id !== deletedId);
+        state.pendingEstates = state.pendingEstates.filter((estate) => estate.id !== deletedId);
+        state.approvedEstates = state.approvedEstates.filter((estate) => estate.id !== deletedId);
+        if (state.selectedEstate?.id === deletedId) {
+          state.selectedEstate = null;
+        }
+        if (state.currentEstate?.id === deletedId) {
+          state.currentEstate = null;
+        }
+        state.error = null;
+      })
+      .addCase(deleteEstate.rejected, (state, action) => {
+        state.isDeleting = false;
+        state.error = action.payload as string;
+      });
+
+    builder
+      .addCase(createEstateByMaster.pending, (state) => {
+        state.isCreating = true;
+        state.error = null;
+      })
+      .addCase(createEstateByMaster.fulfilled, (state, action: PayloadAction<Estate>) => {
+        state.isCreating = false;
+        const newEstate = action.payload;
+        state.estates = [newEstate, ...state.estates];
+        if (newEstate.status === EstateStatus.PENDING) {
+          state.pendingEstates = [newEstate, ...state.pendingEstates];
+        } else if (newEstate.status === EstateStatus.APPROVED) {
+          state.approvedEstates = [newEstate, ...state.approvedEstates];
+        }
+        state.error = null;
+      })
+      .addCase(createEstateByMaster.rejected, (state, action) => {
+        state.isCreating = false;
+        state.error = action.payload as string;
+      });
+
+    builder
+      .addCase(setEstateStatus.pending, (state) => {
+        state.isSettingStatus = true;
+        state.error = null;
+      })
+      .addCase(setEstateStatus.fulfilled, (state, action: PayloadAction<Estate>) => {
+        state.isSettingStatus = false;
+        const updatedEstate = action.payload;
+        state.estates = state.estates.map((estate) =>
+          estate.id === updatedEstate.id ? updatedEstate : estate
+        );
+        // Update pending and approved lists based on new status
+        if (updatedEstate.status === EstateStatus.PENDING) {
+          state.pendingEstates = state.pendingEstates.find((e) => e.id === updatedEstate.id)
+            ? state.pendingEstates.map((e) => (e.id === updatedEstate.id ? updatedEstate : e))
+            : [updatedEstate, ...state.pendingEstates];
+          state.approvedEstates = state.approvedEstates.filter((e) => e.id !== updatedEstate.id);
+        } else if (updatedEstate.status === EstateStatus.APPROVED) {
+          state.approvedEstates = state.approvedEstates.find((e) => e.id === updatedEstate.id)
+            ? state.approvedEstates.map((e) => (e.id === updatedEstate.id ? updatedEstate : e))
+            : [updatedEstate, ...state.approvedEstates];
+          state.pendingEstates = state.pendingEstates.filter((e) => e.id !== updatedEstate.id);
+        } else if (updatedEstate.status === EstateStatus.REJECTED) {
+          state.pendingEstates = state.pendingEstates.filter((e) => e.id !== updatedEstate.id);
+          state.approvedEstates = state.approvedEstates.filter((e) => e.id !== updatedEstate.id);
+        }
+        if (state.selectedEstate?.id === updatedEstate.id) {
+          state.selectedEstate = updatedEstate;
+        }
+        if (state.currentEstate?.id === updatedEstate.id) {
+          state.currentEstate = updatedEstate;
+        }
+        state.error = null;
+      })
+      .addCase(setEstateStatus.rejected, (state, action) => {
+        state.isSettingStatus = false;
         state.error = action.payload as string;
       });
   },

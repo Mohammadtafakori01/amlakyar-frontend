@@ -4,6 +4,9 @@ import usersReducer from '../domains/users/store/usersSlice';
 import profileReducer from '../domains/profile/store/profileSlice';
 import estatesReducer from '../domains/estates/store/estatesSlice';
 import contractsReducer from '../domains/contracts/store/contractsSlice';
+import propertyFilesReducer from '../domains/property-files/store/propertyFilesSlice';
+import contactsReducer from '../domains/contacts/store/contactsSlice';
+import clientLogsReducer from '../domains/client-logs/store/clientLogsSlice';
 
 export const store = configureStore({
   reducer: {
@@ -12,6 +15,9 @@ export const store = configureStore({
     profile: profileReducer,
     estates: estatesReducer,
     contracts: contractsReducer,
+    propertyFiles: propertyFilesReducer,
+    contacts: contactsReducer,
+    clientLogs: clientLogsReducer,
   },
 });
 

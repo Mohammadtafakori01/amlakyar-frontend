@@ -6,6 +6,7 @@ import PrivateRoute from '../../../src/shared/components/guards/PrivateRoute';
 import RoleGuard from '../../../src/shared/components/guards/RoleGuard';
 import { useUsers } from '../../../src/domains/users/hooks/useUsers';
 import { useAuth } from '../../../src/domains/auth/hooks/useAuth';
+import { useEstates } from '../../../src/domains/estates/hooks/useEstates';
 import { UserRole, CreateUserRequest, UpdateUserRequest, UserFilters, CreateStaffRequest, SearchUsersQuery } from '../../../src/shared/types';
 import Loading from '../../../src/shared/components/common/Loading';
 import ErrorDisplay from '../../../src/shared/components/common/ErrorDisplay';
@@ -35,6 +36,7 @@ export default function UsersPage() {
     searchQuery,
   } = useUsers();
   const { user: currentUser, loginAsUser: loginAsUserAction, isLoading: authLoading } = useAuth();
+  const { approvedEstates, fetchApprovedEstates, isLoading: estatesLoading } = useEstates();
   const isMaster = currentUser?.role === UserRole.MASTER;
   const isAdmin = currentUser?.role === UserRole.ADMIN;
   const isSupervisor = currentUser?.role === UserRole.SUPERVISOR;
@@ -259,6 +261,10 @@ export default function UsersPage() {
         isActive: true,
         isApproved: true,
       });
+    }
+    // Fetch approved estates when opening dialog for master users
+    if (isMaster) {
+      fetchApprovedEstates();
     }
     setOpenDialog(true);
   };
@@ -1030,14 +1036,23 @@ export default function UsersPage() {
                     </div>
                     {currentUser?.role === UserRole.MASTER && (
                       <div>
-                        <label className="mb-1 block text-sm font-medium text-gray-600">شناسه املاک (اختیاری)</label>
-                        <input
-                          type="text"
+                        <label className="mb-1 block text-sm font-medium text-gray-600">املاک (اختیاری)</label>
+                        <select
                           className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
                           value={formData.estateId || ''}
                           onChange={(e) => setFormData({ ...formData, estateId: e.target.value || undefined })}
-                          placeholder="UUID"
-                        />
+                          disabled={estatesLoading}
+                        >
+                          <option value="">انتخاب املاک</option>
+                          {approvedEstates.map((estate) => (
+                            <option key={estate.id} value={estate.id}>
+                              {estate.establishmentName}
+                            </option>
+                          ))}
+                        </select>
+                        {estatesLoading && (
+                          <p className="mt-1 text-xs text-gray-500">در حال بارگذاری...</p>
+                        )}
                       </div>
                     )}
                     {isEdit && (

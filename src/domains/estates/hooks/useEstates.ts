@@ -9,11 +9,15 @@ import {
   fetchApprovedEstates,
   approveEstate,
   rejectEstate,
+  updateEstate,
+  deleteEstate,
+  createEstateByMaster,
+  setEstateStatus,
   setEstateFilters,
   clearEstatesError,
   clearCurrentEstate,
 } from '../store/estatesSlice';
-import { EstateFilters } from '../types';
+import { EstateFilters, UpdateEstateRequest, CreateEstateByMasterRequest, SetEstateStatusRequest } from '../types';
 
 export const useEstates = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -54,6 +58,26 @@ export const useEstates = () => {
     [dispatch]
   );
 
+  const updateEstateAction = useCallback(
+    (id: string, data: UpdateEstateRequest) => dispatch(updateEstate({ id, data })),
+    [dispatch]
+  );
+
+  const deleteEstateAction = useCallback(
+    (id: string) => dispatch(deleteEstate(id)),
+    [dispatch]
+  );
+
+  const createEstateByMasterAction = useCallback(
+    (data: CreateEstateByMasterRequest) => dispatch(createEstateByMaster(data)),
+    [dispatch]
+  );
+
+  const setEstateStatusAction = useCallback(
+    (id: string, data: SetEstateStatusRequest) => dispatch(setEstateStatus({ id, data })),
+    [dispatch]
+  );
+
   const setFiltersAction = useCallback(
     (filters: EstateFilters) => dispatch(setEstateFilters(filters)),
     [dispatch]
@@ -78,6 +102,10 @@ export const useEstates = () => {
     fetchApprovedEstates: fetchApprovedEstatesAction,
     approveEstate: approveEstateAction,
     rejectEstate: rejectEstateAction,
+    updateEstate: updateEstateAction,
+    deleteEstate: deleteEstateAction,
+    createEstateByMaster: createEstateByMasterAction,
+    setEstateStatus: setEstateStatusAction,
     setFilters: setFiltersAction,
     clearError: clearErrorAction,
     clearCurrentEstate: clearCurrentEstateAction,
