@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { usersApi } from '../api/usersApi';
-import { UsersState, User, CreateUserRequest, UpdateUserRequest, UserFilters, CreateStaffRequest, PaginatedResponse, SearchUsersQuery } from '../types';
+import { UsersState, User, CreateUserRequest, UpdateUserRequest, UserFilters, CreateStaffRequest, SearchUsersQuery } from '../types';
+import { PaginatedResponse } from '../../../shared/types';
 
 const initialState: UsersState = {
   users: [],
@@ -17,7 +18,7 @@ const initialState: UsersState = {
 // Async thunks
 export const fetchUsers = createAsyncThunk(
   'users/fetchUsers',
-  async (filters?: UserFilters, { rejectWithValue }) => {
+  async (filters: UserFilters | undefined, { rejectWithValue }) => {
     try {
       const response = await usersApi.getAllUsers(filters);
       return response;

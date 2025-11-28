@@ -38,7 +38,8 @@ export default function ContractDetailPage() {
       hasFetched.current = contractId;
       fetchContractById(contractId);
     }
-  }, [id]); // Only depend on id, not fetchContractById to avoid loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]); // Only depend on id to avoid loops; fetchContractById and selectedContract are intentionally excluded
 
   const getContractTypeLabel = (type: ContractType): string => {
     return type === ContractType.RENTAL ? 'اجاره‌نامه' : 'مبایعه‌نامه';

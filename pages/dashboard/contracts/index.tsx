@@ -12,7 +12,7 @@ import { ContractType, ContractStatus, ContractFilters } from '../../../src/doma
 import Loading from '../../../src/shared/components/common/Loading';
 import ErrorDisplay from '../../../src/shared/components/common/ErrorDisplay';
 import { AppDispatch } from '../../../src/app/store';
-import { fetchContracts as fetchContractsThunk } from '../../../src/domains/contracts/store/contractsSlice';
+import { fetchContracts as fetchContractsThunk, fetchArchive as fetchArchiveThunk } from '../../../src/domains/contracts/store/contractsSlice';
 
 export default function ContractsPage() {
   const router = useRouter();
@@ -79,6 +79,7 @@ export default function ContractsPage() {
     if (pagination && pagination.page !== currentPage) {
       setCurrentPage(pagination.page);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pagination?.page]);
 
   const handleApplyFilters = () => {
@@ -147,8 +148,8 @@ export default function ContractsPage() {
     setIsLoadingArchive(true);
     try {
       const result = await fetchArchive(year);
-      if (fetchArchive.fulfilled.match(result)) {
-        setArchiveContracts(result.payload);
+      if (fetchArchiveThunk.fulfilled.match(result)) {
+        setArchiveContracts(result.payload.contracts);
       } else {
         setArchiveContracts([]);
       }

@@ -11,7 +11,6 @@ import {
   UpdateContractRequest,
   UpdateContractStatusRequest,
   ContractFilters,
-  PaginatedResponse,
 } from '../types';
 import { PaginatedResponse as SharedPaginatedResponse } from '../../../shared/types';
 

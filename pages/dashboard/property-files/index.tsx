@@ -99,7 +99,7 @@ export default function PropertyFilesPage() {
   const availableZones = useMemo(() => {
     if (!currentUser) return [];
     return getAvailableZones(currentUser.role);
-  }, [currentUser?.role]);
+  }, [currentUser]);
 
   useEffect(() => {
     if (snackbar.open) {

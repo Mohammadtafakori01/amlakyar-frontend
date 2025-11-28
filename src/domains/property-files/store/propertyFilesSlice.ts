@@ -30,7 +30,7 @@ const initialState: PropertyFilesState = {
 // Async thunks
 export const fetchPropertyFiles = createAsyncThunk(
   'propertyFiles/fetchPropertyFiles',
-  async (filters?: PropertyFileFilters, { rejectWithValue }) => {
+  async (filters: PropertyFileFilters | undefined, { rejectWithValue }) => {
     try {
       const response = await propertyFilesApi.getPropertyFiles(filters);
       return response;
@@ -170,7 +170,7 @@ export const restorePropertyFile = createAsyncThunk(
 
 export const fetchDeletedPropertyFiles = createAsyncThunk(
   'propertyFiles/fetchDeletedPropertyFiles',
-  async (filters?: PropertyFileFilters, { rejectWithValue }) => {
+  async (filters: PropertyFileFilters | undefined, { rejectWithValue }) => {
     try {
       const response = await propertyFilesApi.getDeletedPropertyFiles(filters);
       return response;

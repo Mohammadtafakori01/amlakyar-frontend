@@ -1088,13 +1088,17 @@ export default function CreateContractPage() {
                       <option value="">انتخاب کنید</option>
                       {principalParties
                         .filter(p => p.partyType === currentParty.partyType)
-                        .map((p, idx) => (
-                          <option key={idx} value={p.id || `party-${idx}`}>
-                            {p.entityType === PartyEntityType.NATURAL
-                              ? `${p.firstName} ${p.lastName}`
-                              : p.companyName}
-                          </option>
-                        ))}
+                        .map((p, idx) => {
+                          // Find the index in the original parties array for a stable identifier
+                          const partyIndex = parties.findIndex(party => party === p);
+                          return (
+                            <option key={idx} value={partyIndex >= 0 ? partyIndex.toString() : idx.toString()}>
+                              {p.entityType === PartyEntityType.NATURAL
+                                ? `${p.firstName} ${p.lastName}`
+                                : p.companyName}
+                            </option>
+                          );
+                        })}
                     </select>
                   </div>
                   <div>

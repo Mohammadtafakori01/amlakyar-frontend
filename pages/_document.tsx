@@ -18,6 +18,7 @@ export default function Document() {
         <link rel="preload" href="/fonts/IRANYEKANREGULAR(FANUM).TTF" as="font" crossOrigin="anonymous" />
         <link rel="preload" href="/fonts/IRANYEKANMEDIUM.TTF" as="font" crossOrigin="anonymous" />
         <link rel="preload" href="/fonts/IRANYEKANBOLD.TTF" as="font" crossOrigin="anonymous" />
+        {/* eslint-disable-next-line @next/next/no-css-tags */}
         <link rel="stylesheet" href="/fonts/fonts.css" />
         
         <link rel="apple-touch-icon" href="/icons/icon-512x512.png" />

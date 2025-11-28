@@ -27,8 +27,9 @@ const nextConfig = {
     unoptimized: true,
   },
   trailingSlash: true,
-  // Use relative paths for Electron file:// protocol compatibility (only in production)
-  ...(process.env.NODE_ENV === 'production' && { assetPrefix: './' }),
+  // Use relative paths for Electron file:// protocol compatibility
+  // Only when ELECTRON=true, not for Docker/web deployment
+  ...(process.env.NODE_ENV === 'production' && process.env.ELECTRON === 'true' && { assetPrefix: './' }),
   basePath: '',
   // Proxy API requests to backend in development to avoid CORS
   async rewrites() {

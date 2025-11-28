@@ -282,5 +282,7 @@ export interface PropertyFilesState {
   } | null;
   isLoading: boolean;
   error: string | null;
+  auditLogs: PropertyFileAuditLog[];
+  statistics: PropertyFileStatistics | null;
 }
 

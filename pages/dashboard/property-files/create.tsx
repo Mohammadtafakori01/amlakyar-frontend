@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import { FiArrowRight, FiArrowLeft, FiSave, FiPlus, FiTrash2 } from 'react-icons/fi';
 import DashboardLayout from '../../../src/shared/components/Layout/DashboardLayout';
@@ -122,7 +122,9 @@ export default function CreatePropertyFilePage() {
     package: false,
   });
 
-  const availableZones = currentUser ? getAvailableZones(currentUser.role) : [];
+  const availableZones = useMemo(() => {
+    return currentUser ? getAvailableZones(currentUser.role) : [];
+  }, [currentUser]);
 
   useEffect(() => {
     if (snackbar.open) {

@@ -146,7 +146,8 @@ export default function EstatesManagementPage() {
       fetchEstates({ page: 1, limit: pageSize, status: statusFilter !== 'ALL' ? statusFilter : undefined });
       hasFetched.current = true;
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
 
   // Fetch when page, pageSize, or status filter changes
   useEffect(() => {
@@ -160,6 +161,7 @@ export default function EstatesManagementPage() {
     if (pagination && pagination.page !== currentPage) {
       setCurrentPage(pagination.page);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pagination?.page]);
 
   useEffect(() => {
@@ -1025,16 +1027,7 @@ export default function EstatesManagementPage() {
                               </td>
                               <td className="px-4 py-3">
                                 {user.parentId ? (
-                                  user.parent ? (
-                                    <div className="text-sm text-gray-700">
-                                      {user.parent.firstName} {user.parent.lastName}
-                                      <span className="text-xs text-gray-500 block mt-1">
-                                        ({getRoleLabel(user.parent.role)})
-                                      </span>
-                                    </div>
-                                  ) : (
-                                    <span className="text-xs text-gray-500">والد موجود است</span>
-                                  )
+                                  <span className="text-xs text-gray-500">والد موجود است (ID: {user.parentId})</span>
                                 ) : (
                                   <span className="text-xs text-red-600 font-semibold">-</span>
                                 )}

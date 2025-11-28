@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { estatesApi } from '../api/estatesApi';
-import { EstatesState, Estate, EstateFilters, RejectEstateRequest, UpdateEstateRequest, PaginatedResponse, CreateEstateByMasterRequest, SetEstateStatusRequest } from '../types';
-import { PaginationMeta, EstateStatus } from '../../../shared/types';
+import { EstatesState, Estate, EstateFilters, RejectEstateRequest, UpdateEstateRequest, CreateEstateByMasterRequest, SetEstateStatusRequest } from '../types';
+import { PaginationMeta, EstateStatus, PaginatedResponse } from '../../../shared/types';
 
 const initialState: EstatesState = {
   estates: [],
@@ -35,7 +35,7 @@ const normalizeError = (error: any, fallback: string) => {
 
 export const fetchEstates = createAsyncThunk(
   'estates/fetchEstates',
-  async (filters?: EstateFilters, { rejectWithValue }) => {
+  async (filters: EstateFilters | undefined, { rejectWithValue }) => {
     try {
       const response = await estatesApi.getEstates(filters);
       return response;

@@ -161,6 +161,7 @@ export default function UsersPage() {
     if (pagination && pagination.page !== currentPage) {
       setCurrentPage(pagination.page);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pagination?.page]);
 
   useEffect(() => {

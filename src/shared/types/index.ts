@@ -33,6 +33,7 @@ export interface User {
   estateId?: string;
   parentId?: string;
   estate?: Estate;
+  parent?: User;
   isActive: boolean;
   isApproved: boolean;
   createdAt: string;

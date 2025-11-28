@@ -13,9 +13,7 @@ import {
   UpdateContractRequest,
   UpdateContractStatusRequest,
   ContractFilters,
-  PaginatedResponse,
 } from '../types';
-import { PaginatedResponse as SharedPaginatedResponse } from '../../../shared/types';
 
 const initialState: ContractsState = {
   contracts: [],
@@ -144,7 +142,7 @@ export const createContractFull = createAsyncThunk(
 
 export const fetchContracts = createAsyncThunk(
   'contracts/fetchContracts',
-  async (filters?: ContractFilters, { rejectWithValue }) => {
+  async (filters: ContractFilters | undefined, { rejectWithValue }) => {
     try {
       const response = await contractsApi.getContracts(filters);
       return response;
