@@ -1,8 +1,8 @@
 const withPWA = require('next-pwa')({
   dest: 'public',
-  register: true,
+  register: process.env.ELECTRON !== 'true', // Disable ServiceWorker registration for Electron (file:// protocol)
   skipWaiting: true,
-  disable: process.env.NODE_ENV === 'development',
+  disable: process.env.NODE_ENV === 'development' || process.env.ELECTRON === 'true', // Disable PWA for Electron builds
   runtimeCaching: [
     {
       urlPattern: /^https?.*/,
@@ -29,7 +29,9 @@ const nextConfig = {
   trailingSlash: true,
   // Use relative paths for Electron file:// protocol compatibility
   // Only when ELECTRON=true, not for Docker/web deployment
-  ...(process.env.NODE_ENV === 'production' && process.env.ELECTRON === 'true' && { assetPrefix: './' }),
+  ...(process.env.NODE_ENV === 'production' && process.env.ELECTRON === 'true' && { 
+    assetPrefix: './',
+  }),
   basePath: '',
   // Proxy API requests to backend in development to avoid CORS
   async rewrites() {

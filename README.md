@@ -40,7 +40,7 @@ npx cap add android
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser.
+Open [http://185.215.244.196:3000](http://185.215.244.196:3000) with your browser.
 
 ### Build for Web
 

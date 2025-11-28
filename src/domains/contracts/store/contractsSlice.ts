@@ -27,6 +27,15 @@ const initialState: ContractsState = {
   searchQuery: null,
 };
 
+// Helper function to normalize contract data and ensure parties is always an array
+const normalizeContract = (contract: Contract): Contract => {
+  if (!contract) return contract;
+  return {
+    ...contract,
+    parties: Array.isArray(contract.parties) ? contract.parties : [],
+  };
+};
+
 // Async thunks
 export const createContractStep1 = createAsyncThunk(
   'contracts/createStep1',
@@ -266,7 +275,7 @@ const contractsSlice = createSlice({
       })
       .addCase(createContractStep1.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.selectedContract = action.payload;
+        state.selectedContract = normalizeContract(action.payload);
         state.error = null;
       })
       .addCase(createContractStep1.rejected, (state, action) => {
@@ -303,7 +312,7 @@ const contractsSlice = createSlice({
       })
       .addCase(createContractStep2.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.selectedContract = action.payload;
+        state.selectedContract = normalizeContract(action.payload);
         state.error = null;
       })
       .addCase(createContractStep2.rejected, (state, action) => {
@@ -326,17 +335,18 @@ const contractsSlice = createSlice({
         // Extract the contract from the property response if it exists
         if (propertyResponse.contract) {
           // If the response has a nested contract object, use that
-          state.selectedContract = propertyResponse.contract;
+          const normalizedContract = normalizeContract(propertyResponse.contract);
+          state.selectedContract = normalizedContract;
           // Update the contract in the list if it exists
-          const index = state.contracts.findIndex(c => c.id === propertyResponse.contract.id);
+          const index = state.contracts.findIndex(c => c.id === normalizedContract.id);
           if (index !== -1) {
-            state.contracts[index] = propertyResponse.contract;
+            state.contracts[index] = normalizedContract;
           }
         } else if (propertyResponse.contractId) {
           // If we only have contractId, try to find the contract in the list
           const contract = state.contracts.find(c => c.id === propertyResponse.contractId);
           if (contract) {
-            state.selectedContract = contract;
+            state.selectedContract = normalizeContract(contract);
           }
         }
         // Don't set selectedContract to the property object itself
@@ -363,17 +373,18 @@ const contractsSlice = createSlice({
         // Extract the contract from the terms response if it exists
         if (termsResponse.contract) {
           // If the response has a nested contract object, use that
-          state.selectedContract = termsResponse.contract;
+          const normalizedContract = normalizeContract(termsResponse.contract);
+          state.selectedContract = normalizedContract;
           // Update the contract in the list if it exists
-          const index = state.contracts.findIndex(c => c.id === termsResponse.contract.id);
+          const index = state.contracts.findIndex(c => c.id === normalizedContract.id);
           if (index !== -1) {
-            state.contracts[index] = termsResponse.contract;
+            state.contracts[index] = normalizedContract;
           }
         } else if (termsResponse.contractId) {
           // If we only have contractId, try to find the contract in the list
           const contract = state.contracts.find(c => c.id === termsResponse.contractId);
           if (contract) {
-            state.selectedContract = contract;
+            state.selectedContract = normalizeContract(contract);
           }
         }
         // Don't set selectedContract to the terms object itself
@@ -393,12 +404,13 @@ const contractsSlice = createSlice({
       })
       .addCase(saveDraft.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.selectedContract = action.payload;
-        const index = state.contracts.findIndex(c => c.id === action.payload.id);
+        const normalizedContract = normalizeContract(action.payload);
+        state.selectedContract = normalizedContract;
+        const index = state.contracts.findIndex(c => c.id === normalizedContract.id);
         if (index !== -1) {
-          state.contracts[index] = action.payload;
+          state.contracts[index] = normalizedContract;
         } else {
-          state.contracts.push(action.payload);
+          state.contracts.push(normalizedContract);
         }
         state.error = null;
       })
@@ -415,12 +427,13 @@ const contractsSlice = createSlice({
       })
       .addCase(finalizeContract.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.selectedContract = action.payload;
-        const index = state.contracts.findIndex(c => c.id === action.payload.id);
+        const normalizedContract = normalizeContract(action.payload);
+        state.selectedContract = normalizedContract;
+        const index = state.contracts.findIndex(c => c.id === normalizedContract.id);
         if (index !== -1) {
-          state.contracts[index] = action.payload;
+          state.contracts[index] = normalizedContract;
         } else {
-          state.contracts.push(action.payload);
+          state.contracts.push(normalizedContract);
         }
         state.error = null;
       })
@@ -437,8 +450,9 @@ const contractsSlice = createSlice({
       })
       .addCase(createContractFull.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.contracts.push(action.payload);
-        state.selectedContract = action.payload;
+        const normalizedContract = normalizeContract(action.payload);
+        state.contracts.push(normalizedContract);
+        state.selectedContract = normalizedContract;
         state.error = null;
       })
       .addCase(createContractFull.rejected, (state, action) => {
@@ -454,7 +468,9 @@ const contractsSlice = createSlice({
       })
       .addCase(fetchContracts.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.contracts = action.payload.data;
+        state.contracts = Array.isArray(action.payload.data) 
+          ? action.payload.data.map(normalizeContract) 
+          : [];
         state.pagination = action.payload.meta;
         state.error = null;
       })
@@ -471,7 +487,9 @@ const contractsSlice = createSlice({
       })
       .addCase(fetchArchive.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.contracts = action.payload.contracts;
+        state.contracts = Array.isArray(action.payload.contracts) 
+          ? action.payload.contracts.map(normalizeContract) 
+          : [];
         state.error = null;
       })
       .addCase(fetchArchive.rejected, (state, action) => {
@@ -487,7 +505,9 @@ const contractsSlice = createSlice({
       })
       .addCase(searchContracts.fulfilled, (state, action) => {
         state.isSearching = false;
-        state.searchResults = action.payload.contracts;
+        state.searchResults = Array.isArray(action.payload.contracts) 
+          ? action.payload.contracts.map(normalizeContract) 
+          : [];
         state.searchQuery = action.payload.query;
         state.error = null;
       })
@@ -504,7 +524,7 @@ const contractsSlice = createSlice({
       })
       .addCase(fetchContractById.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.selectedContract = action.payload;
+        state.selectedContract = normalizeContract(action.payload);
         state.error = null;
       })
       .addCase(fetchContractById.rejected, (state, action) => {
@@ -520,12 +540,13 @@ const contractsSlice = createSlice({
       })
       .addCase(updateContract.fulfilled, (state, action) => {
         state.isLoading = false;
-        const index = state.contracts.findIndex(c => c.id === action.payload.id);
+        const normalizedContract = normalizeContract(action.payload);
+        const index = state.contracts.findIndex(c => c.id === normalizedContract.id);
         if (index !== -1) {
-          state.contracts[index] = action.payload;
+          state.contracts[index] = normalizedContract;
         }
-        if (state.selectedContract?.id === action.payload.id) {
-          state.selectedContract = action.payload;
+        if (state.selectedContract?.id === normalizedContract.id) {
+          state.selectedContract = normalizedContract;
         }
         state.error = null;
       })
@@ -542,12 +563,13 @@ const contractsSlice = createSlice({
       })
       .addCase(updateContractStatus.fulfilled, (state, action) => {
         state.isLoading = false;
-        const index = state.contracts.findIndex(c => c.id === action.payload.id);
+        const normalizedContract = normalizeContract(action.payload);
+        const index = state.contracts.findIndex(c => c.id === normalizedContract.id);
         if (index !== -1) {
-          state.contracts[index] = action.payload;
+          state.contracts[index] = normalizedContract;
         }
-        if (state.selectedContract?.id === action.payload.id) {
-          state.selectedContract = action.payload;
+        if (state.selectedContract?.id === normalizedContract.id) {
+          state.selectedContract = normalizedContract;
         }
         state.error = null;
       })

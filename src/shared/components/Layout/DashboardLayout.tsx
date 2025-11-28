@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
+import Link from 'next/link';
 import {
   FiMenu,
   FiLayout,
@@ -167,21 +168,32 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       <div className="border-t border-gray-200"></div>
       <nav className="flex-1 overflow-y-auto">
         <ul className="p-2">
-          {filteredMenuItems.map((item) => (
-            <li key={item.path}>
-              <button
-                onClick={() => router.push(item.path)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-colors ${
-                  router.pathname === item.path
-                    ? 'bg-primary-600 text-white'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <span className="flex-shrink-0">{item.icon}</span>
-                <span>{item.text}</span>
-              </button>
-            </li>
-          ))}
+          {filteredMenuItems.map((item) => {
+            const isActive = router.pathname === item.path || router.asPath === item.path;
+            return (
+              <li key={item.path}>
+                <Link
+                  href={item.path}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-colors cursor-pointer ${
+                    isActive
+                      ? 'bg-primary-600 text-white'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                  onClick={(e) => {
+                    // Close mobile drawer on navigation
+                    if (mobileOpen) {
+                      setMobileOpen(false);
+                    }
+                    // Ensure link is clickable
+                    e.stopPropagation();
+                  }}
+                >
+                  <span className="flex-shrink-0">{item.icon}</span>
+                  <span>{item.text}</span>
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       </nav>
       <div className="border-t border-gray-200"></div>

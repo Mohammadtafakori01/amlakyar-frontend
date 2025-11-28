@@ -3,7 +3,7 @@
   "appName": "Amlakyar",
   "webDir": "out",
   "server": {
-    "androidScheme": "https"
+    "androidScheme": "http"
   },
   "plugins": {
     "SplashScreen": {

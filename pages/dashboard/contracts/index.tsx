@@ -388,7 +388,7 @@ export default function ContractsPage() {
 
                 {isLoadingArchive ? (
                   <Loading />
-                ) : archiveContracts.length === 0 ? (
+                ) : !Array.isArray(archiveContracts) || archiveContracts.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-8 text-sm text-gray-500">
                     قراردادی در بایگانی سال {archiveYear} یافت نشد.
                   </div>
@@ -405,7 +405,7 @@ export default function ContractsPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {archiveContracts.map((contract) => (
+                        {(Array.isArray(archiveContracts) ? archiveContracts : []).map((contract) => (
                           <tr key={contract.id} className="border-t border-gray-100 hover:bg-gray-50">
                             <td className="px-4 py-3 font-semibold">{contract.contractNumber}</td>
                             <td className="px-4 py-3">{getContractTypeLabel(contract.type)}</td>
@@ -435,8 +435,8 @@ export default function ContractsPage() {
               </div>
             ) : (isLoading || isSearching) ? (
               <Loading />
-            ) : searchQuery ? (
-              searchResults.length === 0 ? (
+              ) : searchQuery ? (
+              !Array.isArray(searchResults) || searchResults.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-8 text-sm text-gray-500">
                   نتیجه‌ای یافت نشد.
                 </div>
@@ -453,7 +453,7 @@ export default function ContractsPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {searchResults.map((contract) => (
+                      {(Array.isArray(searchResults) ? searchResults : []).map((contract) => (
                         <tr key={contract.id} className="border-t border-gray-100 hover:bg-gray-50">
                           <td className="px-4 py-3 font-semibold">{contract.contractNumber}</td>
                           <td className="px-4 py-3">{getContractTypeLabel(contract.type)}</td>
@@ -498,7 +498,7 @@ export default function ContractsPage() {
                   </table>
                 </div>
               )
-            ) : contracts.length === 0 ? (
+            ) : !Array.isArray(contracts) || contracts.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-8 text-center">
                 <FiFileText className="mx-auto mb-4 text-6xl text-gray-300" />
                 <p className="text-sm text-gray-500">قراردادی یافت نشد.</p>
@@ -523,7 +523,7 @@ export default function ContractsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {contracts.map((contract) => (
+                    {(Array.isArray(contracts) ? contracts : []).map((contract) => (
                       <tr key={contract.id} className="border-t border-gray-100 hover:bg-gray-50">
                         <td className="px-4 py-3 font-semibold">{contract.contractNumber}</td>
                         <td className="px-4 py-3">{getContractTypeLabel(contract.type)}</td>

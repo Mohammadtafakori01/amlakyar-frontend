@@ -9,10 +9,17 @@ interface ServiceWorkerRegistrationWithSync extends ServiceWorkerRegistration {
 }
 
 export function registerServiceWorker() {
+  // Don't register ServiceWorker for file:// protocol (Electron)
+  if (window.location.protocol === 'file:') {
+    console.log('Service Worker registration skipped for file:// protocol');
+    return;
+  }
+
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
+      const swPath = window.location.protocol === 'file:' ? './sw.js' : '/sw.js';
       navigator.serviceWorker
-        .register('/sw.js')
+        .register(swPath)
         .then((registration) => {
           console.log('Service Worker registered:', registration);
 

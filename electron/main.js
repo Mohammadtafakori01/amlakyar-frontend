@@ -16,24 +16,50 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
-      // Disable web security for local file:// protocol to avoid CORS issues
-      webSecurity: false,
+      webSecurity: true, // Enable web security for webview
     },
     ...(icon && { icon }),
   });
 
+  // Always load from the web server URL (webview mode)
+  const webAppUrl = 'http://185.215.244.196:3000';
+  mainWindow.loadURL(webAppUrl);
+
+  // Open DevTools in development mode
   if (isDev) {
-    mainWindow.loadURL('http://localhost:3000');
     mainWindow.webContents.openDevTools();
-  } else {
-    // In production, load from the out directory
-    // With asar disabled, files are in resources/app/out
-    const indexPath = path.join(app.getAppPath(), 'out', 'index.html');
-    mainWindow.loadFile(indexPath);
   }
 
   mainWindow.on('closed', () => {
     mainWindow = null;
+  });
+
+  // Handle navigation - allow navigation within the same origin
+  mainWindow.webContents.on('will-navigate', (event, navigationUrl) => {
+    const parsedUrl = new URL(navigationUrl);
+    const webAppUrlParsed = new URL(webAppUrl);
+    
+    // Only allow navigation within the same origin (web app domain)
+    if (parsedUrl.origin !== webAppUrlParsed.origin) {
+      event.preventDefault();
+      // Open external URLs in default browser
+      require('electron').shell.openExternal(navigationUrl);
+    }
+  });
+
+  // Handle new window requests (like target="_blank" links)
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    const webAppUrlParsed = new URL(webAppUrl);
+    const urlParsed = new URL(url);
+    
+    // If it's the same origin, allow it (for same-origin popups)
+    if (urlParsed.origin === webAppUrlParsed.origin) {
+      return { action: 'allow' };
+    }
+    
+    // Open external URLs in default browser
+    require('electron').shell.openExternal(url);
+    return { action: 'deny' };
   });
 }
 

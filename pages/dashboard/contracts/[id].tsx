@@ -238,7 +238,7 @@ export default function ContractDetailPage() {
               </div>
 
               {/* Parties */}
-              {contract.parties && contract.parties.length > 0 && (
+              {Array.isArray(contract.parties) && contract.parties.length > 0 && (
                 <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm lg:col-span-2">
                   <h2 className="mb-4 text-xl font-semibold text-gray-900">طرفین قرارداد</h2>
                   <div className="overflow-x-auto">
