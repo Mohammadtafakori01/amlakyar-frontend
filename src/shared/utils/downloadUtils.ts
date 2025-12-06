@@ -20,15 +20,15 @@ export async function downloadPdf(blob: Blob, filename: string): Promise<void> {
         ? base64Data.split(',')[1] 
         : base64Data;
 
-      // Save file to Documents directory first
-      // On Android, we'll use ExternalStorage to save to Downloads
+      // Save file to Documents directory (accessible via file manager on Android)
       const fileUri = await Filesystem.writeFile({
         path: filename,
         data: base64String,
-        directory: Directory.ExternalStorage, // Use ExternalStorage for Android Downloads access
+        directory: Directory.Documents,
       });
 
-      // Try to share the file - this allows user to save to Downloads or open with another app
+      // Share the file - this allows user to save to Downloads or open with another app
+      // The file is already saved, so even if user cancels share, file is available
       try {
         await Share.share({
           title: 'دانلود قرارداد',
@@ -37,29 +37,20 @@ export async function downloadPdf(blob: Blob, filename: string): Promise<void> {
           dialogTitle: 'ذخیره فایل PDF',
         });
       } catch (shareError: any) {
-        // Share was cancelled or failed, but file is saved
-        // On Android, ExternalStorage saves to a location accessible via file manager
-        console.log('File saved to:', fileUri.uri);
-        // Re-throw only if it's not a user cancellation
-        if (shareError.message && !shareError.message.includes('cancel')) {
-          throw shareError;
+        // Share was cancelled by user - this is fine, file is already saved
+        // Check if it's a cancellation (user pressed back/cancel)
+        const errorMessage = shareError?.message || '';
+        if (errorMessage.includes('cancel') || errorMessage.includes('User cancelled')) {
+          // User cancelled - file is still saved, this is acceptable
+          console.log('Share cancelled by user, file saved to:', fileUri.uri);
+          return; // Success - file is saved even though share was cancelled
         }
+        // Other share errors - file is still saved, but log the error
+        console.warn('Share error (file still saved):', shareError);
       }
     } catch (error: any) {
       console.error('Error saving PDF with Capacitor:', error);
-      
-      // Fallback: try to use Share plugin directly with a data URL
-      try {
-        const base64Data = await blobToBase64(blob);
-        await Share.share({
-          title: 'دانلود قرارداد',
-          text: 'فایل PDF قرارداد',
-          url: base64Data,
-          dialogTitle: 'ذخیره فایل PDF',
-        });
-      } catch (fallbackError) {
-        throw new Error('خطا در ذخیره فایل PDF. لطفا دوباره تلاش کنید.');
-      }
+      throw new Error('خطا در ذخیره فایل PDF. لطفا دوباره تلاش کنید.');
     }
   } else {
     // Web browser fallback
