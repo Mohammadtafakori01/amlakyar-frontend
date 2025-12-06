@@ -131,7 +131,7 @@ export default function CustomerPropertyAdsPage() {
     if (!imagePath) return null;
     const baseUrl = process.env.NODE_ENV === 'development'
       ? '/api'
-      : (process.env.NEXT_PUBLIC_API_URL || 'http://185.215.244.196:3002');
+      : (process.env.NEXT_PUBLIC_API_URL || 'https://api.amlakyarr.com');
     return `${baseUrl}/${imagePath}`;
   };
 
