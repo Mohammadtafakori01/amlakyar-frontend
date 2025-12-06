@@ -5,67 +5,78 @@
  * @returns Promise that resolves when download is complete
  */
 export async function downloadPdf(blob: Blob, filename: string): Promise<void> {
-  // Check if running in Capacitor (Android/iOS app) - use dynamic check to avoid build errors
-  const isNative = typeof window !== 'undefined' && 
-    (window as any).Capacitor?.isNativePlatform?.() === true;
+  // Check if running in Capacitor (Android/iOS app)
+  // Use try-catch to handle cases where Capacitor plugins aren't available (web build)
+  try {
+    // Check if Capacitor is available in the global scope (only in Capacitor runtime)
+    const isCapacitorAvailable = typeof window !== 'undefined' && 
+      (window as any).Capacitor !== undefined;
 
-  if (isNative) {
-    try {
+    if (isCapacitorAvailable) {
       // Dynamically import Capacitor plugins only when needed (at runtime)
-      const { Capacitor } = await import('@capacitor/core');
-      const { Filesystem, Directory } = await import('@capacitor/filesystem');
-      const { Share } = await import('@capacitor/share');
-
-      // Double check we're on native platform
-      if (!Capacitor.isNativePlatform()) {
-        throw new Error('Not on native platform');
+      // This prevents Next.js from trying to bundle them during build
+      const capacitorModule = await import('@capacitor/core').catch(() => null);
+      if (!capacitorModule) {
+        throw new Error('Capacitor not available');
       }
 
-      // Convert blob to base64 for Capacitor Filesystem
-      const base64Data = await blobToBase64(blob);
+      const { Capacitor } = capacitorModule;
       
-      // Remove data URL prefix if present (data:application/pdf;base64,)
-      const base64String = base64Data.includes(',') 
-        ? base64Data.split(',')[1] 
-        : base64Data;
+      if (Capacitor.isNativePlatform()) {
+        const filesystemModule = await import('@capacitor/filesystem').catch(() => null);
+        const shareModule = await import('@capacitor/share').catch(() => null);
 
-      // Save file to Documents directory (accessible via file manager on Android)
-      const fileUri = await Filesystem.writeFile({
-        path: filename,
-        data: base64String,
-        directory: Directory.Documents,
-      });
+        if (filesystemModule && shareModule) {
+          const { Filesystem, Directory } = filesystemModule;
+          const { Share } = shareModule;
 
-      // Share the file - this allows user to save to Downloads or open with another app
-      // The file is already saved, so even if user cancels share, file is available
-      try {
-        await Share.share({
-          title: 'دانلود قرارداد',
-          text: 'فایل PDF قرارداد',
-          url: fileUri.uri,
-          dialogTitle: 'ذخیره فایل PDF',
-        });
-      } catch (shareError: any) {
-        // Share was cancelled by user - this is fine, file is already saved
-        // Check if it's a cancellation (user pressed back/cancel)
-        const errorMessage = shareError?.message || '';
-        if (errorMessage.includes('cancel') || errorMessage.includes('User cancelled')) {
-          // User cancelled - file is still saved, this is acceptable
-          console.log('Share cancelled by user, file saved to:', fileUri.uri);
-          return; // Success - file is saved even though share was cancelled
+          // Convert blob to base64 for Capacitor Filesystem
+          const base64Data = await blobToBase64(blob);
+          
+          // Remove data URL prefix if present (data:application/pdf;base64,)
+          const base64String = base64Data.includes(',') 
+            ? base64Data.split(',')[1] 
+            : base64Data;
+
+          // Save file to Documents directory (accessible via file manager on Android)
+          const fileUri = await Filesystem.writeFile({
+            path: filename,
+            data: base64String,
+            directory: Directory.Documents,
+          });
+
+          // Share the file - this allows user to save to Downloads or open with another app
+          // The file is already saved, so even if user cancels share, file is available
+          try {
+            await Share.share({
+              title: 'دانلود قرارداد',
+              text: 'فایل PDF قرارداد',
+              url: fileUri.uri,
+              dialogTitle: 'ذخیره فایل PDF',
+            });
+          } catch (shareError: any) {
+            // Share was cancelled by user - this is fine, file is already saved
+            // Check if it's a cancellation (user pressed back/cancel)
+            const errorMessage = shareError?.message || '';
+            if (errorMessage.includes('cancel') || errorMessage.includes('User cancelled')) {
+              // User cancelled - file is still saved, this is acceptable
+              console.log('Share cancelled by user, file saved to:', fileUri.uri);
+              return; // Success - file is saved even though share was cancelled
+            }
+            // Other share errors - file is still saved, but log the error
+            console.warn('Share error (file still saved):', shareError);
+          }
+          return; // Successfully saved using Capacitor
         }
-        // Other share errors - file is still saved, but log the error
-        console.warn('Share error (file still saved):', shareError);
       }
-    } catch (error: any) {
-      console.error('Error saving PDF with Capacitor:', error);
-      // Fall back to web method if Capacitor fails
-      downloadPdfWeb(blob, filename);
     }
-  } else {
-    // Web browser fallback
-    downloadPdfWeb(blob, filename);
+  } catch (error: any) {
+    // Capacitor not available or failed - fall back to web method
+    console.log('Capacitor not available, using web download method');
   }
+
+  // Web browser fallback (or if Capacitor failed)
+  downloadPdfWeb(blob, filename);
 }
 
 /**
