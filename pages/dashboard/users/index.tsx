@@ -109,6 +109,7 @@ export default function UsersPage() {
     isActive: true,
     isApproved: true,
   });
+  const [originalUserData, setOriginalUserData] = useState<UpdateUserRequest | null>(null);
   useEffect(() => {
     if (snackbar.open) {
       const timer = setTimeout(() => setSnackbar((prev) => ({ ...prev, open: false })), 4000);
@@ -238,7 +239,7 @@ export default function UsersPage() {
       }
       setIsEdit(true);
       setSelectedUser(user);
-      setFormData({
+      const userFormData = {
         phoneNumber: user.phoneNumber,
         firstName: user.firstName,
         lastName: user.lastName,
@@ -248,10 +249,20 @@ export default function UsersPage() {
         estateId: user.estateId,
         isActive: user.isActive,
         isApproved: user.isApproved,
+      };
+      setFormData(userFormData);
+      // Store original data for comparison (excluding password and non-updatable fields)
+      setOriginalUserData({
+        phoneNumber: user.phoneNumber,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        nationalId: user.nationalId,
+        role: user.role,
       });
     } else {
       setIsEdit(false);
       setSelectedUser(null);
+      setOriginalUserData(null);
       setFormData({
         phoneNumber: '',
         firstName: '',
@@ -301,8 +312,8 @@ export default function UsersPage() {
     }
 
     try {
-      if (isEdit && selectedUser) {
-        const updateData: UpdateUserRequest = {
+      if (isEdit && selectedUser && originalUserData) {
+        const currentUpdateData: UpdateUserRequest = {
           firstName: formData.firstName,
           lastName: formData.lastName,
           nationalId: formData.nationalId,
@@ -310,11 +321,26 @@ export default function UsersPage() {
           role: formData.role,
         };
         if (formData.password) {
-          updateData.password = formData.password;
+          currentUpdateData.password = formData.password;
         }
+        
+        // Get only changed fields
+        const changedFields = getChangedFields(originalUserData, currentUpdateData);
+        
+        // Always include password if it was provided (password changes are not in original data)
+        if (formData.password) {
+          changedFields.password = formData.password;
+        }
+        
+        // If no fields changed, show message and return
+        if (Object.keys(changedFields).length === 0) {
+          setSnackbar({ open: true, message: 'هیچ تغییری اعمال نشده است', severity: 'error' });
+          return;
+        }
+        
         // Note: isActive, isApproved, and estateId are not supported in PATCH /api/users/:id
         // These fields should be updated via separate endpoints if needed
-        await updateUser(selectedUser.id, updateData);
+        await updateUser(selectedUser.id, changedFields);
         setSnackbar({ open: true, message: 'کاربر با موفقیت به‌روزرسانی شد', severity: 'success' });
       } else {
         if (isMaster) {

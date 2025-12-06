@@ -49,6 +49,12 @@ export default function Document() {
           </>
         )}
         
+        {/* Persian Datepicker CSS */}
+        <link
+          rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/css/persian-datepicker.min.css"
+        />
+        
       </Head>
       <body>
         <Main />

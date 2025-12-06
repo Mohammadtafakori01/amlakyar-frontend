@@ -15,7 +15,7 @@ interface PublicRouteProps {
  * PublicRoute - Protects routes that should only be accessible to unauthenticated users
  * Redirects authenticated users to the dashboard (or specified path)
  */
-export default function PublicRoute({ children, redirectTo = '/dashboard' }: PublicRouteProps) {
+export default function PublicRoute({ children, redirectTo = '/property-ads' }: PublicRouteProps) {
   const router = useRouter();
   const { isAuthenticated, isLoading, accessToken, user } = useAuth();
   const [mounted, setMounted] = useState(false);

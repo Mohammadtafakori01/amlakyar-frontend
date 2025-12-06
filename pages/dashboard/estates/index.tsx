@@ -81,10 +81,12 @@ export default function EstatesManagementPage() {
     open: boolean;
     estate: Estate | null;
     formData: UpdateEstateRequest;
+    originalData?: UpdateEstateRequest;
   }>({
     open: false,
     estate: null,
     formData: {},
+    originalData: {},
   });
   const [deleteDialog, setDeleteDialog] = useState<{
     open: boolean;
@@ -365,26 +367,37 @@ export default function EstatesManagementPage() {
   };
 
   const handleEditOpen = (estate: Estate) => {
+    const formData = {
+      establishmentName: estate.establishmentName,
+      address: estate.address,
+      guildId: estate.guildId,
+      fixedPhone: estate.fixedPhone,
+    };
     setEditDialog({
       open: true,
       estate,
-      formData: {
-        establishmentName: estate.establishmentName,
-        address: estate.address,
-        guildId: estate.guildId,
-        fixedPhone: estate.fixedPhone,
-      },
+      formData,
+      originalData: formData, // Store original data for comparison
     });
   };
 
   const handleEditClose = () => {
-    setEditDialog({ open: false, estate: null, formData: {} });
+    setEditDialog({ open: false, estate: null, formData: {}, originalData: {} });
   };
 
   const handleEditSubmit = async () => {
-    if (!editDialog.estate) return;
+    if (!editDialog.estate || !editDialog.originalData) return;
     try {
-      await updateEstate(editDialog.estate.id, editDialog.formData).unwrap();
+      // Get only changed fields
+      const changedFields = getChangedFields(editDialog.originalData, editDialog.formData);
+      
+      // If no fields changed, show message and return
+      if (Object.keys(changedFields).length === 0) {
+        setSnackbar({ open: true, message: 'هیچ تغییری اعمال نشده است', severity: 'error' });
+        return;
+      }
+      
+      await updateEstate(editDialog.estate.id, changedFields).unwrap();
       setSnackbar({ open: true, message: 'املاکی با موفقیت به‌روزرسانی شد', severity: 'success' });
       fetchEstates({ page: currentPage, limit: pageSize, status: statusFilter !== 'ALL' ? statusFilter : undefined });
       refreshPending();

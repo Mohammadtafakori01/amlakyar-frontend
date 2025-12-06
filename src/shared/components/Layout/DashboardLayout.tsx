@@ -14,6 +14,8 @@ import {
   FiFolder,
   FiPhone,
   FiClipboard,
+  FiImage,
+  FiMapPin,
 } from 'react-icons/fi';
 import { useAuth } from '../../../domains/auth/hooks/useAuth';
 import { UserRole } from '../../../shared/types';
@@ -63,6 +65,18 @@ const menuItems: MenuItem[] = [
     icon: <FiFileText className="w-5 h-5" />,
     path: '/dashboard/contracts',
     roles: [UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.MASTER],
+  },
+  {
+    text: 'آگهی‌های املاک',
+    icon: <FiImage className="w-5 h-5" />,
+    path: '/dashboard/property-ads',
+    roles: [UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.MASTER],
+  },
+  {
+    text: 'مدیریت موقعیت‌ها',
+    icon: <FiMapPin className="w-5 h-5" />,
+    path: '/dashboard/locations',
+    roles: [UserRole.MASTER],
   },
   {
     text: 'فایل‌های ملکی',
@@ -162,8 +176,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const drawer = (
     <div className="flex flex-col h-full text-right">
-      <div className="flex items-center justify-between p-4 h-16">
-        <h2 className="text-xl font-bold text-right">املاک یار</h2>
+      <div className="flex items-center justify-between p-4 h-16 cursor-pointer">
+        <Link href="/" className="text-xl font-bold text-right hover:underline focus:outline-none focus:ring-2 focus:ring-primary-600 rounded">
+          املاک یار
+        </Link>
       </div>
       <div className="border-t border-gray-200"></div>
       <nav className="flex-1 overflow-y-auto">

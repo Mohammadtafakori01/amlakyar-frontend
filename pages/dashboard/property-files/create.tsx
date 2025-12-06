@@ -17,6 +17,7 @@ import { getAvailableZones } from '../../../src/shared/utils/rbacUtils';
 import { getCurrentDate } from '../../../src/shared/utils/dateUtils';
 import Loading from '../../../src/shared/components/common/Loading';
 import ErrorDisplay from '../../../src/shared/components/common/ErrorDisplay';
+import PersianDatePicker from '../../../src/shared/components/common/PersianDatePicker';
 
 const zoneLabels: Record<PropertyFileZone, string> = {
   [PropertyFileZone.OFFICE_MASTER]: 'زونکن املاک',
@@ -303,12 +304,9 @@ export default function CreatePropertyFilePage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     تاریخ <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="date"
+                  <PersianDatePicker
                     value={formData.date}
-                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    required
+                    onChange={(value) => setFormData({ ...formData, date: value })}
                   />
                 </div>
 

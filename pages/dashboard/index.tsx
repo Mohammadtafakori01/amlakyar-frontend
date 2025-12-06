@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useRouter } from 'next/router';
 import DashboardLayout from '../../src/shared/components/Layout/DashboardLayout';
 import PrivateRoute from '../../src/shared/components/guards/PrivateRoute';
 import { useAuth } from '../../src/domains/auth/hooks/useAuth';
@@ -8,6 +9,7 @@ import Loading from '../../src/shared/components/common/Loading';
 import { useEstates } from '../../src/domains/estates/hooks/useEstates';
 
 export default function Dashboard() {
+  const router = useRouter();
   const { user, isAuthenticated } = useAuth();
   const { profile, fetchProfile, isLoading: profileLoading } = useProfile();
   const {
@@ -16,6 +18,14 @@ export default function Dashboard() {
     fetchCurrentEstate,
   } = useEstates();
   const estateFetchRef = useRef<string | null>(null);
+
+  // Redirect CUSTOMER users to property ads page (Divar-like interface)
+  useEffect(() => {
+    if (isAuthenticated && user?.role === UserRole.CUSTOMER) {
+      router.replace('/dashboard/property-ads/customer');
+      return;
+    }
+  }, [isAuthenticated, user, router]);
 
   useEffect(() => {
     if (isAuthenticated && user && !profile && !profileLoading) {
@@ -29,6 +39,15 @@ export default function Dashboard() {
       fetchCurrentEstate(user.estateId);
     }
   }, [user?.estateId, fetchCurrentEstate]);
+
+  // Show loading while redirecting CUSTOMER users
+  if (user?.role === UserRole.CUSTOMER) {
+    return (
+      <PrivateRoute>
+        <Loading />
+      </PrivateRoute>
+    );
+  }
 
   const getRoleLabel = (role: UserRole): string => {
     const labels: Record<UserRole, string> = {

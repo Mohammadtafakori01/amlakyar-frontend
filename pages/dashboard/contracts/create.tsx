@@ -23,6 +23,7 @@ import {
 } from '../../../src/domains/contracts/types';
 import Loading from '../../../src/shared/components/common/Loading';
 import ErrorDisplay from '../../../src/shared/components/common/ErrorDisplay';
+import PersianDatePicker from '../../../src/shared/components/common/PersianDatePicker';
 
 type Step = 1 | 2 | 3 | 4 | 5;
 
@@ -938,11 +939,9 @@ export default function CreateContractPage() {
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-semibold text-gray-600">متولد</label>
-                  <input
-                    type="date"
+                  <PersianDatePicker
                     value={currentParty.birthDate || ''}
-                    onChange={(e) => setCurrentParty({ ...currentParty, birthDate: e.target.value })}
-                    className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                    onChange={(value) => setCurrentParty({ ...currentParty, birthDate: value })}
                   />
                 </div>
                 <div>
@@ -1018,11 +1017,9 @@ export default function CreateContractPage() {
                   </div>
                   <div>
                     <label className="mb-1 block text-sm font-semibold text-gray-600">تاریخ مدرک اختیار</label>
-                    <input
-                      type="date"
+                    <PersianDatePicker
                       value={currentParty.authorityDocumentDate || ''}
-                      onChange={(e) => setCurrentParty({ ...currentParty, authorityDocumentDate: e.target.value })}
-                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                      onChange={(value) => setCurrentParty({ ...currentParty, authorityDocumentDate: value })}
                       disabled={!currentParty.authorityType}
                     />
                   </div>
@@ -1126,11 +1123,9 @@ export default function CreateContractPage() {
                   </div>
                   <div>
                     <label className="mb-1 block text-sm font-semibold text-gray-600">تاریخ سند رابطه</label>
-                    <input
-                      type="date"
+                    <PersianDatePicker
                       value={currentParty.relationshipDocumentDate || ''}
-                      onChange={(e) => setCurrentParty({ ...currentParty, relationshipDocumentDate: e.target.value })}
-                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                      onChange={(value) => setCurrentParty({ ...currentParty, relationshipDocumentDate: value })}
                     />
                   </div>
                 </div>
@@ -1607,11 +1602,9 @@ export default function CreateContractPage() {
         </div>
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-600">تاریخ تحویل</label>
-          <input
-            type="date"
+          <PersianDatePicker
             value={terms.deliveryDate}
-            onChange={(e) => setTerms({ ...terms, deliveryDate: e.target.value })}
-            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            onChange={(value) => setTerms({ ...terms, deliveryDate: value })}
           />
         </div>
         <div>
@@ -1873,31 +1866,25 @@ export default function CreateContractPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-600">تاریخ قرارداد</label>
-          <input
-            type="date"
+          <PersianDatePicker
             value={draftData.contractDate}
-            onChange={(e) => setDraftData({ ...draftData, contractDate: e.target.value })}
-            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            onChange={(value) => setDraftData({ ...draftData, contractDate: value })}
           />
         </div>
         {contractType === ContractType.RENTAL && (
           <>
             <div>
               <label className="mb-1 block text-sm font-semibold text-gray-600">تاریخ شروع</label>
-              <input
-                type="date"
+              <PersianDatePicker
                 value={draftData.startDate}
-                onChange={(e) => setDraftData({ ...draftData, startDate: e.target.value })}
-                className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                onChange={(value) => setDraftData({ ...draftData, startDate: value })}
               />
             </div>
             <div>
               <label className="mb-1 block text-sm font-semibold text-gray-600">تاریخ پایان</label>
-              <input
-                type="date"
+              <PersianDatePicker
                 value={draftData.endDate}
-                onChange={(e) => setDraftData({ ...draftData, endDate: e.target.value })}
-                className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                onChange={(value) => setDraftData({ ...draftData, endDate: value })}
               />
             </div>
             <div>
@@ -1995,11 +1982,9 @@ export default function CreateContractPage() {
           </div>
           <div>
             <label className="mb-1 block text-sm font-semibold text-gray-600">تاریخ ثبت مشاور</label>
-            <input
-              type="date"
+            <PersianDatePicker
               value={draftData.consultantRegistrationDate}
-              onChange={(e) => setDraftData({ ...draftData, consultantRegistrationDate: e.target.value })}
-              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+              onChange={(value) => setDraftData({ ...draftData, consultantRegistrationDate: value })}
             />
           </div>
           <div>

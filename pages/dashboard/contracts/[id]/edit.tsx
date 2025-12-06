@@ -24,6 +24,8 @@ import {
 } from '../../../../src/domains/contracts/types';
 import Loading from '../../../../src/shared/components/common/Loading';
 import ErrorDisplay from '../../../../src/shared/components/common/ErrorDisplay';
+import PersianDatePicker from '../../../../src/shared/components/common/PersianDatePicker';
+import { getChangedFields } from '../../../../src/shared/utils/objectUtils';
 
 type Step = 1 | 2 | 3 | 4 | 5;
 
@@ -287,6 +289,8 @@ export default function EditContractPage() {
     consultantFee: '',
     contractCopies: '3',
   });
+  const [originalDraftData, setOriginalDraftData] = useState(draftData);
+  const [originalPaymentEntries, setOriginalPaymentEntries] = useState<PaymentEntry[]>([]);
 
   useEffect(() => {
     if (snackbar.open) {
@@ -435,7 +439,7 @@ export default function EditContractPage() {
       }
       
       // Load draft data
-      setDraftData({
+      const loadedDraftData = {
         contractDate: selectedContract.contractDate || '',
         startDate: selectedContract.startDate || '',
         endDate: selectedContract.endDate || '',
@@ -454,13 +458,17 @@ export default function EditContractPage() {
         legalExpertName: selectedContract.legalExpertName || '',
         consultantFee: selectedContract.consultantFee?.toString() || '',
         contractCopies: selectedContract.contractCopies?.toString() || '3',
-      });
+      };
+      setDraftData(loadedDraftData);
+      setOriginalDraftData(loadedDraftData);
 
       // Load payment entries
       if (selectedContract.paymentEntries && selectedContract.paymentEntries.length > 0) {
         setPaymentEntries(selectedContract.paymentEntries);
+        setOriginalPaymentEntries([...selectedContract.paymentEntries]);
       } else {
         setPaymentEntries([]);
+        setOriginalPaymentEntries([]);
       }
     }
   }, [selectedContract, contractId, isDataLoaded]);
@@ -792,7 +800,8 @@ export default function EditContractPage() {
     }
 
     try {
-      const updateData: UpdateContractRequest = {
+      // Build the current update data
+      const currentUpdateData: UpdateContractRequest = {
         contractDate: draftData.contractDate || undefined,
         startDate: contractType === ContractType.RENTAL ? (draftData.startDate || undefined) : undefined,
         endDate: contractType === ContractType.RENTAL ? (draftData.endDate || undefined) : undefined,
@@ -813,7 +822,47 @@ export default function EditContractPage() {
         consultantFee: draftData.consultantFee ? parseFloat(draftData.consultantFee) : undefined,
         contractCopies: draftData.contractCopies ? parseInt(draftData.contractCopies) : undefined,
       };
-      await updateContract(currentContractId, updateData);
+
+      // Build original data for comparison
+      const originalUpdateData: UpdateContractRequest = {
+        contractDate: originalDraftData.contractDate || undefined,
+        startDate: contractType === ContractType.RENTAL ? (originalDraftData.startDate || undefined) : undefined,
+        endDate: contractType === ContractType.RENTAL ? (originalDraftData.endDate || undefined) : undefined,
+        rentalAmount: contractType === ContractType.RENTAL ? (originalDraftData.rentalAmount ? parseFloat(originalDraftData.rentalAmount) : undefined) : undefined,
+        purchaseAmount: contractType === ContractType.PURCHASE ? (originalDraftData.purchaseAmount ? parseFloat(originalDraftData.purchaseAmount) : undefined) : undefined,
+        depositAmount: originalDraftData.depositAmount ? parseFloat(originalDraftData.depositAmount) : undefined,
+        paymentEntries: originalPaymentEntries.length > 0 ? originalPaymentEntries : undefined,
+        consultancyNumber: originalDraftData.consultancyNumber?.trim() || undefined,
+        registrationArea: originalDraftData.registrationArea?.trim() || undefined,
+        registrationOffice: originalDraftData.registrationOffice?.trim() || undefined,
+        consultantRegistrationVolume: originalDraftData.consultantRegistrationVolume?.trim() || undefined,
+        consultantRegistrationNumber: originalDraftData.consultantRegistrationNumber?.trim() || undefined,
+        consultantRegistrationDate: originalDraftData.consultantRegistrationDate || undefined,
+        witness1Name: originalDraftData.witness1Name?.trim() || undefined,
+        witness2Name: originalDraftData.witness2Name?.trim() || undefined,
+        legalExpertName: originalDraftData.legalExpertName?.trim() || undefined,
+        consultantFee: originalDraftData.consultantFee ? parseFloat(originalDraftData.consultantFee) : undefined,
+        contractCopies: originalDraftData.contractCopies ? parseInt(originalDraftData.contractCopies) : undefined,
+      };
+
+      // Compare payment entries separately (arrays need special handling)
+      const paymentEntriesChanged = JSON.stringify(paymentEntries) !== JSON.stringify(originalPaymentEntries);
+      
+      // Get only changed fields
+      const changedFields = getChangedFields(originalUpdateData, currentUpdateData);
+      
+      // If payment entries changed, include them
+      if (paymentEntriesChanged) {
+        changedFields.paymentEntries = currentUpdateData.paymentEntries;
+      }
+
+      // If no fields changed, show message and return
+      if (Object.keys(changedFields).length === 0) {
+        setSnackbar({ open: true, message: 'هیچ تغییری اعمال نشده است', severity: 'error' });
+        return;
+      }
+
+      await updateContract(currentContractId, changedFields);
       setSnackbar({ open: true, message: 'پیش‌نویس با موفقیت ذخیره شد', severity: 'success' });
     } catch (err: any) {
       setSnackbar({ open: true, message: err.message || 'خطا در ذخیره پیش‌نویس', severity: 'error' });
@@ -843,7 +892,7 @@ export default function EditContractPage() {
       
       // IMPORTANT: Save financial and administrative data before finalizing
       // The finalizeContract endpoint doesn't accept financial data, so we need to save it first
-      const updateData: UpdateContractRequest = {
+      const currentUpdateData: UpdateContractRequest = {
         contractDate: draftData.contractDate || undefined,
         startDate: contractType === ContractType.RENTAL ? (draftData.startDate || undefined) : undefined,
         endDate: contractType === ContractType.RENTAL ? (draftData.endDate || undefined) : undefined,
@@ -864,15 +913,44 @@ export default function EditContractPage() {
         consultantFee: draftData.consultantFee ? parseFloat(draftData.consultantFee) : undefined,
         contractCopies: draftData.contractCopies ? parseInt(draftData.contractCopies) : undefined,
       };
+
+      // Build original data for comparison
+      const originalUpdateData: UpdateContractRequest = {
+        contractDate: originalDraftData.contractDate || undefined,
+        startDate: contractType === ContractType.RENTAL ? (originalDraftData.startDate || undefined) : undefined,
+        endDate: contractType === ContractType.RENTAL ? (originalDraftData.endDate || undefined) : undefined,
+        rentalAmount: contractType === ContractType.RENTAL ? (originalDraftData.rentalAmount ? parseFloat(originalDraftData.rentalAmount) : undefined) : undefined,
+        purchaseAmount: contractType === ContractType.PURCHASE ? (originalDraftData.purchaseAmount ? parseFloat(originalDraftData.purchaseAmount) : undefined) : undefined,
+        depositAmount: originalDraftData.depositAmount ? parseFloat(originalDraftData.depositAmount) : undefined,
+        paymentEntries: originalPaymentEntries.length > 0 ? originalPaymentEntries : undefined,
+        consultancyNumber: originalDraftData.consultancyNumber?.trim() || undefined,
+        registrationArea: originalDraftData.registrationArea?.trim() || undefined,
+        registrationOffice: originalDraftData.registrationOffice?.trim() || undefined,
+        consultantRegistrationVolume: originalDraftData.consultantRegistrationVolume?.trim() || undefined,
+        consultantRegistrationNumber: originalDraftData.consultantRegistrationNumber?.trim() || undefined,
+        consultantRegistrationDate: originalDraftData.consultantRegistrationDate || undefined,
+        witness1Name: originalDraftData.witness1Name?.trim() || undefined,
+        witness2Name: originalDraftData.witness2Name?.trim() || undefined,
+        legalExpertName: originalDraftData.legalExpertName?.trim() || undefined,
+        consultantFee: originalDraftData.consultantFee ? parseFloat(originalDraftData.consultantFee) : undefined,
+        contractCopies: originalDraftData.contractCopies ? parseInt(originalDraftData.contractCopies) : undefined,
+      };
+
+      // Compare payment entries separately
+      const paymentEntriesChanged = JSON.stringify(paymentEntries) !== JSON.stringify(originalPaymentEntries);
       
-      // Only update if there's data to save
-      const hasData = updateData.rentalAmount || updateData.purchaseAmount || updateData.depositAmount || updateData.contractDate || updateData.startDate || updateData.endDate ||
-        updateData.paymentEntries || updateData.consultancyNumber || updateData.registrationArea || updateData.registrationOffice || updateData.consultantRegistrationVolume ||
-        updateData.consultantRegistrationNumber || updateData.consultantRegistrationDate || updateData.witness1Name || updateData.witness2Name ||
-        updateData.legalExpertName || updateData.consultantFee || updateData.contractCopies;
-      if (hasData) {
+      // Get only changed fields
+      const changedFields = getChangedFields(originalUpdateData, currentUpdateData);
+      
+      // If payment entries changed, include them
+      if (paymentEntriesChanged) {
+        changedFields.paymentEntries = currentUpdateData.paymentEntries;
+      }
+      
+      // Only update if there are changes
+      if (Object.keys(changedFields).length > 0) {
         console.log('Saving financial and administrative data before finalizing...');
-        await updateContract(currentContractId, updateData);
+        await updateContract(currentContractId, changedFields);
         console.log('Data saved successfully');
       }
       
@@ -1107,11 +1185,9 @@ export default function EditContractPage() {
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-semibold text-gray-600">متولد</label>
-                  <input
-                    type="date"
+                  <PersianDatePicker
                     value={currentParty.birthDate || ''}
-                    onChange={(e) => setCurrentParty({ ...currentParty, birthDate: e.target.value })}
-                    className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                    onChange={(value) => setCurrentParty({ ...currentParty, birthDate: value })}
                   />
                 </div>
                 <div>
@@ -1186,14 +1262,12 @@ export default function EditContractPage() {
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-gray-600">تاریخ مدرک اختیار</label>
-                    <input
-                      type="date"
-                      value={currentParty.authorityDocumentDate || ''}
-                      onChange={(e) => setCurrentParty({ ...currentParty, authorityDocumentDate: e.target.value })}
-                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                      disabled={!currentParty.authorityType}
-                    />
+                      <label className="mb-1 block text-sm font-semibold text-gray-600">تاریخ مدرک اختیار</label>
+                      <PersianDatePicker
+                        value={currentParty.authorityDocumentDate || ''}
+                        onChange={(value) => setCurrentParty({ ...currentParty, authorityDocumentDate: value })}
+                        disabled={!currentParty.authorityType}
+                      />
                   </div>
                 </div>
               </div>
@@ -1294,13 +1368,11 @@ export default function EditContractPage() {
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-gray-600">تاریخ سند رابطه</label>
-                    <input
-                      type="date"
-                      value={currentParty.relationshipDocumentDate || ''}
-                      onChange={(e) => setCurrentParty({ ...currentParty, relationshipDocumentDate: e.target.value })}
-                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                    />
+                      <label className="mb-1 block text-sm font-semibold text-gray-600">تاریخ سند رابطه</label>
+                      <PersianDatePicker
+                        value={currentParty.relationshipDocumentDate || ''}
+                        onChange={(value) => setCurrentParty({ ...currentParty, relationshipDocumentDate: value })}
+                      />
                   </div>
                 </div>
               </div>
@@ -1776,11 +1848,9 @@ export default function EditContractPage() {
         </div>
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-600">تاریخ تحویل</label>
-          <input
-            type="date"
+          <PersianDatePicker
             value={terms.deliveryDate}
-            onChange={(e) => setTerms({ ...terms, deliveryDate: e.target.value })}
-            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            onChange={(value) => setTerms({ ...terms, deliveryDate: value })}
           />
         </div>
         <div>
@@ -2042,31 +2112,25 @@ export default function EditContractPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-600">تاریخ قرارداد</label>
-          <input
-            type="date"
+          <PersianDatePicker
             value={draftData.contractDate}
-            onChange={(e) => setDraftData({ ...draftData, contractDate: e.target.value })}
-            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            onChange={(value) => setDraftData({ ...draftData, contractDate: value })}
           />
         </div>
         {contractType === ContractType.RENTAL && (
           <>
             <div>
               <label className="mb-1 block text-sm font-semibold text-gray-600">تاریخ شروع</label>
-              <input
-                type="date"
+              <PersianDatePicker
                 value={draftData.startDate}
-                onChange={(e) => setDraftData({ ...draftData, startDate: e.target.value })}
-                className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                onChange={(value) => setDraftData({ ...draftData, startDate: value })}
               />
             </div>
             <div>
               <label className="mb-1 block text-sm font-semibold text-gray-600">تاریخ پایان</label>
-              <input
-                type="date"
+              <PersianDatePicker
                 value={draftData.endDate}
-                onChange={(e) => setDraftData({ ...draftData, endDate: e.target.value })}
-                className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                onChange={(value) => setDraftData({ ...draftData, endDate: value })}
               />
             </div>
             <div>
@@ -2164,11 +2228,9 @@ export default function EditContractPage() {
           </div>
           <div>
             <label className="mb-1 block text-sm font-semibold text-gray-600">تاریخ ثبت مشاور</label>
-            <input
-              type="date"
+            <PersianDatePicker
               value={draftData.consultantRegistrationDate}
-              onChange={(e) => setDraftData({ ...draftData, consultantRegistrationDate: e.target.value })}
-              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+              onChange={(value) => setDraftData({ ...draftData, consultantRegistrationDate: value })}
             />
           </div>
           <div>

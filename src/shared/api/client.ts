@@ -25,6 +25,10 @@ apiClient.interceptors.request.use(
         config.headers.Authorization = `Bearer ${token}`;
       }
     }
+    // Don't override Content-Type if it's already set (for multipart/form-data)
+    if (config.data instanceof FormData && config.headers) {
+      delete config.headers['Content-Type']; // Let browser set it with boundary
+    }
     return config;
   },
   (error: AxiosError) => {

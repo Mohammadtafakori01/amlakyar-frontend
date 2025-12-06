@@ -7,6 +7,7 @@ import contractsReducer from '../domains/contracts/store/contractsSlice';
 import propertyFilesReducer from '../domains/property-files/store/propertyFilesSlice';
 import contactsReducer from '../domains/contacts/store/contactsSlice';
 import clientLogsReducer from '../domains/client-logs/store/clientLogsSlice';
+import propertyAdsReducer from '../domains/property-ads/store/propertyAdsSlice';
 
 export const store = configureStore({
   reducer: {
@@ -18,6 +19,7 @@ export const store = configureStore({
     propertyFiles: propertyFilesReducer,
     contacts: contactsReducer,
     clientLogs: clientLogsReducer,
+    propertyAds: propertyAdsReducer,
   },
 });
 

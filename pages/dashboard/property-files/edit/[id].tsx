@@ -14,6 +14,7 @@ import {
 } from '../../../../src/domains/property-files/types';
 import Loading from '../../../../src/shared/components/common/Loading';
 import ErrorDisplay from '../../../../src/shared/components/common/ErrorDisplay';
+import PersianDatePicker from '../../../../src/shared/components/common/PersianDatePicker';
 import { canEditFile } from '../../../../src/shared/utils/rbacUtils';
 
 // Reuse labels from create page
@@ -211,11 +212,9 @@ export default function EditPropertyFilePage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">تاریخ</label>
-                <input
-                  type="date"
+                <PersianDatePicker
                   value={formData.date || ''}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  onChange={(value) => setFormData({ ...formData, date: value })}
                 />
               </div>
               <div className="md:col-span-2">
