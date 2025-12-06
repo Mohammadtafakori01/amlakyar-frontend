@@ -1,7 +1,3 @@
-import { Capacitor } from '@capacitor/core';
-import { Filesystem, Directory } from '@capacitor/filesystem';
-import { Share } from '@capacitor/share';
-
 /**
  * Downloads a PDF file. Uses native file system on Android, falls back to web method on other platforms.
  * @param blob - The PDF blob to download
@@ -9,9 +5,22 @@ import { Share } from '@capacitor/share';
  * @returns Promise that resolves when download is complete
  */
 export async function downloadPdf(blob: Blob, filename: string): Promise<void> {
-  // Check if running in Capacitor (Android/iOS app)
-  if (Capacitor.isNativePlatform()) {
+  // Check if running in Capacitor (Android/iOS app) - use dynamic check to avoid build errors
+  const isNative = typeof window !== 'undefined' && 
+    (window as any).Capacitor?.isNativePlatform?.() === true;
+
+  if (isNative) {
     try {
+      // Dynamically import Capacitor plugins only when needed (at runtime)
+      const { Capacitor } = await import('@capacitor/core');
+      const { Filesystem, Directory } = await import('@capacitor/filesystem');
+      const { Share } = await import('@capacitor/share');
+
+      // Double check we're on native platform
+      if (!Capacitor.isNativePlatform()) {
+        throw new Error('Not on native platform');
+      }
+
       // Convert blob to base64 for Capacitor Filesystem
       const base64Data = await blobToBase64(blob);
       
@@ -50,21 +59,29 @@ export async function downloadPdf(blob: Blob, filename: string): Promise<void> {
       }
     } catch (error: any) {
       console.error('Error saving PDF with Capacitor:', error);
-      throw new Error('خطا در ذخیره فایل PDF. لطفا دوباره تلاش کنید.');
+      // Fall back to web method if Capacitor fails
+      downloadPdfWeb(blob, filename);
     }
   } else {
     // Web browser fallback
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    
-    // Clean up
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
+    downloadPdfWeb(blob, filename);
   }
+}
+
+/**
+ * Web browser download method
+ */
+function downloadPdfWeb(blob: Blob, filename: string): void {
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  
+  // Clean up
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
 }
 
 /**
