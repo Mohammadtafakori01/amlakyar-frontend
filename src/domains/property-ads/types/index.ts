@@ -164,6 +164,7 @@ export interface UpdatePropertyAdRequest {
   subcategory?: string;
   title?: string;
   description?: string;
+  stateId?: string;
   cityId?: string;
   neighborhoodId?: string;
   address?: string;
