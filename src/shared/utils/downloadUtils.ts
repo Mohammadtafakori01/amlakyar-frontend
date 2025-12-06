@@ -13,9 +13,11 @@ export async function downloadPdf(blob: Blob, filename: string): Promise<void> {
       (window as any).Capacitor !== undefined;
 
     if (isCapacitorAvailable) {
-      // Dynamically import Capacitor plugins only when needed (at runtime)
-      // This prevents Next.js from trying to bundle them during build
-      const capacitorModule = await import('@capacitor/core').catch(() => null);
+      // Use Function constructor to create truly dynamic imports that webpack can't analyze
+      // This prevents webpack from trying to resolve these modules during build
+      const dynamicImport = new Function('moduleName', 'return import(moduleName)');
+      
+      const capacitorModule = await dynamicImport('@capacitor/core').catch(() => null);
       if (!capacitorModule) {
         throw new Error('Capacitor not available');
       }
@@ -23,8 +25,9 @@ export async function downloadPdf(blob: Blob, filename: string): Promise<void> {
       const { Capacitor } = capacitorModule;
       
       if (Capacitor.isNativePlatform()) {
-        const filesystemModule = await import('@capacitor/filesystem').catch(() => null);
-        const shareModule = await import('@capacitor/share').catch(() => null);
+        // Use Function constructor for imports - webpack cannot analyze this
+        const filesystemModule = await dynamicImport('@capacitor/filesystem').catch(() => null);
+        const shareModule = await dynamicImport('@capacitor/share').catch(() => null);
 
         if (filesystemModule && shareModule) {
           const { Filesystem, Directory } = filesystemModule;
