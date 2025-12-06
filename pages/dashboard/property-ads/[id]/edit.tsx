@@ -119,7 +119,7 @@ export default function EditPropertyAdPage() {
         status: selectedPropertyAd.status,
         advertiserType: selectedPropertyAd.advertiserType,
         contactNumber: selectedPropertyAd.contactNumber,
-        virtualTourUrl: selectedPropertyAd.virtualTourUrl ?? null,
+        virtualTourUrl: selectedPropertyAd.virtualTourUrl ?? undefined,
       };
       setFormData(initialData);
       setOriginalData(initialData);
@@ -844,7 +844,7 @@ export default function EditPropertyAdPage() {
                     <input
                       type="url"
                       value={formData.virtualTourUrl || ''}
-                      onChange={(e) => setFormData({ ...formData, virtualTourUrl: e.target.value || null })}
+                      onChange={(e) => setFormData({ ...formData, virtualTourUrl: e.target.value || undefined })}
                       placeholder="https://example.com/tour"
                       className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
                     />
