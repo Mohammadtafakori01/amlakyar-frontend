@@ -22,7 +22,7 @@ function createWindow() {
   });
 
   // Always load from the web server URL (webview mode)
-  const webAppUrl = 'http://185.215.244.196:3000';
+  const webAppUrl = 'https://amlakyarr.com';
   mainWindow.loadURL(webAppUrl);
 
   // Open DevTools in development mode

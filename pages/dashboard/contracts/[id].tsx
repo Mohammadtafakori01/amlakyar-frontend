@@ -11,6 +11,7 @@ import { ContractType, ContractStatus } from '../../../src/domains/contracts/typ
 import Loading from '../../../src/shared/components/common/Loading';
 import ErrorDisplay from '../../../src/shared/components/common/ErrorDisplay';
 import { contractsApi } from '../../../src/domains/contracts/api/contractsApi';
+import { downloadPdf } from '../../../src/shared/utils/downloadUtils';
 
 export default function ContractDetailPage() {
   const router = useRouter();
@@ -77,17 +78,8 @@ export default function ContractDetailPage() {
         ? `contract_${contract.contractNumber}.pdf`
         : `contract_${contract.id}.pdf`;
       
-      // Create a temporary URL for the blob
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      
-      // Clean up
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      // Use the download utility that handles both web and Android
+      await downloadPdf(blob, filename);
       
       setSnackbar({ open: true, message: 'فایل PDF با موفقیت دانلود شد', severity: 'success' });
     } catch (err: any) {
