@@ -56,7 +56,7 @@ export default function EditPropertyAdPage() {
   } = usePropertyAds();
   const { user: currentUser } = useAuth();
 
-  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' | 'warning' });
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [formData, setFormData] = useState<Partial<UpdatePropertyAdRequest>>({});
   const [originalData, setOriginalData] = useState<Partial<UpdatePropertyAdRequest>>({});
@@ -948,6 +948,8 @@ export default function EditPropertyAdPage() {
                   className={`rounded-2xl border px-4 py-3 text-sm shadow-lg ${
                     snackbar.severity === 'success'
                       ? 'border-green-200 bg-green-50 text-green-800'
+                      : snackbar.severity === 'warning'
+                      ? 'border-amber-200 bg-amber-50 text-amber-800'
                       : 'border-red-200 bg-red-50 text-red-800'
                   }`}
                 >
