@@ -9,6 +9,7 @@ import { useEstates } from '../../../src/domains/estates/hooks/useEstates';
 import { EstateStatus, UserRole, User, UpdateEstateRequest, Estate, CreateEstateByMasterRequest, SetEstateStatusRequest } from '../../../src/shared/types';
 import { estatesApi } from '../../../src/domains/estates/api/estatesApi';
 import { validatePhoneNumber, validateNationalId, validatePassword, validateGuildId, validateFixedPhone, validateRequiredText } from '../../../src/shared/utils/validation';
+import { getChangedFields } from '../../../src/shared/utils/objectUtils';
 
 const Spinner = ({ size = 16 }: { size?: number }) => (
   <span
