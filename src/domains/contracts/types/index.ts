@@ -247,6 +247,7 @@ export interface Contract {
 // Request Types
 export interface CreateContractStep1Request {
   type: ContractType;
+  estateId?: string;
 }
 
 export interface AddPartyRequest {
@@ -315,6 +316,7 @@ export interface SaveDraftRequest {
 
 export interface CreateContractFullRequest {
   type: ContractType;
+  estateId?: string;
   contractDate?: string;
   startDate?: string;        // برای RENTAL
   endDate?: string;          // برای RENTAL

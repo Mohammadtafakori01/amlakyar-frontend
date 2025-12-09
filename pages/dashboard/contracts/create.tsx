@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { FiArrowRight, FiArrowLeft, FiSave, FiCheck } from 'react-icons/fi';
+import { FiArrowRight, FiArrowLeft, FiSave, FiCheck, FiPlus, FiEdit2, FiTrash2, FiX } from 'react-icons/fi';
 import DashboardLayout from '../../../src/shared/components/Layout/DashboardLayout';
 import PrivateRoute from '../../../src/shared/components/guards/PrivateRoute';
 import RoleGuard from '../../../src/shared/components/guards/RoleGuard';
 import { useContracts } from '../../../src/domains/contracts/hooks/useContracts';
 import { useAuth } from '../../../src/domains/auth/hooks/useAuth';
-import { UserRole } from '../../../src/shared/types';
+import { useEstates } from '../../../src/domains/estates/hooks/useEstates';
+import { UserRole, EstateStatus } from '../../../src/shared/types';
 import {
   ContractType,
   ContractStatus,
@@ -31,13 +32,24 @@ export default function CreateContractPage() {
   const router = useRouter();
   const { createContractStep1, createContractStep2, updateProperty, updateTerms, saveDraft, finalizeContract, selectedContract, fetchContractById, isLoading, error } = useContracts();
   const { user: currentUser } = useAuth();
+  const { estates, fetchEstates, isLoading: isEstatesLoading } = useEstates();
 
   const [currentStep, setCurrentStep] = useState<Step>(1);
   const [contractId, setContractId] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
+  // Validation errors state - stores field-level errors
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Step 1: Contract Type
   const [contractType, setContractType] = useState<ContractType>(ContractType.RENTAL);
+  const [selectedEstateId, setSelectedEstateId] = useState<string>('');
+
+  // Fetch estates for MASTER users
+  useEffect(() => {
+    if (currentUser?.role === UserRole.MASTER) {
+      fetchEstates({ status: EstateStatus.APPROVED });
+    }
+  }, [currentUser?.role, fetchEstates]);
 
   // Step 2: Parties
   const [parties, setParties] = useState<AddPartyRequest[]>([]);
@@ -48,6 +60,9 @@ export default function CreateContractPage() {
     shareType: ShareType.DANG,
     shareValue: 0,
   });
+  const [showPartyModal, setShowPartyModal] = useState(false);
+  const [partyModalStep, setPartyModalStep] = useState(1);
+  const [editingPartyIndex, setEditingPartyIndex] = useState<number | null>(null);
 
   // Step 3: Property Details
   const [propertyDetails, setPropertyDetails] = useState({
@@ -222,8 +237,21 @@ export default function CreateContractPage() {
 
   const handleStep1Submit = async () => {
     try {
+      // Validate estate selection for MASTER users
+      if (currentUser?.role === UserRole.MASTER && !selectedEstateId) {
+        setSnackbar({ open: true, message: 'لطفا یک املاک را انتخاب کنید', severity: 'error' });
+        return;
+      }
+
       console.log('Creating contract step 1 with type:', contractType);
-      const result = await createContractStep1({ type: contractType });
+      const requestData: { type: ContractType; estateId?: string } = { type: contractType };
+      
+      // For MASTER users, include estateId if selected
+      if (currentUser?.role === UserRole.MASTER && selectedEstateId) {
+        requestData.estateId = selectedEstateId;
+      }
+      
+      const result = await createContractStep1(requestData);
       // Check if the action was fulfilled
       if (result && 'type' in result) {
         if (result.type.endsWith('/fulfilled')) {
@@ -252,45 +280,30 @@ export default function CreateContractPage() {
     }
   };
 
-  const handleAddParty = () => {
-    if (!currentParty.partyType || !currentParty.partyRole || !currentParty.entityType || !currentParty.shareType || !currentParty.shareValue) {
-      setSnackbar({ open: true, message: 'لطفا تمام فیلدهای الزامی را پر کنید', severity: 'error' });
-      return;
+  const handleOpenPartyModal = (index?: number) => {
+    if (index !== undefined) {
+      // Editing existing party
+      setEditingPartyIndex(index);
+      setCurrentParty(parties[index]);
+    } else {
+      // Adding new party
+      setEditingPartyIndex(null);
+      setCurrentParty({
+        partyType: PartyType.LANDLORD,
+        partyRole: PartyRole.PRINCIPAL,
+        entityType: PartyEntityType.NATURAL,
+        shareType: ShareType.DANG,
+        shareValue: 0,
+      });
     }
+    setPartyModalStep(1);
+    setShowPartyModal(true);
+  };
 
-    // Validate natural person
-    if (currentParty.entityType === PartyEntityType.NATURAL) {
-      if (!currentParty.firstName || !currentParty.lastName || !currentParty.nationalId) {
-        setSnackbar({ open: true, message: 'لطفا اطلاعات شخص حقیقی را کامل کنید', severity: 'error' });
-        return;
-      }
-      if (currentParty.nationalId.length !== 10) {
-        setSnackbar({ open: true, message: 'کد ملی باید 10 رقم باشد', severity: 'error' });
-        return;
-      }
-    }
-
-    // Validate legal person
-    if (currentParty.entityType === PartyEntityType.LEGAL) {
-      if (!currentParty.companyName || !currentParty.companyNationalId) {
-        setSnackbar({ open: true, message: 'لطفا اطلاعات شخص حقوقی را کامل کنید', severity: 'error' });
-        return;
-      }
-      if (currentParty.companyNationalId.length !== 11) {
-        setSnackbar({ open: true, message: 'شناسه ملی شرکت باید 11 رقم باشد', severity: 'error' });
-        return;
-      }
-    }
-
-    // Validate representative/attorney
-    if (currentParty.partyRole !== PartyRole.PRINCIPAL) {
-      if (!currentParty.principalPartyId || !currentParty.relationshipType || !currentParty.relationshipDocumentNumber || !currentParty.relationshipDocumentDate) {
-        setSnackbar({ open: true, message: 'لطفا اطلاعات نماینده/وکیل را کامل کنید', severity: 'error' });
-        return;
-      }
-    }
-
-    setParties([...parties, currentParty as AddPartyRequest]);
+  const handleClosePartyModal = () => {
+    setShowPartyModal(false);
+    setPartyModalStep(1);
+    setEditingPartyIndex(null);
     setCurrentParty({
       partyType: PartyType.LANDLORD,
       partyRole: PartyRole.PRINCIPAL,
@@ -300,8 +313,321 @@ export default function CreateContractPage() {
     });
   };
 
+  // Helper function to set field error
+  const setFieldError = (field: string, error: string) => {
+    setFieldErrors(prev => ({ ...prev, [field]: error }));
+  };
+
+  // Helper function to clear field error
+  const clearFieldError = (field: string) => {
+    setFieldErrors(prev => {
+      const newErrors = { ...prev };
+      delete newErrors[field];
+      return newErrors;
+    });
+  };
+
+  // Helper function to clear all errors
+  const clearAllErrors = () => {
+    setFieldErrors({});
+  };
+
+  // Helper component for input with validation
+  const ValidatedInput = ({ 
+    field, 
+    value, 
+    onChange, 
+    label, 
+    type = 'text', 
+    placeholder, 
+    maxLength,
+    required = false,
+    className = '',
+    ...props 
+  }: {
+    field: string;
+    value: string;
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    label?: string;
+    type?: string;
+    placeholder?: string;
+    maxLength?: number;
+    required?: boolean;
+    className?: string;
+    [key: string]: any;
+  }) => {
+    const error = fieldErrors[field];
+    return (
+      <div>
+        {label && (
+          <label className="mb-1 block text-sm font-semibold text-gray-600">
+            {label} {required && <span className="text-red-500">*</span>}
+          </label>
+        )}
+        <input
+          type={type}
+          value={value || ''}
+          onChange={(e) => {
+            onChange(e);
+            if (error) clearFieldError(field);
+          }}
+          className={`w-full rounded-2xl border px-4 py-2 text-sm text-gray-800 focus:ring-2 transition-all ${
+            error 
+              ? 'border-red-500 focus:border-red-500 focus:ring-red-100' 
+              : 'border-gray-200 focus:border-primary-500 focus:ring-primary-100'
+          } ${className}`}
+          placeholder={placeholder}
+          maxLength={maxLength}
+          {...props}
+        />
+        {error && (
+          <p className="mt-1 text-sm text-red-600">{error}</p>
+        )}
+      </div>
+    );
+  };
+
+  // Helper component for textarea with validation
+  const ValidatedTextarea = ({ 
+    field, 
+    value, 
+    onChange, 
+    label, 
+    placeholder, 
+    rows = 3,
+    required = false,
+    className = '',
+    ...props 
+  }: {
+    field: string;
+    value: string;
+    onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+    label?: string;
+    placeholder?: string;
+    rows?: number;
+    required?: boolean;
+    className?: string;
+    [key: string]: any;
+  }) => {
+    const error = fieldErrors[field];
+    return (
+      <div>
+        {label && (
+          <label className="mb-1 block text-sm font-semibold text-gray-600">
+            {label} {required && <span className="text-red-500">*</span>}
+          </label>
+        )}
+        <textarea
+          value={value || ''}
+          onChange={(e) => {
+            onChange(e);
+            if (error) clearFieldError(field);
+          }}
+          rows={rows}
+          className={`w-full rounded-2xl border px-4 py-2 text-sm text-gray-800 focus:ring-2 transition-all ${
+            error 
+              ? 'border-red-500 focus:border-red-500 focus:ring-red-100' 
+              : 'border-gray-200 focus:border-primary-500 focus:ring-primary-100'
+          } ${className}`}
+          placeholder={placeholder}
+          {...props}
+        />
+        {error && (
+          <p className="mt-1 text-sm text-red-600">{error}</p>
+        )}
+      </div>
+    );
+  };
+
+  // Helper component for select with validation
+  const ValidatedSelect = ({ 
+    field, 
+    value, 
+    onChange, 
+    label, 
+    options,
+    required = false,
+    className = '',
+    ...props 
+  }: {
+    field: string;
+    value: string;
+    onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+    label?: string;
+    options: { value: string; label: string }[];
+    required?: boolean;
+    className?: string;
+    [key: string]: any;
+  }) => {
+    const error = fieldErrors[field];
+    return (
+      <div>
+        {label && (
+          <label className="mb-1 block text-sm font-semibold text-gray-600">
+            {label} {required && <span className="text-red-500">*</span>}
+          </label>
+        )}
+        <select
+          value={value || ''}
+          onChange={(e) => {
+            onChange(e);
+            if (error) clearFieldError(field);
+          }}
+          className={`w-full rounded-2xl border px-4 py-2 text-sm text-gray-800 focus:ring-2 transition-all ${
+            error 
+              ? 'border-red-500 focus:border-red-500 focus:ring-red-100' 
+              : 'border-gray-200 focus:border-primary-500 focus:ring-primary-100'
+          } ${className}`}
+          {...props}
+        >
+          {options.map(opt => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+        {error && (
+          <p className="mt-1 text-sm text-red-600">{error}</p>
+        )}
+      </div>
+    );
+  };
+
+  const handlePartyModalNext = () => {
+    const errors: Record<string, string> = {};
+    
+    // Validate current step before proceeding
+    if (partyModalStep === 1) {
+      if (!currentParty.partyType) {
+        errors['partyType'] = 'لطفا نوع طرف را انتخاب کنید';
+      }
+    } else if (partyModalStep === 2) {
+      if (!currentParty.partyRole) {
+        errors['partyRole'] = 'لطفا نقش را انتخاب کنید';
+      }
+    } else if (partyModalStep === 3) {
+      if (!currentParty.entityType) {
+        errors['entityType'] = 'لطفا نوع شخصیت را انتخاب کنید';
+      }
+    } else if (partyModalStep === 4) {
+      if (!currentParty.shareType) {
+        errors['shareType'] = 'لطفا نوع سهم را انتخاب کنید';
+      }
+      if (!currentParty.shareValue || currentParty.shareValue <= 0) {
+        errors['shareValue'] = 'لطفا مقدار سهم را وارد کنید';
+      }
+    } else if (partyModalStep === 5) {
+      // Validate party details
+      if (currentParty.entityType === PartyEntityType.NATURAL) {
+        if (!currentParty.firstName) {
+          errors['firstName'] = 'نام الزامی است';
+        }
+        if (!currentParty.lastName) {
+          errors['lastName'] = 'نام خانوادگی الزامی است';
+        }
+        if (!currentParty.nationalId) {
+          errors['nationalId'] = 'کد ملی الزامی است';
+        } else if (currentParty.nationalId.length !== 10) {
+          errors['nationalId'] = 'کد ملی باید 10 رقم باشد';
+        }
+      } else {
+        if (!currentParty.companyName) {
+          errors['companyName'] = 'نام شرکت الزامی است';
+        }
+        if (!currentParty.companyNationalId) {
+          errors['companyNationalId'] = 'شناسه ملی شرکت الزامی است';
+        } else if (currentParty.companyNationalId.length !== 11) {
+          errors['companyNationalId'] = 'شناسه ملی شرکت باید 11 رقم باشد';
+        }
+      }
+    } else if (partyModalStep === 6) {
+      // Validate authorization/relationship if needed
+      if (currentParty.partyRole !== PartyRole.PRINCIPAL) {
+        if (!currentParty.principalPartyId) {
+          errors['principalPartyId'] = 'طرف اصیل الزامی است';
+        }
+        if (!currentParty.relationshipType) {
+          errors['relationshipType'] = 'نوع رابطه الزامی است';
+        }
+        if (!currentParty.relationshipDocumentNumber) {
+          errors['relationshipDocumentNumber'] = 'شماره سند رابطه الزامی است';
+        }
+        if (!currentParty.relationshipDocumentDate) {
+          errors['relationshipDocumentDate'] = 'تاریخ سند رابطه الزامی است';
+        }
+      } else if (currentParty.authorityType) {
+        if (!currentParty.authorityDocumentNumber) {
+          errors['authorityDocumentNumber'] = 'شماره مدرک اختیار الزامی است';
+        }
+        if (!currentParty.authorityDocumentDate) {
+          errors['authorityDocumentDate'] = 'تاریخ مدرک اختیار الزامی است';
+        }
+      }
+    } else if (partyModalStep === 7) {
+      handleSaveParty(); // Save and close
+      return;
+    }
+
+    // Set errors and show notification if any
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      const firstError = Object.values(errors)[0];
+      setSnackbar({ open: true, message: firstError, severity: 'error' });
+      return;
+    }
+
+    // Clear errors for current step
+    clearAllErrors();
+
+    // Determine next step
+    const needsRelationshipStep = currentParty.partyRole !== PartyRole.PRINCIPAL;
+    const needsAuthorizationStep = currentParty.partyRole === PartyRole.PRINCIPAL && 
+      currentParty.entityType === PartyEntityType.NATURAL && 
+      currentParty.authorityType;
+
+    if (partyModalStep === 5) {
+      if (needsRelationshipStep) {
+        setPartyModalStep(6); // Go to relationship step
+      } else if (needsAuthorizationStep) {
+        setPartyModalStep(6); // Go to authorization step
+      } else {
+        setPartyModalStep(7); // Go directly to preview
+      }
+    } else if (partyModalStep === 6) {
+      setPartyModalStep(7); // Go to preview
+    } else {
+      setPartyModalStep(partyModalStep + 1);
+    }
+  };
+
+  const handlePartyModalPrev = () => {
+    if (partyModalStep > 1) {
+      setPartyModalStep(partyModalStep - 1);
+    }
+  };
+
+  const handleSaveParty = () => {
+    if (editingPartyIndex !== null) {
+      // Update existing party
+      const updatedParties = [...parties];
+      updatedParties[editingPartyIndex] = currentParty as AddPartyRequest;
+      setParties(updatedParties);
+    } else {
+      // Add new party
+      setParties([...parties, currentParty as AddPartyRequest]);
+    }
+    handleClosePartyModal();
+    setSnackbar({ open: true, message: editingPartyIndex !== null ? 'طرف قرارداد با موفقیت ویرایش شد' : 'طرف قرارداد با موفقیت افزوده شد', severity: 'success' });
+  };
+
+  const handleAddParty = () => {
+    // This function is kept for backward compatibility but not used in new UI
+    handleOpenPartyModal();
+  };
+
   const handleRemoveParty = (index: number) => {
-    setParties(parties.filter((_, i) => i !== index));
+    if (window.confirm('آیا از حذف این طرف قرارداد اطمینان دارید؟')) {
+      setParties(parties.filter((_, i) => i !== index));
+      setSnackbar({ open: true, message: 'طرف قرارداد با موفقیت حذف شد', severity: 'success' });
+    }
   };
 
   const handleStep2Submit = async () => {
@@ -671,6 +997,35 @@ export default function CreateContractPage() {
             <option value={ContractType.PURCHASE}>مبایعه‌نامه</option>
           </select>
         </div>
+        {currentUser?.role === UserRole.MASTER && (
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-gray-700">
+              انتخاب املاک <span className="text-red-500">*</span>
+            </label>
+            {isEstatesLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
+              </div>
+            ) : (
+              <select
+                value={selectedEstateId}
+                onChange={(e) => setSelectedEstateId(e.target.value)}
+                className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                required
+              >
+                <option value="">-- انتخاب املاک --</option>
+                {estates.map((estate) => (
+                  <option key={estate.id} value={estate.id}>
+                    {estate.establishmentName} ({estate.guildId})
+                  </option>
+                ))}
+              </select>
+            )}
+            {!selectedEstateId && (
+              <p className="mt-1 text-sm text-red-600">لطفا یک املاک را انتخاب کنید</p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -801,280 +1156,284 @@ export default function CreateContractPage() {
     return paymentEntries.reduce((sum, entry) => sum + entry.amount, 0);
   };
 
-  const renderStep2 = () => {
-    const landlordParties = parties.filter(p => p.partyType === PartyType.LANDLORD);
-    const tenantParties = parties.filter(p => p.partyType === PartyType.TENANT);
+  const renderPartyModal = () => {
     const principalParties = parties.filter(p => p.partyRole === PartyRole.PRINCIPAL);
+    const needsRelationshipStep = currentParty.partyRole !== PartyRole.PRINCIPAL;
+    const needsAuthorizationStep = currentParty.partyRole === PartyRole.PRINCIPAL && 
+      currentParty.entityType === PartyEntityType.NATURAL && 
+      currentParty.authorityType;
+    
+    const totalSteps = 7; // Always 7 steps: 1-5 basic, 6 conditional (relationship/auth), 7 preview
 
-    return (
-      <div className="space-y-6">
-        <h2 className="text-2xl font-bold text-gray-900">مرحله 2: ثبت طرفین قرارداد</h2>
-        
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 space-y-4">
-          <h3 className="text-lg font-semibold text-gray-800">افزودن طرف قرارداد</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="mb-1 block text-sm font-semibold text-gray-600">نوع طرف</label>
-              <select
-                value={currentParty.partyType || ''}
-                onChange={(e) => setCurrentParty({ ...currentParty, partyType: e.target.value as PartyType })}
-                className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-              >
-                <option value={PartyType.LANDLORD}>{getPartyTypeLabel(PartyType.LANDLORD)}</option>
-                <option value={PartyType.TENANT}>{getPartyTypeLabel(PartyType.TENANT)}</option>
-              </select>
+    const renderModalStep = () => {
+      switch (partyModalStep) {
+        case 1: // Party Type
+          return (
+            <div className="space-y-6">
+              <h3 className="text-xl font-semibold text-gray-900 text-center">انتخاب نوع طرف</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button
+                  onClick={() => setCurrentParty({ ...currentParty, partyType: PartyType.LANDLORD })}
+                  className={`p-6 rounded-2xl border-2 transition-all ${
+                    currentParty.partyType === PartyType.LANDLORD
+                      ? 'border-primary-500 bg-primary-50 text-primary-700'
+                      : 'border-gray-200 hover:border-primary-300 bg-white text-gray-700'
+                  }`}
+                >
+                  <div className="text-2xl font-bold">{getPartyTypeLabel(PartyType.LANDLORD)}</div>
+                  <div className="text-sm mt-2 text-gray-500">
+                    {contractType === ContractType.RENTAL ? 'مالک ملک' : 'فروشنده ملک'}
+                  </div>
+                </button>
+                <button
+                  onClick={() => setCurrentParty({ ...currentParty, partyType: PartyType.TENANT })}
+                  className={`p-6 rounded-2xl border-2 transition-all ${
+                    currentParty.partyType === PartyType.TENANT
+                      ? 'border-primary-500 bg-primary-50 text-primary-700'
+                      : 'border-gray-200 hover:border-primary-300 bg-white text-gray-700'
+                  }`}
+                >
+                  <div className="text-2xl font-bold">{getPartyTypeLabel(PartyType.TENANT)}</div>
+                  <div className="text-sm mt-2 text-gray-500">
+                    {contractType === ContractType.RENTAL ? 'مستاجر ملک' : 'خریدار ملک'}
+                  </div>
+                </button>
+              </div>
             </div>
+          );
 
-            <div>
-              <label className="mb-1 block text-sm font-semibold text-gray-600">نقش</label>
-              <select
-                value={currentParty.partyRole || ''}
-                onChange={(e) => setCurrentParty({ ...currentParty, partyRole: e.target.value as PartyRole })}
-                className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-              >
-                <option value={PartyRole.PRINCIPAL}>اصیل</option>
-                <option value={PartyRole.REPRESENTATIVE}>نماینده</option>
-                <option value={PartyRole.ATTORNEY}>وکیل</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-1 block text-sm font-semibold text-gray-600">نوع شخصیت</label>
-              <select
-                value={currentParty.entityType || ''}
-                onChange={(e) => setCurrentParty({ ...currentParty, entityType: e.target.value as PartyEntityType })}
-                className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-              >
-                <option value={PartyEntityType.NATURAL}>حقیقی</option>
-                <option value={PartyEntityType.LEGAL}>حقوقی</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-1 block text-sm font-semibold text-gray-600">نوع سهم</label>
-              <select
-                value={currentParty.shareType || ''}
-                onChange={(e) => setCurrentParty({ ...currentParty, shareType: e.target.value as ShareType })}
-                className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-              >
-                <option value={ShareType.DANG}>دانگ</option>
-                <option value={ShareType.PERCENTAGE}>درصد</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-1 block text-sm font-semibold text-gray-600">مقدار سهم</label>
-              <input
-                type="number"
-                value={currentParty.shareValue || ''}
-                onChange={(e) => setCurrentParty({ ...currentParty, shareValue: parseFloat(e.target.value) || 0 })}
-                className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-              />
-            </div>
-          </div>
-
-          {currentParty.entityType === PartyEntityType.NATURAL ? (
-            <>
+        case 2: // Role
+          return (
+            <div className="space-y-6">
+              <h3 className="text-xl font-semibold text-gray-900 text-center">انتخاب نقش</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-gray-600">نام</label>
-                  <input
-                    type="text"
-                    value={currentParty.firstName || ''}
-                    onChange={(e) => setCurrentParty({ ...currentParty, firstName: e.target.value })}
-                    className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-gray-600">نام خانوادگی</label>
-                  <input
-                    type="text"
-                    value={currentParty.lastName || ''}
-                    onChange={(e) => setCurrentParty({ ...currentParty, lastName: e.target.value })}
-                    className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-gray-600">کد ملی</label>
-                  <input
-                    type="text"
-                    value={currentParty.nationalId || ''}
-                    onChange={(e) => setCurrentParty({ ...currentParty, nationalId: e.target.value })}
-                    maxLength={10}
-                    className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                  />
-                </div>
+                <button
+                  onClick={() => setCurrentParty({ ...currentParty, partyRole: PartyRole.PRINCIPAL })}
+                  className={`p-6 rounded-2xl border-2 transition-all ${
+                    currentParty.partyRole === PartyRole.PRINCIPAL
+                      ? 'border-primary-500 bg-primary-50 text-primary-700'
+                      : 'border-gray-200 hover:border-primary-300 bg-white text-gray-700'
+                  }`}
+                >
+                  <div className="text-xl font-bold">اصیل</div>
+                  <div className="text-sm mt-2 text-gray-500">طرف اصلی قرارداد</div>
+                </button>
+                <button
+                  onClick={() => setCurrentParty({ ...currentParty, partyRole: PartyRole.REPRESENTATIVE })}
+                  className={`p-6 rounded-2xl border-2 transition-all ${
+                    currentParty.partyRole === PartyRole.REPRESENTATIVE
+                      ? 'border-primary-500 bg-primary-50 text-primary-700'
+                      : 'border-gray-200 hover:border-primary-300 bg-white text-gray-700'
+                  }`}
+                >
+                  <div className="text-xl font-bold">نماینده</div>
+                  <div className="text-sm mt-2 text-gray-500">نماینده طرف اصیل</div>
+                </button>
+                <button
+                  onClick={() => setCurrentParty({ ...currentParty, partyRole: PartyRole.ATTORNEY })}
+                  className={`p-6 rounded-2xl border-2 transition-all ${
+                    currentParty.partyRole === PartyRole.ATTORNEY
+                      ? 'border-primary-500 bg-primary-50 text-primary-700'
+                      : 'border-gray-200 hover:border-primary-300 bg-white text-gray-700'
+                  }`}
+                >
+                  <div className="text-xl font-bold">وکیل</div>
+                  <div className="text-sm mt-2 text-gray-500">وکیل طرف اصیل</div>
+                </button>
               </div>
-              {/* NEW: Additional natural person fields */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-gray-600">فرزند</label>
-                  <input
-                    type="text"
-                    value={currentParty.childOf || ''}
-                    onChange={(e) => setCurrentParty({ ...currentParty, childOf: e.target.value })}
-                    className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                    placeholder="نام پدر"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-gray-600">شماره شناسنامه</label>
-                  <input
-                    type="text"
-                    value={currentParty.idCardNumber || ''}
-                    onChange={(e) => setCurrentParty({ ...currentParty, idCardNumber: e.target.value })}
-                    className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-gray-600">صادره از</label>
-                  <input
-                    type="text"
-                    value={currentParty.issuedFrom || ''}
-                    onChange={(e) => setCurrentParty({ ...currentParty, issuedFrom: e.target.value })}
-                    className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                    placeholder="محل صدور"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-gray-600">متولد</label>
-                  <PersianDatePicker
-                    value={currentParty.birthDate || ''}
-                    onChange={(value) => setCurrentParty({ ...currentParty, birthDate: value })}
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-gray-600">تلفن</label>
-                  <input
-                    type="text"
-                    value={currentParty.phone || ''}
-                    onChange={(e) => setCurrentParty({ ...currentParty, phone: e.target.value })}
-                    className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                    placeholder="09123456789"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-gray-600">کد پستی</label>
-                  <input
-                    type="text"
-                    value={currentParty.postalCode || ''}
-                    onChange={(e) => setCurrentParty({ ...currentParty, postalCode: e.target.value })}
-                    maxLength={10}
-                    className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                    placeholder="1234567890"
-                  />
-                </div>
+            </div>
+          );
+
+        case 3: // Entity Type
+          return (
+            <div className="space-y-6">
+              <h3 className="text-xl font-semibold text-gray-900 text-center">انتخاب نوع شخصیت</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button
+                  onClick={() => setCurrentParty({ ...currentParty, entityType: PartyEntityType.NATURAL })}
+                  className={`p-6 rounded-2xl border-2 transition-all ${
+                    currentParty.entityType === PartyEntityType.NATURAL
+                      ? 'border-primary-500 bg-primary-50 text-primary-700'
+                      : 'border-gray-200 hover:border-primary-300 bg-white text-gray-700'
+                  }`}
+                >
+                  <div className="text-xl font-bold">شخص حقیقی</div>
+                  <div className="text-sm mt-2 text-gray-500">فرد</div>
+                </button>
+                <button
+                  onClick={() => setCurrentParty({ ...currentParty, entityType: PartyEntityType.LEGAL })}
+                  className={`p-6 rounded-2xl border-2 transition-all ${
+                    currentParty.entityType === PartyEntityType.LEGAL
+                      ? 'border-primary-500 bg-primary-50 text-primary-700'
+                      : 'border-gray-200 hover:border-primary-300 bg-white text-gray-700'
+                  }`}
+                >
+                  <div className="text-xl font-bold">شخص حقوقی</div>
+                  <div className="text-sm mt-2 text-gray-500">شرکت یا سازمان</div>
+                </button>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            </div>
+          );
+
+        case 4: // Share Type and Value
+          return (
+            <div className="space-y-6">
+              <h3 className="text-xl font-semibold text-gray-900 text-center">نوع سهم و مقدار آن</h3>
+              <div className="space-y-4">
                 <div>
-                  <label className="mb-1 block text-sm font-semibold text-gray-600">آدرس</label>
-                  <textarea
-                    value={currentParty.address || ''}
-                    onChange={(e) => setCurrentParty({ ...currentParty, address: e.target.value })}
-                    rows={2}
-                    className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-gray-600">ساكن</label>
-                  <input
-                    type="text"
-                    value={currentParty.resident || ''}
-                    onChange={(e) => setCurrentParty({ ...currentParty, resident: e.target.value })}
-                    className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                    placeholder="محل سکونت"
-                  />
-                </div>
-              </div>
-              {/* Authority section */}
-              <div className="border-t border-gray-200 pt-4 mt-4">
-                <h4 className="text-sm font-semibold text-gray-700 mb-3">اطلاعات اختیار (در صورت وجود)</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="mb-1 block text-sm font-semibold text-gray-600">نوع اختیار</label>
-                    <select
-                      value={currentParty.authorityType || ''}
-                      onChange={(e) => setCurrentParty({ ...currentParty, authorityType: e.target.value })}
-                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                  <label className="mb-2 block text-sm font-semibold text-gray-600">نوع سهم</label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <button
+                      onClick={() => setCurrentParty({ ...currentParty, shareType: ShareType.DANG })}
+                      className={`p-4 rounded-2xl border-2 transition-all ${
+                        currentParty.shareType === ShareType.DANG
+                          ? 'border-primary-500 bg-primary-50 text-primary-700'
+                          : 'border-gray-200 hover:border-primary-300 bg-white text-gray-700'
+                      }`}
                     >
-                      <option value="">انتخاب کنید</option>
-                      <option value="وکالت">وکالت</option>
-                      <option value="قیومیت">قیومیت</option>
-                      <option value="ولایت">ولایت</option>
-                      <option value="وصايت">وصايت</option>
-                    </select>
+                      <div className="font-bold">دانگ</div>
+                    </button>
+                    <button
+                      onClick={() => setCurrentParty({ ...currentParty, shareType: ShareType.PERCENTAGE })}
+                      className={`p-4 rounded-2xl border-2 transition-all ${
+                        currentParty.shareType === ShareType.PERCENTAGE
+                          ? 'border-primary-500 bg-primary-50 text-primary-700'
+                          : 'border-gray-200 hover:border-primary-300 bg-white text-gray-700'
+                      }`}
+                    >
+                      <div className="font-bold">درصد</div>
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-600">مقدار سهم</label>
+                  <input
+                    type="number"
+                    value={currentParty.shareValue || ''}
+                    onChange={(e) => setCurrentParty({ ...currentParty, shareValue: parseFloat(e.target.value) || 0 })}
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                    placeholder={currentParty.shareType === ShareType.DANG ? 'مثال: 2' : 'مثال: 50'}
+                  />
+                </div>
+              </div>
+            </div>
+          );
+
+        case 5: // Party Details
+          return (
+            <div className="space-y-6">
+              <h3 className="text-xl font-semibold text-gray-900 text-center">مشخصات طرف</h3>
+              {currentParty.entityType === PartyEntityType.NATURAL ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="mb-1 block text-sm font-semibold text-gray-600">نام</label>
+                      <input
+                        type="text"
+                        value={currentParty.firstName || ''}
+                        onChange={(e) => setCurrentParty({ ...currentParty, firstName: e.target.value })}
+                        className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm font-semibold text-gray-600">نام خانوادگی</label>
+                      <input
+                        type="text"
+                        value={currentParty.lastName || ''}
+                        onChange={(e) => setCurrentParty({ ...currentParty, lastName: e.target.value })}
+                        className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                      />
+                    </div>
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-gray-600">شماره مدرک اختیار</label>
+                    <label className="mb-1 block text-sm font-semibold text-gray-600">کد ملی</label>
                     <input
                       type="text"
-                      value={currentParty.authorityDocumentNumber || ''}
-                      onChange={(e) => setCurrentParty({ ...currentParty, authorityDocumentNumber: e.target.value })}
+                      value={currentParty.nationalId || ''}
+                      onChange={(e) => setCurrentParty({ ...currentParty, nationalId: e.target.value })}
+                      maxLength={10}
                       className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                      disabled={!currentParty.authorityType}
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-gray-600">تاریخ مدرک اختیار</label>
-                    <PersianDatePicker
-                      value={currentParty.authorityDocumentDate || ''}
-                      onChange={(value) => setCurrentParty({ ...currentParty, authorityDocumentDate: value })}
-                      disabled={!currentParty.authorityType}
+                    <label className="mb-1 block text-sm font-semibold text-gray-600">آدرس</label>
+                    <textarea
+                      value={currentParty.address || ''}
+                      onChange={(e) => setCurrentParty({ ...currentParty, address: e.target.value })}
+                      rows={3}
+                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                      placeholder="آدرس کامل"
+                    />
+                  </div>
+                  <div className="border-t border-gray-200 pt-4">
+                    <label className="mb-2 block text-sm font-semibold text-gray-600">آیا اطلاعات اختیار دارید؟</label>
+                    <div className="flex gap-4">
+                      <button
+                        onClick={() => setCurrentParty({ ...currentParty, authorityType: '' })}
+                        className={`flex-1 p-3 rounded-2xl border-2 transition-all ${
+                          !currentParty.authorityType
+                            ? 'border-primary-500 bg-primary-50 text-primary-700'
+                            : 'border-gray-200 hover:border-primary-300 bg-white text-gray-700'
+                        }`}
+                      >
+                        خیر
+                      </button>
+                      <button
+                        onClick={() => setCurrentParty({ ...currentParty, authorityType: 'وکالت' })}
+                        className={`flex-1 p-3 rounded-2xl border-2 transition-all ${
+                          currentParty.authorityType
+                            ? 'border-primary-500 bg-primary-50 text-primary-700'
+                            : 'border-gray-200 hover:border-primary-300 bg-white text-gray-700'
+                        }`}
+                      >
+                        بله
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-gray-600">نام شرکت</label>
+                    <input
+                      type="text"
+                      value={currentParty.companyName || ''}
+                      onChange={(e) => setCurrentParty({ ...currentParty, companyName: e.target.value })}
+                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-gray-600">شناسه ملی شرکت</label>
+                    <input
+                      type="text"
+                      value={currentParty.companyNationalId || ''}
+                      onChange={(e) => setCurrentParty({ ...currentParty, companyNationalId: e.target.value })}
+                      maxLength={11}
+                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-gray-600">آدرس</label>
+                    <textarea
+                      value={currentParty.address || ''}
+                      onChange={(e) => setCurrentParty({ ...currentParty, address: e.target.value })}
+                      rows={3}
+                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                      placeholder="آدرس کامل"
                     />
                   </div>
                 </div>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-gray-600">نام شرکت</label>
-                  <input
-                    type="text"
-                    value={currentParty.companyName || ''}
-                    onChange={(e) => setCurrentParty({ ...currentParty, companyName: e.target.value })}
-                    className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-gray-600">شناسه ملی شرکت</label>
-                  <input
-                    type="text"
-                    value={currentParty.companyNationalId || ''}
-                    onChange={(e) => setCurrentParty({ ...currentParty, companyNationalId: e.target.value })}
-                    maxLength={11}
-                    className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-gray-600">شماره ثبت</label>
-                  <input
-                    type="text"
-                    value={currentParty.registrationNumber || ''}
-                    onChange={(e) => setCurrentParty({ ...currentParty, registrationNumber: e.target.value })}
-                    className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-gray-600">روزنامه رسمی</label>
-                  <input
-                    type="text"
-                    value={currentParty.officialGazette || ''}
-                    onChange={(e) => setCurrentParty({ ...currentParty, officialGazette: e.target.value })}
-                    className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                  />
-                </div>
-              </div>
-            </>
-          )}
+              )}
+            </div>
+          );
 
-          {currentParty.partyRole !== PartyRole.PRINCIPAL && (
-            <>
-              <div className="border-t border-gray-200 pt-4 mt-4">
-                <h4 className="text-sm font-semibold text-gray-700 mb-3">اطلاعات نماینده/وکیل</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        case 6: // Authorization or Relationship
+          if (currentParty.partyRole !== PartyRole.PRINCIPAL) {
+            // Relationship info for representative/attorney
+            return (
+              <div className="space-y-6">
+                <h3 className="text-xl font-semibold text-gray-900 text-center">اطلاعات نماینده/وکیل</h3>
+                <div className="space-y-4">
                   <div>
                     <label className="mb-1 block text-sm font-semibold text-gray-600">طرف اصیل</label>
                     <select
@@ -1086,7 +1445,6 @@ export default function CreateContractPage() {
                       {principalParties
                         .filter(p => p.partyType === currentParty.partyType)
                         .map((p, idx) => {
-                          // Find the index in the original parties array for a stable identifier
                           const partyIndex = parties.findIndex(party => party === p);
                           return (
                             <option key={idx} value={partyIndex >= 0 ? partyIndex.toString() : idx.toString()}>
@@ -1130,52 +1488,333 @@ export default function CreateContractPage() {
                   </div>
                 </div>
               </div>
-            </>
-          )}
-
-          <button
-            onClick={handleAddParty}
-            className="w-full rounded-2xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700"
-          >
-            افزودن طرف
-          </button>
-        </div>
-
-        {parties.length > 0 && (
-          <div className="rounded-2xl border border-gray-200 bg-white p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">طرفین ثبت شده</h3>
-            <div className="space-y-4">
-              {parties.map((party, index) => (
-                <div key={index} className="flex items-center justify-between border-b border-gray-100 pb-3">
+            );
+          } else {
+            // Authorization info
+            return (
+              <div className="space-y-6">
+                <h3 className="text-xl font-semibold text-gray-900 text-center">اطلاعات اختیار</h3>
+                <div className="space-y-4">
                   <div>
-                    <span className="font-semibold">
-                      {getPartyTypeLabel(party.partyType)} -{' '}
-                      {party.partyRole === PartyRole.PRINCIPAL ? 'اصیل' : party.partyRole === PartyRole.REPRESENTATIVE ? 'نماینده' : 'وکیل'} -{' '}
-                      {party.entityType === PartyEntityType.NATURAL
-                        ? `${party.firstName} ${party.lastName}`
-                        : party.companyName}
-                    </span>
-                    <span className="text-sm text-gray-500 mr-2">
-                      ({party.shareValue} {party.shareType === ShareType.DANG ? 'دانگ' : 'درصد'})
-                    </span>
+                    <label className="mb-1 block text-sm font-semibold text-gray-600">نوع اختیار</label>
+                    <select
+                      value={currentParty.authorityType || ''}
+                      onChange={(e) => setCurrentParty({ ...currentParty, authorityType: e.target.value })}
+                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                    >
+                      <option value="">انتخاب کنید</option>
+                      <option value="وکالت">وکالت</option>
+                      <option value="قیومیت">قیومیت</option>
+                      <option value="ولایت">ولایت</option>
+                      <option value="وصايت">وصايت</option>
+                    </select>
                   </div>
-                  <button
-                    onClick={() => handleRemoveParty(index)}
-                    className="text-red-600 hover:text-red-700 text-sm"
-                  >
-                    حذف
-                  </button>
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-gray-600">شماره مدرک اختیار</label>
+                    <input
+                      type="text"
+                      value={currentParty.authorityDocumentNumber || ''}
+                      onChange={(e) => setCurrentParty({ ...currentParty, authorityDocumentNumber: e.target.value })}
+                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                      disabled={!currentParty.authorityType}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-gray-600">تاریخ مدرک اختیار</label>
+                    <PersianDatePicker
+                      value={currentParty.authorityDocumentDate || ''}
+                      onChange={(value) => setCurrentParty({ ...currentParty, authorityDocumentDate: value })}
+                      disabled={!currentParty.authorityType}
+                    />
+                  </div>
                 </div>
-              ))}
-            </div>
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <div className="text-sm text-gray-600">
-                <div>{getPartyTypeLabel(PartyType.LANDLORD)}ان: مجموع {landlordParties.reduce((sum, p) => sum + p.shareValue, 0)} {landlordParties[0]?.shareType === ShareType.DANG ? 'دانگ' : 'درصد'}</div>
-                <div>{getPartyTypeLabel(PartyType.TENANT)}ان: مجموع {tenantParties.reduce((sum, p) => sum + p.shareValue, 0)} {tenantParties[0]?.shareType === ShareType.DANG ? 'دانگ' : 'درصد'}</div>
+              </div>
+            );
+          }
+
+        case 7: // Preview
+          return (
+            <div className="space-y-6">
+              <h3 className="text-xl font-semibold text-gray-900 text-center">پیش نمایش اطلاعات</h3>
+              <div className="bg-gray-50 rounded-2xl p-6 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-sm text-gray-500">نوع طرف:</span>
+                    <p className="font-semibold">{getPartyTypeLabel(currentParty.partyType!)}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm text-gray-500">نقش:</span>
+                    <p className="font-semibold">
+                      {currentParty.partyRole === PartyRole.PRINCIPAL ? 'اصیل' : 
+                       currentParty.partyRole === PartyRole.REPRESENTATIVE ? 'نماینده' : 'وکیل'}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-sm text-gray-500">نوع شخصیت:</span>
+                    <p className="font-semibold">
+                      {currentParty.entityType === PartyEntityType.NATURAL ? 'حقیقی' : 'حقوقی'}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-sm text-gray-500">سهم:</span>
+                    <p className="font-semibold">
+                      {currentParty.shareValue} {currentParty.shareType === ShareType.DANG ? 'دانگ' : 'درصد'}
+                    </p>
+                  </div>
+                </div>
+                {currentParty.entityType === PartyEntityType.NATURAL ? (
+                  <>
+                    <div className="border-t pt-4">
+                      <span className="text-sm text-gray-500">نام و نام خانوادگی:</span>
+                      <p className="font-semibold">{currentParty.firstName} {currentParty.lastName}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm text-gray-500">کد ملی:</span>
+                      <p className="font-semibold">{currentParty.nationalId}</p>
+                    </div>
+                    {currentParty.address && (
+                      <div>
+                        <span className="text-sm text-gray-500">آدرس:</span>
+                        <p className="font-semibold">{currentParty.address}</p>
+                      </div>
+                    )}
+                    {currentParty.authorityType && (
+                      <div className="border-t pt-4">
+                        <span className="text-sm text-gray-500">نوع اختیار:</span>
+                        <p className="font-semibold">{currentParty.authorityType}</p>
+                        {currentParty.authorityDocumentNumber && (
+                          <p className="text-sm mt-1">شماره: {currentParty.authorityDocumentNumber}</p>
+                        )}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div className="border-t pt-4">
+                      <span className="text-sm text-gray-500">نام شرکت:</span>
+                      <p className="font-semibold">{currentParty.companyName}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm text-gray-500">شناسه ملی:</span>
+                      <p className="font-semibold">{currentParty.companyNationalId}</p>
+                    </div>
+                    {currentParty.address && (
+                      <div>
+                        <span className="text-sm text-gray-500">آدرس:</span>
+                        <p className="font-semibold">{currentParty.address}</p>
+                      </div>
+                    )}
+                  </>
+                )}
+                {currentParty.partyRole !== PartyRole.PRINCIPAL && (
+                  <div className="border-t pt-4">
+                    <span className="text-sm text-gray-500">طرف اصیل:</span>
+                    <p className="font-semibold">
+                      {(() => {
+                        const principal = principalParties.find(p => {
+                          const idx = parties.findIndex(party => party === p);
+                          return idx.toString() === currentParty.principalPartyId;
+                        });
+                        return principal
+                          ? principal.entityType === PartyEntityType.NATURAL
+                            ? `${principal.firstName} ${principal.lastName}`
+                            : principal.companyName
+                          : '';
+                      })()}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
+          );
+
+        default:
+          return null;
+      }
+    };
+
+    if (!showPartyModal) return null;
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+        <div className="w-full max-w-2xl rounded-2xl bg-white p-6 text-right shadow-2xl max-h-[90vh] overflow-y-auto">
+          <div className="flex items-center justify-between mb-6">
+            <button
+              onClick={handleClosePartyModal}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <FiX className="text-2xl" />
+            </button>
+            <h2 className="text-2xl font-bold text-gray-900">
+              {editingPartyIndex !== null ? 'ویرایش طرف قرارداد' : 'افزودن طرف قرارداد'}
+            </h2>
+            <div className="w-8"></div>
           </div>
-        )}
+
+          {/* Progress indicator */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-2">
+              {[1, 2, 3, 4, 5, 6, 7].map((step, idx) => {
+                // Skip step 6 if not needed
+                if (step === 6 && !needsRelationshipStep && !needsAuthorizationStep) {
+                  return null;
+                }
+                const isActive = step === partyModalStep;
+                const isCompleted = step < partyModalStep;
+                const isLast = idx === 6;
+                return (
+                  <div key={idx} className="flex items-center flex-1">
+                    <div className={`flex-1 h-2 rounded-full ${
+                      isCompleted || isActive ? 'bg-primary-500' : 'bg-gray-200'
+                    }`}></div>
+                    {!isLast && (
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
+                        isCompleted ? 'bg-primary-500 text-white' :
+                        isActive ? 'bg-primary-100 text-primary-700 border-2 border-primary-500' :
+                        'bg-gray-200 text-gray-500'
+                      }`}>
+                        {isCompleted ? '✓' : step}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="text-center text-sm text-gray-500 mt-2">
+              مرحله {partyModalStep} از {totalSteps}
+            </div>
+          </div>
+
+          {/* Step content */}
+          <div className="mb-6 min-h-[300px]">
+            {renderModalStep()}
+          </div>
+
+          {/* Navigation buttons */}
+          <div className="flex items-center justify-between gap-4">
+            <button
+              onClick={handlePartyModalPrev}
+              disabled={partyModalStep === 1}
+              className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-semibold transition-all ${
+                partyModalStep === 1
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              <FiArrowRight />
+              قبلی
+            </button>
+            <button
+              onClick={handlePartyModalNext}
+              className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-primary-600 text-white font-semibold hover:bg-primary-700 transition-all"
+            >
+              {partyModalStep === totalSteps ? 'ذخیره' : 'بعدی'}
+              {partyModalStep !== totalSteps && <FiArrowLeft />}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderStep2 = () => {
+    const landlordParties = parties.filter(p => p.partyType === PartyType.LANDLORD);
+    const tenantParties = parties.filter(p => p.partyType === PartyType.TENANT);
+
+    return (
+      <div className="space-y-6">
+        <h2 className="text-2xl font-bold text-gray-900">مرحله 2: ثبت طرفین قرارداد</h2>
+        
+        <div className="rounded-2xl border border-gray-200 bg-white p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-800">طرفین قرارداد</h3>
+            <button
+              onClick={() => handleOpenPartyModal()}
+              className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-primary-600 text-white font-semibold hover:bg-primary-700 transition-all"
+            >
+              <FiPlus />
+              افزودن طرف
+            </button>
+          </div>
+          
+          {parties.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">نوع طرف</th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">نقش</th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">نام</th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">سهم</th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">عملیات</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {parties.map((party, index) => (
+                    <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="py-3 px-4 text-sm text-gray-800">
+                        {getPartyTypeLabel(party.partyType)}
+                      </td>
+                      <td className="py-3 px-4 text-sm text-gray-800">
+                        {party.partyRole === PartyRole.PRINCIPAL ? 'اصیل' : 
+                         party.partyRole === PartyRole.REPRESENTATIVE ? 'نماینده' : 'وکیل'}
+                      </td>
+                      <td className="py-3 px-4 text-sm text-gray-800">
+                        {party.entityType === PartyEntityType.NATURAL
+                          ? `${party.firstName || ''} ${party.lastName || ''}`.trim()
+                          : party.companyName || ''}
+                      </td>
+                      <td className="py-3 px-4 text-sm text-gray-800">
+                        {party.shareValue} {party.shareType === ShareType.DANG ? 'دانگ' : 'درصد'}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleOpenPartyModal(index)}
+                            className="p-2 text-primary-600 hover:text-primary-700 hover:bg-primary-50 rounded-lg transition-all"
+                            title="ویرایش"
+                          >
+                            <FiEdit2 />
+                          </button>
+                          <button
+                            onClick={() => handleRemoveParty(index)}
+                            className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all"
+                            title="حذف"
+                          >
+                            <FiTrash2 />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-12 text-gray-500">
+              <p>هنوز طرفی اضافه نشده است</p>
+              <p className="text-sm mt-2">برای افزودن طرف جدید روی دکمه "افزودن طرف" کلیک کنید</p>
+            </div>
+          )}
+          
+          {parties.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <div className="text-sm text-gray-600 space-y-1">
+                <div>
+                  <span className="font-semibold">{getPartyTypeLabel(PartyType.LANDLORD)}ان:</span>{' '}
+                  مجموع {landlordParties.reduce((sum, p) => sum + p.shareValue, 0)} {landlordParties[0]?.shareType === ShareType.DANG ? 'دانگ' : 'درصد'}
+                </div>
+                <div>
+                  <span className="font-semibold">{getPartyTypeLabel(PartyType.TENANT)}ان:</span>{' '}
+                  مجموع {tenantParties.reduce((sum, p) => sum + p.shareValue, 0)} {tenantParties[0]?.shareType === ShareType.DANG ? 'دانگ' : 'درصد'}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Party Modal */}
+        {renderPartyModal()}
       </div>
     );
   };
@@ -2526,9 +3165,9 @@ export default function CreateContractPage() {
             )}
 
             {snackbar.open && (
-              <div className="fixed bottom-6 left-1/2 z-40 w-full max-w-md -translate-x-1/2 px-4">
+              <div className="fixed bottom-6 left-1/2 z-[9999] w-full max-w-md -translate-x-1/2 px-4">
                 <div
-                  className={`rounded-2xl border px-4 py-3 text-sm shadow-lg ${
+                  className={`rounded-2xl border px-4 py-3 text-sm shadow-2xl ${
                     snackbar.severity === 'success'
                       ? 'border-green-200 bg-green-50 text-green-800'
                       : 'border-red-200 bg-red-50 text-red-800'

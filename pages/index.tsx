@@ -402,6 +402,7 @@ export default function Home() {
     showToggle,
     onToggle,
     required = false,
+    inputMode,
   }: {
     label: string;
     icon: React.ReactNode;
@@ -415,6 +416,7 @@ export default function Home() {
     showToggle?: boolean;
     onToggle?: () => void;
     required?: boolean;
+    inputMode?: 'text' | 'tel' | 'numeric';
   }) => (
     <div>
       <label className="mb-2 block text-sm font-medium text-gray-700">{label}</label>
@@ -427,16 +429,17 @@ export default function Home() {
           placeholder={placeholder}
           maxLength={maxLength}
           required={required}
-          className={`${inputBaseClass} pl-12 ${errorText ? 'border-red-300 focus:ring-red-100' : ''}`}
+          inputMode={inputMode}
+          className={`${inputBaseClass} ${isPasswordToggle ? 'pr-12' : ''} pl-12 ${errorText ? 'border-red-300 focus:ring-red-100' : ''}`}
         />
         {isPasswordToggle && (
           <button
             type="button"
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
             onClick={onToggle}
             aria-label="toggle password visibility"
           >
-            {showToggle ? <FiEyeOff /> : <FiEye />}
+            {showToggle ? <FiEyeOff className="text-lg" /> : <FiEye className="text-lg" />}
           </button>
         )}
       </div>
@@ -535,7 +538,9 @@ export default function Home() {
                     onChange: (e) => setLoginPhone(formatPhoneNumber(e.target.value)),
                     placeholder: '09123456789',
                     maxLength: 11,
-            required: true,
+                    type: 'tel',
+                    inputMode: 'tel',
+                    required: true,
                     errorText: loginPhone.length > 0 && !validatePhoneNumber(loginPhone) ? 'شماره موبایل معتبر نیست' : undefined,
                   })}
                   {renderIconInput({
@@ -566,7 +571,9 @@ export default function Home() {
                         onChange: (e) => setOtpPhone(formatPhoneNumber(e.target.value)),
                         placeholder: '09123456789',
                         maxLength: 11,
-                required: true,
+                        type: 'tel',
+                        inputMode: 'tel',
+                        required: true,
                         errorText: otpPhone.length > 0 && !validatePhoneNumber(otpPhone) ? 'شماره موبایل معتبر نیست' : undefined,
                       })}
                       <PrimaryButton type="submit" disabled={isLoading || !validatePhoneNumber(otpPhone)}>
@@ -585,7 +592,9 @@ export default function Home() {
                         onChange: (e) => setOtpCode(formatOTPCode(e.target.value)),
                         placeholder: '123456',
                         maxLength: 6,
-                required: true,
+                        type: 'tel',
+                        inputMode: 'numeric',
+                        required: true,
                         errorText: otpCode.length > 0 && !validateOTPCode(otpCode) ? 'کد باید ۶ رقم باشد' : undefined,
                       })}
                       {otpCountdown > 0 && (
@@ -623,7 +632,9 @@ export default function Home() {
                         onChange: (e) => setForgotPhone(formatPhoneNumber(e.target.value)),
                         placeholder: '09123456789',
                         maxLength: 11,
-                required: true,
+                        type: 'tel',
+                        inputMode: 'tel',
+                        required: true,
                         errorText: forgotPhone.length > 0 && !validatePhoneNumber(forgotPhone) ? 'شماره موبایل معتبر نیست' : undefined,
                       })}
                       <PrimaryButton type="submit" disabled={isLoading || !validatePhoneNumber(forgotPhone)}>
@@ -662,7 +673,9 @@ export default function Home() {
                         onChange: (e) => setResetCode(formatOTPCode(e.target.value)),
                         placeholder: '123456',
                         maxLength: 6,
-                required: true,
+                        type: 'tel',
+                        inputMode: 'numeric',
+                        required: true,
                         errorText: resetCode.length > 0 && !validateOTPCode(resetCode) ? 'کد باید ۶ رقم باشد' : undefined,
                       })}
                       {renderIconInput({
@@ -744,6 +757,8 @@ export default function Home() {
                         value: customerNationalId,
                         onChange: (e) => setCustomerNationalId(formatNationalId(e.target.value)),
                         maxLength: 10,
+                        type: 'tel',
+                        inputMode: 'numeric',
                         required: true,
                         errorText: customerNationalId.length > 0 && !validateNationalId(customerNationalId) ? 'کد ملی باید ۱۰ رقم باشد' : undefined,
                       })}
@@ -754,6 +769,8 @@ export default function Home() {
                         onChange: (e) => setCustomerPhone(formatPhoneNumber(e.target.value)),
                         placeholder: '09123456789',
                         maxLength: 11,
+                        type: 'tel',
+                        inputMode: 'tel',
                         required: true,
                         errorText: customerPhone.length > 0 && !validatePhoneNumber(customerPhone) ? 'شماره موبایل معتبر نیست' : undefined,
                       })}
@@ -849,6 +866,8 @@ export default function Home() {
                             value: estateGuildId,
                             onChange: (e) => setEstateGuildId(formatGuildIdentifier(e.target.value)),
                             maxLength: 12,
+                            type: 'tel',
+                            inputMode: 'numeric',
                             required: true,
                             errorText: estateGuildId.length > 0 && !validateGuildId(estateGuildId) ? 'شناسه صنفی باید حداقل ۶ رقم باشد' : undefined,
                           })}
@@ -871,6 +890,8 @@ export default function Home() {
                             onChange: (e) => setEstateFixedPhone(formatFixedPhoneNumber(e.target.value)),
                             placeholder: '02144556677',
                             maxLength: 11,
+                            type: 'tel',
+                            inputMode: 'tel',
                             required: true,
                             errorText: estateFixedPhone.length > 0 && !validateFixedPhone(estateFixedPhone) ? 'شماره ثابت باید ۱۱ رقم باشد' : undefined,
                           })}
@@ -920,6 +941,8 @@ export default function Home() {
                             value: adminNationalId,
                             onChange: (e) => setAdminNationalId(formatNationalId(e.target.value)),
                             maxLength: 10,
+                            type: 'tel',
+                            inputMode: 'numeric',
                             required: true,
                             errorText: adminNationalId.length > 0 && !validateNationalId(adminNationalId) ? 'کد ملی باید ۱۰ رقم باشد' : undefined,
                           })}
@@ -932,6 +955,8 @@ export default function Home() {
                             onChange: (e) => setAdminPhone(formatPhoneNumber(e.target.value)),
                             placeholder: '09120001122',
                             maxLength: 11,
+                            type: 'tel',
+                            inputMode: 'tel',
                             required: true,
                             errorText: adminPhone.length > 0 && !validatePhoneNumber(adminPhone) ? 'شماره موبایل معتبر نیست' : undefined,
                           })}
