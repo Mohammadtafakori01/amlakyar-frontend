@@ -2910,7 +2910,7 @@ export default function EditContractPage() {
           ) : (
             <div className="text-center py-12 text-gray-500">
               <p>هنوز طرفی اضافه نشده است</p>
-              <p className="text-sm mt-2">برای افزودن طرف جدید روی دکمه "افزودن طرف" کلیک کنید</p>
+              <p className="text-sm mt-2">برای افزودن طرف جدید روی دکمه &quot;افزودن طرف&quot; کلیک کنید</p>
             </div>
           )}
           
