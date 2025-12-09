@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import React from 'react';
 import { useRouter } from 'next/router';
 import { FiArrowRight, FiArrowLeft, FiSave, FiCheck, FiPlus, FiEdit2, FiTrash2, FiX } from 'react-icons/fi';
 import DashboardLayout from '../../../src/shared/components/Layout/DashboardLayout';
@@ -27,6 +28,192 @@ import ErrorDisplay from '../../../src/shared/components/common/ErrorDisplay';
 import PersianDatePicker from '../../../src/shared/components/common/PersianDatePicker';
 
 type Step = 1 | 2 | 3 | 4 | 5;
+
+// Validated Input Component - moved outside to prevent re-creation
+const ValidatedInput = React.memo(({ 
+  field, 
+  value, 
+  onChange, 
+  onClearError,
+  label, 
+  type = 'text', 
+  placeholder, 
+  maxLength,
+  required = false,
+  className = '',
+  error,
+  ...props 
+}: {
+  field: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onClearError: (field: string) => void;
+  label?: string;
+  type?: string;
+  placeholder?: string;
+  maxLength?: number;
+  required?: boolean;
+  className?: string;
+  error?: string;
+  [key: string]: any;
+}) => {
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    onChange(e);
+    if (error) {
+      onClearError(field);
+    }
+  }, [onChange, onClearError, error, field]);
+
+  return (
+    <div>
+      {label && (
+        <label className="mb-1 block text-sm font-semibold text-gray-600">
+          {label} {required && <span className="text-red-500">*</span>}
+        </label>
+      )}
+      <input
+        type={type}
+        value={value || ''}
+        onChange={handleChange}
+        className={`w-full rounded-2xl border px-4 py-2 text-sm text-gray-800 focus:ring-2 transition-all ${
+          error 
+            ? 'border-red-500 focus:border-red-500 focus:ring-red-100' 
+            : 'border-gray-200 focus:border-primary-500 focus:ring-primary-100'
+        } ${className}`}
+        placeholder={placeholder}
+        maxLength={maxLength}
+        {...props}
+      />
+      {error && (
+        <p className="mt-1 text-sm text-red-600">{error}</p>
+      )}
+    </div>
+  );
+});
+
+ValidatedInput.displayName = 'ValidatedInput';
+
+// Validated Textarea Component
+const ValidatedTextarea = React.memo(({ 
+  field, 
+  value, 
+  onChange, 
+  onClearError,
+  label, 
+  placeholder, 
+  rows = 3,
+  required = false,
+  className = '',
+  error,
+  ...props 
+}: {
+  field: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  onClearError: (field: string) => void;
+  label?: string;
+  placeholder?: string;
+  rows?: number;
+  required?: boolean;
+  className?: string;
+  error?: string;
+  [key: string]: any;
+}) => {
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    onChange(e);
+    if (error) {
+      onClearError(field);
+    }
+  }, [onChange, onClearError, error, field]);
+
+  return (
+    <div>
+      {label && (
+        <label className="mb-1 block text-sm font-semibold text-gray-600">
+          {label} {required && <span className="text-red-500">*</span>}
+        </label>
+      )}
+      <textarea
+        value={value || ''}
+        onChange={handleChange}
+        rows={rows}
+        className={`w-full rounded-2xl border px-4 py-2 text-sm text-gray-800 focus:ring-2 transition-all ${
+          error 
+            ? 'border-red-500 focus:border-red-500 focus:ring-red-100' 
+            : 'border-gray-200 focus:border-primary-500 focus:ring-primary-100'
+        } ${className}`}
+        placeholder={placeholder}
+        {...props}
+      />
+      {error && (
+        <p className="mt-1 text-sm text-red-600">{error}</p>
+      )}
+    </div>
+  );
+});
+
+ValidatedTextarea.displayName = 'ValidatedTextarea';
+
+// Validated Select Component
+const ValidatedSelect = React.memo(({ 
+  field, 
+  value, 
+  onChange, 
+  onClearError,
+  label, 
+  options,
+  required = false,
+  className = '',
+  error,
+  ...props 
+}: {
+  field: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+  onClearError: (field: string) => void;
+  label?: string;
+  options: { value: string; label: string }[];
+  required?: boolean;
+  className?: string;
+  error?: string;
+  [key: string]: any;
+}) => {
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    onChange(e);
+    if (error) {
+      onClearError(field);
+    }
+  }, [onChange, onClearError, error, field]);
+
+  return (
+    <div>
+      {label && (
+        <label className="mb-1 block text-sm font-semibold text-gray-600">
+          {label} {required && <span className="text-red-500">*</span>}
+        </label>
+      )}
+      <select
+        value={value || ''}
+        onChange={handleChange}
+        className={`w-full rounded-2xl border px-4 py-2 text-sm text-gray-800 focus:ring-2 transition-all ${
+          error 
+            ? 'border-red-500 focus:border-red-500 focus:ring-red-100' 
+            : 'border-gray-200 focus:border-primary-500 focus:ring-primary-100'
+        } ${className}`}
+        {...props}
+      >
+        {options.map(opt => (
+          <option key={opt.value} value={opt.value}>{opt.label}</option>
+        ))}
+      </select>
+      {error && (
+        <p className="mt-1 text-sm text-red-600">{error}</p>
+      )}
+    </div>
+  );
+});
+
+ValidatedSelect.displayName = 'ValidatedSelect';
 
 export default function CreateContractPage() {
   const router = useRouter();
@@ -68,15 +255,16 @@ export default function CreateContractPage() {
   const [propertyDetails, setPropertyDetails] = useState({
     propertyType: '',
     usageType: '',
+    propertyTypeCustom: false,
+    usageTypeCustom: false,
     address: '',
     postalCode: '',
     registrationNumber: '',
-    subRegistrationNumber: '',
-    mainRegistrationNumber: '',
     section: '',
     area: '',
     areaUnit: 'متر مربع',
     ownershipDocumentType: '',
+    ownershipDocumentTypeCustom: false,
     ownershipDocumentSerial: '',
     ownershipDocumentOwner: '',
     storageCount: '',
@@ -85,7 +273,6 @@ export default function CreateContractPage() {
     parkingNumbers: [] as string[],
     // NEW: Additional property fields
     bedroomCount: '',
-    bedroomArea: '',
     utilityType: {
       electricity: '',
       water: '',
@@ -235,6 +422,96 @@ export default function CreateContractPage() {
     return null;
   };
 
+  // Helper function to convert Persian/Farsi numbers to Latin/English numbers
+  const convertToLatinNumbers = (value: string | number | undefined | null): string => {
+    if (value === null || value === undefined) return '';
+    const str = String(value);
+    const persianToLatin: { [key: string]: string } = {
+      '۰': '0', '۱': '1', '۲': '2', '۳': '3', '۴': '4',
+      '۵': '5', '۶': '6', '۷': '7', '۸': '8', '۹': '9',
+      '٠': '0', '١': '1', '٢': '2', '٣': '3', '٤': '4',
+      '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9'
+    };
+    return str.split('').map(char => persianToLatin[char] || char).join('');
+  };
+
+  // Helper function to convert numeric string to number (handles Persian numbers)
+  const parseLatinNumber = (value: string | number | undefined | null): number => {
+    if (value === null || value === undefined) return 0;
+    const latinStr = convertToLatinNumbers(value);
+    return parseFloat(latinStr) || 0;
+  };
+
+  // Helper function to convert integer string to integer (handles Persian numbers)
+  const parseLatinInteger = (value: string | number | undefined | null): number => {
+    if (value === null || value === undefined) return 0;
+    const latinStr = convertToLatinNumbers(value);
+    return parseInt(latinStr, 10) || 0;
+  };
+
+  // Helper function to extract clear error message from API errors
+  const getErrorMessage = (err: any, defaultMessage: string): string => {
+    // Check for 400 Bad Request - prioritize this for clear error messages
+    if (err?.response?.status === 400) {
+      const errorData = err.response?.data;
+      if (errorData?.message) {
+        return `خطا: ${errorData.message}`;
+      }
+      if (errorData?.error) {
+        return `خطا: ${errorData.error}`;
+      }
+      if (Array.isArray(errorData) && errorData.length > 0) {
+        return `خطا: ${errorData.join(', ')}`;
+      }
+      if (typeof errorData === 'string') {
+        return `خطا: ${errorData}`;
+      }
+      return 'درخواست نامعتبر است. لطفا اطلاعات را بررسی کنید.';
+    }
+    
+    // Check for other HTTP errors
+    if (err?.response?.status) {
+      const errorData = err.response?.data;
+      if (errorData?.message) {
+        return errorData.message;
+      }
+      if (errorData?.error) {
+        return errorData.error;
+      }
+      if (Array.isArray(errorData) && errorData.length > 0) {
+        return errorData.join(', ');
+      }
+    }
+    
+    // Check for Redux rejected action
+    if (err?.type?.endsWith('/rejected')) {
+      const payload = err.payload;
+      if (payload?.response?.status === 400) {
+        const errorData = payload.response?.data;
+        if (errorData?.message) {
+          return `خطا: ${errorData.message}`;
+        }
+        if (errorData?.error) {
+          return `خطا: ${errorData.error}`;
+        }
+        if (typeof errorData === 'string') {
+          return `خطا: ${errorData}`;
+        }
+        return 'درخواست نامعتبر است. لطفا اطلاعات را بررسی کنید.';
+      }
+      if (typeof payload === 'string') {
+        return payload;
+      }
+      if (payload?.message) {
+        return payload.message;
+      }
+      return defaultMessage;
+    }
+    
+    // Fallback to error message or default
+    return err?.message || defaultMessage;
+  };
+
   const handleStep1Submit = async () => {
     try {
       // Validate estate selection for MASTER users
@@ -266,17 +543,23 @@ export default function CreateContractPage() {
             setSnackbar({ open: true, message: 'قرارداد ایجاد شد اما شناسه دریافت نشد', severity: 'error' });
           }
         } else if (result.type.endsWith('/rejected')) {
-          const errorMessage = (result as any).payload || 'خطا در ایجاد قرارداد';
+          const errorPayload = (result as any).payload;
+          const errorMessage = getErrorMessage(errorPayload || {}, 'خطا در ایجاد قرارداد');
           console.error('Contract creation rejected:', errorMessage);
           setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+          // Don't proceed to next step on error
+          return;
         }
       } else {
         console.error('Unexpected result format:', result);
         setSnackbar({ open: true, message: 'خطا در ایجاد قرارداد', severity: 'error' });
+        return;
       }
     } catch (err: any) {
       console.error('Error in handleStep1Submit:', err);
-      setSnackbar({ open: true, message: err.message || 'خطا در ایجاد قرارداد', severity: 'error' });
+      const errorMessage = getErrorMessage(err, 'خطا در ایجاد قرارداد');
+      setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+      // Don't proceed to next step on error
     }
   };
 
@@ -298,6 +581,7 @@ export default function CreateContractPage() {
     }
     setPartyModalStep(1);
     setShowPartyModal(true);
+    clearAllErrors(); // Clear all errors when opening modal
   };
 
   const handleClosePartyModal = () => {
@@ -318,178 +602,20 @@ export default function CreateContractPage() {
     setFieldErrors(prev => ({ ...prev, [field]: error }));
   };
 
-  // Helper function to clear field error
-  const clearFieldError = (field: string) => {
+
+  // Helper function to clear all errors
+  const clearAllErrors = useCallback(() => {
+    setFieldErrors({});
+  }, []);
+
+  // Memoize clearFieldError to prevent recreation
+  const clearFieldErrorMemoized = useCallback((field: string) => {
     setFieldErrors(prev => {
       const newErrors = { ...prev };
       delete newErrors[field];
       return newErrors;
     });
-  };
-
-  // Helper function to clear all errors
-  const clearAllErrors = () => {
-    setFieldErrors({});
-  };
-
-  // Helper component for input with validation
-  const ValidatedInput = ({ 
-    field, 
-    value, 
-    onChange, 
-    label, 
-    type = 'text', 
-    placeholder, 
-    maxLength,
-    required = false,
-    className = '',
-    ...props 
-  }: {
-    field: string;
-    value: string;
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-    label?: string;
-    type?: string;
-    placeholder?: string;
-    maxLength?: number;
-    required?: boolean;
-    className?: string;
-    [key: string]: any;
-  }) => {
-    const error = fieldErrors[field];
-    return (
-      <div>
-        {label && (
-          <label className="mb-1 block text-sm font-semibold text-gray-600">
-            {label} {required && <span className="text-red-500">*</span>}
-          </label>
-        )}
-        <input
-          type={type}
-          value={value || ''}
-          onChange={(e) => {
-            onChange(e);
-            if (error) clearFieldError(field);
-          }}
-          className={`w-full rounded-2xl border px-4 py-2 text-sm text-gray-800 focus:ring-2 transition-all ${
-            error 
-              ? 'border-red-500 focus:border-red-500 focus:ring-red-100' 
-              : 'border-gray-200 focus:border-primary-500 focus:ring-primary-100'
-          } ${className}`}
-          placeholder={placeholder}
-          maxLength={maxLength}
-          {...props}
-        />
-        {error && (
-          <p className="mt-1 text-sm text-red-600">{error}</p>
-        )}
-      </div>
-    );
-  };
-
-  // Helper component for textarea with validation
-  const ValidatedTextarea = ({ 
-    field, 
-    value, 
-    onChange, 
-    label, 
-    placeholder, 
-    rows = 3,
-    required = false,
-    className = '',
-    ...props 
-  }: {
-    field: string;
-    value: string;
-    onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
-    label?: string;
-    placeholder?: string;
-    rows?: number;
-    required?: boolean;
-    className?: string;
-    [key: string]: any;
-  }) => {
-    const error = fieldErrors[field];
-    return (
-      <div>
-        {label && (
-          <label className="mb-1 block text-sm font-semibold text-gray-600">
-            {label} {required && <span className="text-red-500">*</span>}
-          </label>
-        )}
-        <textarea
-          value={value || ''}
-          onChange={(e) => {
-            onChange(e);
-            if (error) clearFieldError(field);
-          }}
-          rows={rows}
-          className={`w-full rounded-2xl border px-4 py-2 text-sm text-gray-800 focus:ring-2 transition-all ${
-            error 
-              ? 'border-red-500 focus:border-red-500 focus:ring-red-100' 
-              : 'border-gray-200 focus:border-primary-500 focus:ring-primary-100'
-          } ${className}`}
-          placeholder={placeholder}
-          {...props}
-        />
-        {error && (
-          <p className="mt-1 text-sm text-red-600">{error}</p>
-        )}
-      </div>
-    );
-  };
-
-  // Helper component for select with validation
-  const ValidatedSelect = ({ 
-    field, 
-    value, 
-    onChange, 
-    label, 
-    options,
-    required = false,
-    className = '',
-    ...props 
-  }: {
-    field: string;
-    value: string;
-    onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
-    label?: string;
-    options: { value: string; label: string }[];
-    required?: boolean;
-    className?: string;
-    [key: string]: any;
-  }) => {
-    const error = fieldErrors[field];
-    return (
-      <div>
-        {label && (
-          <label className="mb-1 block text-sm font-semibold text-gray-600">
-            {label} {required && <span className="text-red-500">*</span>}
-          </label>
-        )}
-        <select
-          value={value || ''}
-          onChange={(e) => {
-            onChange(e);
-            if (error) clearFieldError(field);
-          }}
-          className={`w-full rounded-2xl border px-4 py-2 text-sm text-gray-800 focus:ring-2 transition-all ${
-            error 
-              ? 'border-red-500 focus:border-red-500 focus:ring-red-100' 
-              : 'border-gray-200 focus:border-primary-500 focus:ring-primary-100'
-          } ${className}`}
-          {...props}
-        >
-          {options.map(opt => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
-        {error && (
-          <p className="mt-1 text-sm text-red-600">{error}</p>
-        )}
-      </div>
-    );
-  };
+  }, []);
 
   const handlePartyModalNext = () => {
     const errors: Record<string, string> = {};
@@ -680,13 +806,41 @@ export default function CreateContractPage() {
         return;
       }
       
-      await createContractStep2(currentContractId, { parties });
+      // Convert all numeric values and string fields that may contain numbers in parties to Latin numbers before sending
+      const partiesWithLatinNumbers = parties.map(party => ({
+        ...party,
+        shareValue: parseLatinNumber(party.shareValue),
+        // Convert string fields that may contain Persian numbers
+        nationalId: party.nationalId ? convertToLatinNumbers(party.nationalId) : undefined,
+        companyNationalId: party.companyNationalId ? convertToLatinNumbers(party.companyNationalId) : undefined,
+        postalCode: party.postalCode ? convertToLatinNumbers(party.postalCode) : undefined,
+        address: party.address ? convertToLatinNumbers(party.address) : undefined,
+        idCardNumber: party.idCardNumber ? convertToLatinNumbers(party.idCardNumber) : undefined,
+        phone: party.phone ? convertToLatinNumbers(party.phone) : undefined,
+        authorityDocumentNumber: party.authorityDocumentNumber ? convertToLatinNumbers(party.authorityDocumentNumber) : undefined,
+        registrationNumber: party.registrationNumber ? convertToLatinNumbers(party.registrationNumber) : undefined,
+        relationshipDocumentNumber: party.relationshipDocumentNumber ? convertToLatinNumbers(party.relationshipDocumentNumber) : undefined,
+      }));
+      
+      const result = await createContractStep2(currentContractId, { parties: partiesWithLatinNumbers });
+      
+      // Check if the action was rejected
+      if (result && 'type' in result && result.type.endsWith('/rejected')) {
+        const errorPayload = (result as any).payload;
+        const errorMessage = getErrorMessage(errorPayload || {}, 'خطا در ثبت طرفین');
+        console.error('Step 2 submission rejected:', errorMessage);
+        setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+        // Don't proceed to next step on error
+        return;
+      }
+      
       setCurrentStep(3);
       setSnackbar({ open: true, message: 'طرفین قرارداد با موفقیت ثبت شدند', severity: 'success' });
     } catch (err: any) {
       console.error('Error in step 2:', err);
-      const errorMessage = err.response?.data?.message || err.message || 'خطا در ثبت طرفین';
+      const errorMessage = getErrorMessage(err, 'خطا در ثبت طرفین');
       setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+      // Don't proceed to next step on error
     }
   };
 
@@ -710,7 +864,7 @@ export default function CreateContractPage() {
       setSnackbar({ open: true, message: 'آدرس الزامی است', severity: 'error' });
       return;
     }
-    if (!propertyDetails.area || parseFloat(propertyDetails.area) <= 0) {
+    if (!propertyDetails.area || parseLatinNumber(propertyDetails.area) <= 0) {
       setSnackbar({ open: true, message: 'مساحت باید یک عدد مثبت باشد', severity: 'error' });
       return;
     }
@@ -733,34 +887,42 @@ export default function CreateContractPage() {
         propertyType: propertyDetails.propertyType.trim(),
         usageType: propertyDetails.usageType.trim(),
         address: propertyDetails.address.trim(),
-        area: parseFloat(propertyDetails.area),
+        area: parseLatinNumber(propertyDetails.area),
         areaUnit: propertyDetails.areaUnit || undefined,
-        postalCode: propertyDetails.postalCode?.trim() || undefined,
-        registrationNumber: propertyDetails.registrationNumber?.trim() || undefined,
-        subRegistrationNumber: propertyDetails.subRegistrationNumber?.trim() || undefined,
-        mainRegistrationNumber: propertyDetails.mainRegistrationNumber?.trim() || undefined,
-        section: propertyDetails.section?.trim() || undefined,
+        postalCode: propertyDetails.postalCode ? convertToLatinNumbers(propertyDetails.postalCode.trim()) || undefined : undefined,
+        registrationNumber: propertyDetails.registrationNumber ? parseLatinNumber(propertyDetails.registrationNumber) : undefined,
+        section: propertyDetails.section ? convertToLatinNumbers(propertyDetails.section.trim()) || undefined : undefined,
         ownershipDocumentType: propertyDetails.ownershipDocumentType?.trim() || undefined,
-        ownershipDocumentSerial: propertyDetails.ownershipDocumentSerial?.trim() || undefined,
+        ownershipDocumentSerial: propertyDetails.ownershipDocumentSerial ? convertToLatinNumbers(propertyDetails.ownershipDocumentSerial.trim()) || undefined : undefined,
         ownershipDocumentOwner: propertyDetails.ownershipDocumentOwner?.trim() || undefined,
-        storageCount: propertyDetails.storageCount ? parseInt(propertyDetails.storageCount) : undefined,
-        storageNumbers: propertyDetails.storageNumbers?.length > 0 ? propertyDetails.storageNumbers : undefined,
-        parkingCount: propertyDetails.parkingCount ? parseInt(propertyDetails.parkingCount) : undefined,
-        parkingNumbers: propertyDetails.parkingNumbers?.length > 0 ? propertyDetails.parkingNumbers : undefined,
+        storageCount: propertyDetails.storageCount ? parseLatinInteger(propertyDetails.storageCount) : undefined,
+        storageNumbers: propertyDetails.storageNumbers?.length > 0 ? propertyDetails.storageNumbers.map(n => convertToLatinNumbers(n)) : undefined,
+        parkingCount: propertyDetails.parkingCount ? parseLatinInteger(propertyDetails.parkingCount) : undefined,
+        parkingNumbers: propertyDetails.parkingNumbers?.length > 0 ? propertyDetails.parkingNumbers.map(n => convertToLatinNumbers(n)) : undefined,
         // NEW: Additional property fields
-        bedroomCount: propertyDetails.bedroomCount ? parseInt(propertyDetails.bedroomCount) : undefined,
-        bedroomArea: propertyDetails.bedroomArea ? parseFloat(propertyDetails.bedroomArea) : undefined,
+        bedroomCount: propertyDetails.bedroomCount ? parseLatinInteger(propertyDetails.bedroomCount) : undefined,
         utilityType: (propertyDetails.utilityType?.electricity || propertyDetails.utilityType?.water || propertyDetails.utilityType?.gas) ? propertyDetails.utilityType : undefined,
         heatingStatus: propertyDetails.heatingStatus?.trim() || undefined,
         coolerType: propertyDetails.coolerType?.trim() || undefined,
-        phoneNumber: propertyDetails.phoneNumber?.trim() || undefined,
+        phoneNumber: propertyDetails.phoneNumber ? convertToLatinNumbers(propertyDetails.phoneNumber.trim()) || undefined : undefined,
         phoneStatus: propertyDetails.phoneStatus?.trim() || undefined,
-        ownershipDocumentPage: propertyDetails.ownershipDocumentPage?.trim() || undefined,
-        ownershipDocumentBook: propertyDetails.ownershipDocumentBook?.trim() || undefined,
+        ownershipDocumentPage: propertyDetails.ownershipDocumentPage ? convertToLatinNumbers(propertyDetails.ownershipDocumentPage.trim()) || undefined : undefined,
+        ownershipDocumentBook: propertyDetails.ownershipDocumentBook ? convertToLatinNumbers(propertyDetails.ownershipDocumentBook.trim()) || undefined : undefined,
         propertyShareType: propertyDetails.propertyShareType?.trim() || undefined,
         amenities: propertyDetails.amenities || undefined,
       };
       const result = await updateProperty(currentContractId, propertyData);
+      
+      // Check if the action was rejected
+      if (result && 'type' in result && result.type.endsWith('/rejected')) {
+        const errorPayload = (result as any).payload;
+        const errorMessage = getErrorMessage(errorPayload || {}, 'خطا در ثبت جزئیات ملک');
+        console.error('Step 3 submission rejected:', errorMessage);
+        setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+        // Don't proceed to next step on error
+        return;
+      }
+      
       // The response is a property object, not a contract object
       // Extract the contract ID from the response (it has contractId or contract.id)
       const propertyResponse = result as any;
@@ -783,7 +945,10 @@ export default function CreateContractPage() {
       setCurrentStep(4);
       setSnackbar({ open: true, message: 'جزئیات ملک با موفقیت ثبت شد', severity: 'success' });
     } catch (err: any) {
-      setSnackbar({ open: true, message: err.message || 'خطا در ثبت جزئیات ملک', severity: 'error' });
+      console.error('Error in step 3:', err);
+      const errorMessage = getErrorMessage(err, 'خطا در ثبت جزئیات ملک');
+      setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+      // Don't proceed to next step on error
     }
   };
 
@@ -810,14 +975,14 @@ export default function CreateContractPage() {
       }
       
       const termsData: any = {
-        evictionNoticeDays: terms.evictionNoticeDays ? parseInt(terms.evictionNoticeDays) : undefined,
-        dailyPenaltyAmount: terms.dailyPenaltyAmount ? parseFloat(terms.dailyPenaltyAmount) : undefined,
-        dailyDelayPenalty: terms.dailyDelayPenalty ? parseFloat(terms.dailyDelayPenalty) : undefined,
-        dailyOccupancyPenalty: terms.dailyOccupancyPenalty ? parseFloat(terms.dailyOccupancyPenalty) : undefined,
+        evictionNoticeDays: terms.evictionNoticeDays ? parseLatinInteger(terms.evictionNoticeDays) : undefined,
+        dailyPenaltyAmount: terms.dailyPenaltyAmount ? parseLatinNumber(terms.dailyPenaltyAmount) : undefined,
+        dailyDelayPenalty: terms.dailyDelayPenalty ? parseLatinNumber(terms.dailyDelayPenalty) : undefined,
+        dailyOccupancyPenalty: terms.dailyOccupancyPenalty ? parseLatinNumber(terms.dailyOccupancyPenalty) : undefined,
         deliveryDate: terms.deliveryDate || undefined,
-        deliveryDelayPenalty: terms.deliveryDelayPenalty ? parseFloat(terms.deliveryDelayPenalty) : undefined,
+        deliveryDelayPenalty: terms.deliveryDelayPenalty ? parseLatinNumber(terms.deliveryDelayPenalty) : undefined,
         usagePurpose: terms.usagePurpose || undefined,
-        occupantCount: terms.occupantCount ? parseInt(terms.occupantCount) : undefined,
+        occupantCount: terms.occupantCount ? parseLatinInteger(terms.occupantCount) : undefined,
         customTerms: terms.customTerms || undefined,
         // NEW: Article 6 conditions
         permittedUse: terms.permittedUse?.trim() || undefined,
@@ -835,12 +1000,23 @@ export default function CreateContractPage() {
         lessorLoanReturnObligation: terms.lessorLoanReturnObligation,
         lesseeRepairRight: terms.lesseeRepairRight,
         renewalConditions: terms.renewalConditions?.trim() || undefined,
-        earlyTerminationNotice: terms.earlyTerminationNotice ? parseInt(terms.earlyTerminationNotice) : undefined,
-        earlyTerminationPayment: terms.earlyTerminationPayment ? parseFloat(terms.earlyTerminationPayment) : undefined,
+        earlyTerminationNotice: terms.earlyTerminationNotice ? parseLatinInteger(terms.earlyTerminationNotice) : undefined,
+        earlyTerminationPayment: terms.earlyTerminationPayment ? parseLatinNumber(terms.earlyTerminationPayment) : undefined,
         propertyTransferNotification: terms.propertyTransferNotification,
-        loanReturnDelayPenalty: terms.loanReturnDelayPenalty ? parseFloat(terms.loanReturnDelayPenalty) : undefined,
+        loanReturnDelayPenalty: terms.loanReturnDelayPenalty ? parseLatinNumber(terms.loanReturnDelayPenalty) : undefined,
       };
       const result = await updateTerms(currentContractId, termsData);
+      
+      // Check if the action was rejected
+      if (result && 'type' in result && result.type.endsWith('/rejected')) {
+        const errorPayload = (result as any).payload;
+        const errorMessage = getErrorMessage(errorPayload || {}, 'خطا در ثبت شرایط');
+        console.error('Step 4 submission rejected:', errorMessage);
+        setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+        // Don't proceed to next step on error
+        return;
+      }
+      
       console.log('Terms update response:', result);
       
       // The response is a terms object, not a contract object
@@ -866,8 +1042,9 @@ export default function CreateContractPage() {
       setSnackbar({ open: true, message: 'شرایط قرارداد با موفقیت ثبت شد', severity: 'success' });
     } catch (err: any) {
       console.error('Error in step 4:', err);
-      const errorMessage = err.response?.data?.message || err.message || 'خطا در ثبت شرایط';
+      const errorMessage = getErrorMessage(err, 'خطا در ثبت شرایط');
       setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+      // Don't proceed to next step on error
     }
   };
 
@@ -883,10 +1060,15 @@ export default function CreateContractPage() {
         contractDate: draftData.contractDate || undefined,
         startDate: contractType === ContractType.RENTAL ? (draftData.startDate || undefined) : undefined,
         endDate: contractType === ContractType.RENTAL ? (draftData.endDate || undefined) : undefined,
-        rentalAmount: contractType === ContractType.RENTAL ? (draftData.rentalAmount ? parseFloat(draftData.rentalAmount) : undefined) : undefined,
-        purchaseAmount: contractType === ContractType.PURCHASE ? (draftData.purchaseAmount ? parseFloat(draftData.purchaseAmount) : undefined) : undefined,
-        depositAmount: draftData.depositAmount ? parseFloat(draftData.depositAmount) : undefined,
-        paymentEntries: paymentEntries.length > 0 ? paymentEntries : undefined,
+        rentalAmount: contractType === ContractType.RENTAL ? (draftData.rentalAmount ? parseLatinNumber(draftData.rentalAmount) : undefined) : undefined,
+        purchaseAmount: contractType === ContractType.PURCHASE ? (draftData.purchaseAmount ? parseLatinNumber(draftData.purchaseAmount) : undefined) : undefined,
+        depositAmount: draftData.depositAmount ? parseLatinNumber(draftData.depositAmount) : undefined,
+        paymentEntries: paymentEntries.length > 0 ? paymentEntries.map(entry => ({
+          ...entry,
+          amount: parseLatinNumber(entry.amount),
+          shabaNumber: entry.shabaNumber ? convertToLatinNumbers(entry.shabaNumber) : undefined,
+          cardNumber: entry.cardNumber ? convertToLatinNumbers(entry.cardNumber) : undefined,
+        })) : undefined,
         // NEW: Administrative fields
         consultancyNumber: draftData.consultancyNumber?.trim() || undefined,
         registrationArea: draftData.registrationArea?.trim() || undefined,
@@ -897,8 +1079,8 @@ export default function CreateContractPage() {
         witness1Name: draftData.witness1Name?.trim() || undefined,
         witness2Name: draftData.witness2Name?.trim() || undefined,
         legalExpertName: draftData.legalExpertName?.trim() || undefined,
-        consultantFee: draftData.consultantFee ? parseFloat(draftData.consultantFee) : undefined,
-        contractCopies: draftData.contractCopies ? parseInt(draftData.contractCopies) : undefined,
+        consultantFee: draftData.consultantFee ? parseLatinNumber(draftData.consultantFee) : undefined,
+        contractCopies: draftData.contractCopies ? parseLatinInteger(draftData.contractCopies) : undefined,
       };
       await saveDraft(currentContractId, draft);
       setSnackbar({ open: true, message: 'پیش‌نویس با موفقیت ذخیره شد', severity: 'success' });
@@ -934,22 +1116,27 @@ export default function CreateContractPage() {
         contractDate: draftData.contractDate || undefined,
         startDate: contractType === ContractType.RENTAL ? (draftData.startDate || undefined) : undefined,
         endDate: contractType === ContractType.RENTAL ? (draftData.endDate || undefined) : undefined,
-        rentalAmount: contractType === ContractType.RENTAL ? (draftData.rentalAmount ? parseFloat(draftData.rentalAmount) : undefined) : undefined,
-        purchaseAmount: contractType === ContractType.PURCHASE ? (draftData.purchaseAmount ? parseFloat(draftData.purchaseAmount) : undefined) : undefined,
-        depositAmount: draftData.depositAmount ? parseFloat(draftData.depositAmount) : undefined,
-        paymentEntries: paymentEntries.length > 0 ? paymentEntries : undefined,
+        rentalAmount: contractType === ContractType.RENTAL ? (draftData.rentalAmount ? parseLatinNumber(draftData.rentalAmount) : undefined) : undefined,
+        purchaseAmount: contractType === ContractType.PURCHASE ? (draftData.purchaseAmount ? parseLatinNumber(draftData.purchaseAmount) : undefined) : undefined,
+        depositAmount: draftData.depositAmount ? parseLatinNumber(draftData.depositAmount) : undefined,
+        paymentEntries: paymentEntries.length > 0 ? paymentEntries.map(entry => ({
+          ...entry,
+          amount: parseLatinNumber(entry.amount),
+          shabaNumber: entry.shabaNumber ? convertToLatinNumbers(entry.shabaNumber) : undefined,
+          cardNumber: entry.cardNumber ? convertToLatinNumbers(entry.cardNumber) : undefined,
+        })) : undefined,
         // NEW: Administrative fields
-        consultancyNumber: draftData.consultancyNumber?.trim() || undefined,
+        consultancyNumber: draftData.consultancyNumber ? convertToLatinNumbers(draftData.consultancyNumber.trim()) || undefined : undefined,
         registrationArea: draftData.registrationArea?.trim() || undefined,
         registrationOffice: draftData.registrationOffice?.trim() || undefined,
-        consultantRegistrationVolume: draftData.consultantRegistrationVolume?.trim() || undefined,
-        consultantRegistrationNumber: draftData.consultantRegistrationNumber?.trim() || undefined,
+        consultantRegistrationVolume: draftData.consultantRegistrationVolume ? convertToLatinNumbers(draftData.consultantRegistrationVolume.trim()) || undefined : undefined,
+        consultantRegistrationNumber: draftData.consultantRegistrationNumber ? convertToLatinNumbers(draftData.consultantRegistrationNumber.trim()) || undefined : undefined,
         consultantRegistrationDate: draftData.consultantRegistrationDate || undefined,
         witness1Name: draftData.witness1Name?.trim() || undefined,
         witness2Name: draftData.witness2Name?.trim() || undefined,
         legalExpertName: draftData.legalExpertName?.trim() || undefined,
-        consultantFee: draftData.consultantFee ? parseFloat(draftData.consultantFee) : undefined,
-        contractCopies: draftData.contractCopies ? parseInt(draftData.contractCopies) : undefined,
+        consultantFee: draftData.consultantFee ? parseLatinNumber(draftData.consultantFee) : undefined,
+        contractCopies: draftData.contractCopies ? parseLatinInteger(draftData.contractCopies) : undefined,
       };
       
       // Only update if there's data to save
@@ -1173,10 +1360,15 @@ export default function CreateContractPage() {
               <h3 className="text-xl font-semibold text-gray-900 text-center">انتخاب نوع طرف</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <button
-                  onClick={() => setCurrentParty({ ...currentParty, partyType: PartyType.LANDLORD })}
+                  onClick={() => {
+                    setCurrentParty(prev => ({ ...prev, partyType: PartyType.LANDLORD }));
+                    clearFieldErrorMemoized('partyType');
+                  }}
                   className={`p-6 rounded-2xl border-2 transition-all ${
                     currentParty.partyType === PartyType.LANDLORD
                       ? 'border-primary-500 bg-primary-50 text-primary-700'
+                      : fieldErrors['partyType']
+                      ? 'border-red-500 hover:border-red-600 bg-red-50'
                       : 'border-gray-200 hover:border-primary-300 bg-white text-gray-700'
                   }`}
                 >
@@ -1186,10 +1378,15 @@ export default function CreateContractPage() {
                   </div>
                 </button>
                 <button
-                  onClick={() => setCurrentParty({ ...currentParty, partyType: PartyType.TENANT })}
+                  onClick={() => {
+                    setCurrentParty(prev => ({ ...prev, partyType: PartyType.TENANT }));
+                    clearFieldErrorMemoized('partyType');
+                  }}
                   className={`p-6 rounded-2xl border-2 transition-all ${
                     currentParty.partyType === PartyType.TENANT
                       ? 'border-primary-500 bg-primary-50 text-primary-700'
+                      : fieldErrors['partyType']
+                      ? 'border-red-500 hover:border-red-600 bg-red-50'
                       : 'border-gray-200 hover:border-primary-300 bg-white text-gray-700'
                   }`}
                 >
@@ -1199,6 +1396,9 @@ export default function CreateContractPage() {
                   </div>
                 </button>
               </div>
+              {fieldErrors['partyType'] && (
+                <p className="text-center text-sm text-red-600">{fieldErrors['partyType']}</p>
+              )}
             </div>
           );
 
@@ -1208,10 +1408,15 @@ export default function CreateContractPage() {
               <h3 className="text-xl font-semibold text-gray-900 text-center">انتخاب نقش</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <button
-                  onClick={() => setCurrentParty({ ...currentParty, partyRole: PartyRole.PRINCIPAL })}
+                  onClick={() => {
+                    setCurrentParty(prev => ({ ...prev, partyRole: PartyRole.PRINCIPAL }));
+                    clearFieldErrorMemoized('partyRole');
+                  }}
                   className={`p-6 rounded-2xl border-2 transition-all ${
                     currentParty.partyRole === PartyRole.PRINCIPAL
                       ? 'border-primary-500 bg-primary-50 text-primary-700'
+                      : fieldErrors['partyRole']
+                      ? 'border-red-500 hover:border-red-600 bg-red-50'
                       : 'border-gray-200 hover:border-primary-300 bg-white text-gray-700'
                   }`}
                 >
@@ -1219,10 +1424,15 @@ export default function CreateContractPage() {
                   <div className="text-sm mt-2 text-gray-500">طرف اصلی قرارداد</div>
                 </button>
                 <button
-                  onClick={() => setCurrentParty({ ...currentParty, partyRole: PartyRole.REPRESENTATIVE })}
+                  onClick={() => {
+                    setCurrentParty(prev => ({ ...prev, partyRole: PartyRole.REPRESENTATIVE }));
+                    clearFieldErrorMemoized('partyRole');
+                  }}
                   className={`p-6 rounded-2xl border-2 transition-all ${
                     currentParty.partyRole === PartyRole.REPRESENTATIVE
                       ? 'border-primary-500 bg-primary-50 text-primary-700'
+                      : fieldErrors['partyRole']
+                      ? 'border-red-500 hover:border-red-600 bg-red-50'
                       : 'border-gray-200 hover:border-primary-300 bg-white text-gray-700'
                   }`}
                 >
@@ -1230,10 +1440,15 @@ export default function CreateContractPage() {
                   <div className="text-sm mt-2 text-gray-500">نماینده طرف اصیل</div>
                 </button>
                 <button
-                  onClick={() => setCurrentParty({ ...currentParty, partyRole: PartyRole.ATTORNEY })}
+                  onClick={() => {
+                    setCurrentParty(prev => ({ ...prev, partyRole: PartyRole.ATTORNEY }));
+                    clearFieldErrorMemoized('partyRole');
+                  }}
                   className={`p-6 rounded-2xl border-2 transition-all ${
                     currentParty.partyRole === PartyRole.ATTORNEY
                       ? 'border-primary-500 bg-primary-50 text-primary-700'
+                      : fieldErrors['partyRole']
+                      ? 'border-red-500 hover:border-red-600 bg-red-50'
                       : 'border-gray-200 hover:border-primary-300 bg-white text-gray-700'
                   }`}
                 >
@@ -1241,6 +1456,9 @@ export default function CreateContractPage() {
                   <div className="text-sm mt-2 text-gray-500">وکیل طرف اصیل</div>
                 </button>
               </div>
+              {fieldErrors['partyRole'] && (
+                <p className="text-center text-sm text-red-600">{fieldErrors['partyRole']}</p>
+              )}
             </div>
           );
 
@@ -1250,10 +1468,15 @@ export default function CreateContractPage() {
               <h3 className="text-xl font-semibold text-gray-900 text-center">انتخاب نوع شخصیت</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <button
-                  onClick={() => setCurrentParty({ ...currentParty, entityType: PartyEntityType.NATURAL })}
+                  onClick={() => {
+                    setCurrentParty(prev => ({ ...prev, entityType: PartyEntityType.NATURAL }));
+                    clearFieldErrorMemoized('entityType');
+                  }}
                   className={`p-6 rounded-2xl border-2 transition-all ${
                     currentParty.entityType === PartyEntityType.NATURAL
                       ? 'border-primary-500 bg-primary-50 text-primary-700'
+                      : fieldErrors['entityType']
+                      ? 'border-red-500 hover:border-red-600 bg-red-50'
                       : 'border-gray-200 hover:border-primary-300 bg-white text-gray-700'
                   }`}
                 >
@@ -1261,10 +1484,15 @@ export default function CreateContractPage() {
                   <div className="text-sm mt-2 text-gray-500">فرد</div>
                 </button>
                 <button
-                  onClick={() => setCurrentParty({ ...currentParty, entityType: PartyEntityType.LEGAL })}
+                  onClick={() => {
+                    setCurrentParty(prev => ({ ...prev, entityType: PartyEntityType.LEGAL }));
+                    clearFieldErrorMemoized('entityType');
+                  }}
                   className={`p-6 rounded-2xl border-2 transition-all ${
                     currentParty.entityType === PartyEntityType.LEGAL
                       ? 'border-primary-500 bg-primary-50 text-primary-700'
+                      : fieldErrors['entityType']
+                      ? 'border-red-500 hover:border-red-600 bg-red-50'
                       : 'border-gray-200 hover:border-primary-300 bg-white text-gray-700'
                   }`}
                 >
@@ -1272,6 +1500,9 @@ export default function CreateContractPage() {
                   <div className="text-sm mt-2 text-gray-500">شرکت یا سازمان</div>
                 </button>
               </div>
+              {fieldErrors['entityType'] && (
+                <p className="text-center text-sm text-red-600">{fieldErrors['entityType']}</p>
+              )}
             </div>
           );
 
@@ -1281,40 +1512,56 @@ export default function CreateContractPage() {
               <h3 className="text-xl font-semibold text-gray-900 text-center">نوع سهم و مقدار آن</h3>
               <div className="space-y-4">
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-gray-600">نوع سهم</label>
+                  <label className="mb-2 block text-sm font-semibold text-gray-600">
+                    نوع سهم <span className="text-red-500">*</span>
+                  </label>
                   <div className="grid grid-cols-2 gap-4">
                     <button
-                      onClick={() => setCurrentParty({ ...currentParty, shareType: ShareType.DANG })}
-                      className={`p-4 rounded-2xl border-2 transition-all ${
+                      onClick={() => {
+                        setCurrentParty(prev => ({ ...prev, shareType: ShareType.DANG }));
+                        clearFieldErrorMemoized('shareType');
+                      }}
+                      className={
                         currentParty.shareType === ShareType.DANG
-                          ? 'border-primary-500 bg-primary-50 text-primary-700'
-                          : 'border-gray-200 hover:border-primary-300 bg-white text-gray-700'
-                      }`}
+                          ? 'p-4 rounded-2xl border-2 transition-all border-primary-500 bg-primary-50 text-primary-700'
+                          : fieldErrors['shareType']
+                          ? 'p-4 rounded-2xl border-2 transition-all border-red-500 hover:border-red-600 bg-red-50'
+                          : 'p-4 rounded-2xl border-2 transition-all border-gray-200 hover:border-primary-300 bg-white text-gray-700'
+                      }
                     >
                       <div className="font-bold">دانگ</div>
                     </button>
                     <button
-                      onClick={() => setCurrentParty({ ...currentParty, shareType: ShareType.PERCENTAGE })}
-                      className={`p-4 rounded-2xl border-2 transition-all ${
+                      onClick={() => {
+                        setCurrentParty(prev => ({ ...prev, shareType: ShareType.PERCENTAGE }));
+                        clearFieldErrorMemoized('shareType');
+                      }}
+                      className={
                         currentParty.shareType === ShareType.PERCENTAGE
-                          ? 'border-primary-500 bg-primary-50 text-primary-700'
-                          : 'border-gray-200 hover:border-primary-300 bg-white text-gray-700'
-                      }`}
+                          ? 'p-4 rounded-2xl border-2 transition-all border-primary-500 bg-primary-50 text-primary-700'
+                          : fieldErrors['shareType']
+                          ? 'p-4 rounded-2xl border-2 transition-all border-red-500 hover:border-red-600 bg-red-50'
+                          : 'p-4 rounded-2xl border-2 transition-all border-gray-200 hover:border-primary-300 bg-white text-gray-700'
+                      }
                     >
                       <div className="font-bold">درصد</div>
                     </button>
                   </div>
+                  {fieldErrors['shareType'] ? (
+                    <p className="mt-1 text-sm text-red-600">{fieldErrors['shareType']}</p>
+                  ) : null}
                 </div>
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-gray-600">مقدار سهم</label>
-                  <input
-                    type="number"
-                    value={currentParty.shareValue || ''}
-                    onChange={(e) => setCurrentParty({ ...currentParty, shareValue: parseFloat(e.target.value) || 0 })}
-                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                    placeholder={currentParty.shareType === ShareType.DANG ? 'مثال: 2' : 'مثال: 50'}
-                  />
-                </div>
+                <ValidatedInput
+                  field="shareValue"
+                  value={currentParty.shareValue?.toString() || ''}
+                  onChange={(e) => setCurrentParty(prev => ({ ...prev, shareValue: parseFloat(e.target.value) || 0 }))}
+                  onClearError={clearFieldErrorMemoized}
+                  label="مقدار سهم"
+                  type="number"
+                  placeholder={currentParty.shareType === ShareType.DANG ? "مثال: 2" : "مثال: 50"}
+                  required
+                  error={fieldErrors['shareValue']}
+                />
               </div>
             </div>
           );
@@ -1326,50 +1573,53 @@ export default function CreateContractPage() {
               {currentParty.entityType === PartyEntityType.NATURAL ? (
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="mb-1 block text-sm font-semibold text-gray-600">نام</label>
-                      <input
-                        type="text"
-                        value={currentParty.firstName || ''}
-                        onChange={(e) => setCurrentParty({ ...currentParty, firstName: e.target.value })}
-                        className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-sm font-semibold text-gray-600">نام خانوادگی</label>
-                      <input
-                        type="text"
-                        value={currentParty.lastName || ''}
-                        onChange={(e) => setCurrentParty({ ...currentParty, lastName: e.target.value })}
-                        className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-semibold text-gray-600">کد ملی</label>
-                    <input
-                      type="text"
-                      value={currentParty.nationalId || ''}
-                      onChange={(e) => setCurrentParty({ ...currentParty, nationalId: e.target.value })}
-                      maxLength={10}
-                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                    <ValidatedInput
+                      field="firstName"
+                      value={currentParty.firstName || ''}
+                      onChange={(e) => setCurrentParty(prev => ({ ...prev, firstName: e.target.value }))}
+                      onClearError={clearFieldErrorMemoized}
+                      label="نام"
+                      required
+                      error={fieldErrors['firstName']}
+                    />
+                    <ValidatedInput
+                      field="lastName"
+                      value={currentParty.lastName || ''}
+                      onChange={(e) => setCurrentParty(prev => ({ ...prev, lastName: e.target.value }))}
+                      onClearError={clearFieldErrorMemoized}
+                      label="نام خانوادگی"
+                      required
+                      error={fieldErrors['lastName']}
                     />
                   </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-semibold text-gray-600">آدرس</label>
-                    <textarea
-                      value={currentParty.address || ''}
-                      onChange={(e) => setCurrentParty({ ...currentParty, address: e.target.value })}
-                      rows={3}
-                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                      placeholder="آدرس کامل"
-                    />
-                  </div>
+                  <ValidatedInput
+                    field="nationalId"
+                    value={currentParty.nationalId || ''}
+                    onChange={(e) => setCurrentParty(prev => ({ ...prev, nationalId: e.target.value }))}
+                    onClearError={clearFieldErrorMemoized}
+                    label="کد ملی"
+                    maxLength={10}
+                    required
+                    error={fieldErrors['nationalId']}
+                  />
+                  <ValidatedTextarea
+                    field="address"
+                    value={currentParty.address || ''}
+                    onChange={(e) => setCurrentParty(prev => ({ ...prev, address: e.target.value }))}
+                    onClearError={clearFieldErrorMemoized}
+                    label="آدرس"
+                    placeholder="آدرس کامل"
+                    rows={3}
+                    error={fieldErrors['address']}
+                  />
                   <div className="border-t border-gray-200 pt-4">
                     <label className="mb-2 block text-sm font-semibold text-gray-600">آیا اطلاعات اختیار دارید؟</label>
                     <div className="flex gap-4">
                       <button
-                        onClick={() => setCurrentParty({ ...currentParty, authorityType: '' })}
+                        onClick={() => {
+                          setCurrentParty(prev => ({ ...prev, authorityType: '' }));
+                          clearFieldErrorMemoized('authorityType');
+                        }}
                         className={`flex-1 p-3 rounded-2xl border-2 transition-all ${
                           !currentParty.authorityType
                             ? 'border-primary-500 bg-primary-50 text-primary-700'
@@ -1379,7 +1629,10 @@ export default function CreateContractPage() {
                         خیر
                       </button>
                       <button
-                        onClick={() => setCurrentParty({ ...currentParty, authorityType: 'وکالت' })}
+                        onClick={() => {
+                          setCurrentParty(prev => ({ ...prev, authorityType: 'وکالت' }));
+                          clearFieldErrorMemoized('authorityType');
+                        }}
                         className={`flex-1 p-3 rounded-2xl border-2 transition-all ${
                           currentParty.authorityType
                             ? 'border-primary-500 bg-primary-50 text-primary-700'
@@ -1393,35 +1646,35 @@ export default function CreateContractPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div>
-                    <label className="mb-1 block text-sm font-semibold text-gray-600">نام شرکت</label>
-                    <input
-                      type="text"
-                      value={currentParty.companyName || ''}
-                      onChange={(e) => setCurrentParty({ ...currentParty, companyName: e.target.value })}
-                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-semibold text-gray-600">شناسه ملی شرکت</label>
-                    <input
-                      type="text"
-                      value={currentParty.companyNationalId || ''}
-                      onChange={(e) => setCurrentParty({ ...currentParty, companyNationalId: e.target.value })}
-                      maxLength={11}
-                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-semibold text-gray-600">آدرس</label>
-                    <textarea
-                      value={currentParty.address || ''}
-                      onChange={(e) => setCurrentParty({ ...currentParty, address: e.target.value })}
-                      rows={3}
-                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                      placeholder="آدرس کامل"
-                    />
-                  </div>
+                  <ValidatedInput
+                    field="companyName"
+                    value={currentParty.companyName || ''}
+                    onChange={(e) => setCurrentParty(prev => ({ ...prev, companyName: e.target.value }))}
+                    onClearError={clearFieldErrorMemoized}
+                    label="نام شرکت"
+                    required
+                    error={fieldErrors['companyName']}
+                  />
+                  <ValidatedInput
+                    field="companyNationalId"
+                    value={currentParty.companyNationalId || ''}
+                    onChange={(e) => setCurrentParty(prev => ({ ...prev, companyNationalId: e.target.value }))}
+                    onClearError={clearFieldErrorMemoized}
+                    label="شناسه ملی شرکت"
+                    maxLength={11}
+                    required
+                    error={fieldErrors['companyNationalId']}
+                  />
+                  <ValidatedTextarea
+                    field="address"
+                    value={currentParty.address || ''}
+                    onChange={(e) => setCurrentParty(prev => ({ ...prev, address: e.target.value }))}
+                    onClearError={clearFieldErrorMemoized}
+                    label="آدرس"
+                    placeholder="آدرس کامل"
+                    rows={3}
+                    error={fieldErrors['address']}
+                  />
                 </div>
               )}
             </div>
@@ -1434,57 +1687,68 @@ export default function CreateContractPage() {
               <div className="space-y-6">
                 <h3 className="text-xl font-semibold text-gray-900 text-center">اطلاعات نماینده/وکیل</h3>
                 <div className="space-y-4">
-                  <div>
-                    <label className="mb-1 block text-sm font-semibold text-gray-600">طرف اصیل</label>
-                    <select
-                      value={currentParty.principalPartyId || ''}
-                      onChange={(e) => setCurrentParty({ ...currentParty, principalPartyId: e.target.value })}
-                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                    >
-                      <option value="">انتخاب کنید</option>
-                      {principalParties
+                  <ValidatedSelect
+                    field="principalPartyId"
+                    value={currentParty.principalPartyId || ''}
+                    onChange={(e) => setCurrentParty(prev => ({ ...prev, principalPartyId: e.target.value }))}
+                    onClearError={clearFieldErrorMemoized}
+                    label="طرف اصیل"
+                    required
+                    error={fieldErrors['principalPartyId']}
+                    options={[
+                      { value: '', label: 'انتخاب کنید' },
+                      ...principalParties
                         .filter(p => p.partyType === currentParty.partyType)
                         .map((p, idx) => {
                           const partyIndex = parties.findIndex(party => party === p);
-                          return (
-                            <option key={idx} value={partyIndex >= 0 ? partyIndex.toString() : idx.toString()}>
-                              {p.entityType === PartyEntityType.NATURAL
-                                ? `${p.firstName} ${p.lastName}`
-                                : p.companyName}
-                            </option>
-                          );
-                        })}
-                    </select>
-                  </div>
+                          return {
+                            value: partyIndex >= 0 ? partyIndex.toString() : idx.toString(),
+                            label: p.entityType === PartyEntityType.NATURAL
+                              ? `${p.firstName} ${p.lastName}`
+                              : p.companyName || ''
+                          };
+                        })
+                    ]}
+                  />
+                  <ValidatedSelect
+                    field="relationshipType"
+                    value={currentParty.relationshipType || ''}
+                    onChange={(e) => setCurrentParty(prev => ({ ...prev, relationshipType: e.target.value as RelationshipType }))}
+                    onClearError={clearFieldErrorMemoized}
+                    label="نوع رابطه"
+                    required
+                    error={fieldErrors['relationshipType']}
+                    options={[
+                      { value: '', label: 'انتخاب کنید' },
+                      { value: RelationshipType.ATTORNEY, label: 'وکالت' },
+                      { value: RelationshipType.MANAGEMENT, label: 'مدیریت' },
+                      { value: RelationshipType.GUARDIAN, label: 'ولی' },
+                      { value: RelationshipType.OTHER, label: 'سایر' }
+                    ]}
+                  />
+                  <ValidatedInput
+                    field="relationshipDocumentNumber"
+                    value={currentParty.relationshipDocumentNumber || ''}
+                    onChange={(e) => setCurrentParty(prev => ({ ...prev, relationshipDocumentNumber: e.target.value }))}
+                    onClearError={clearFieldErrorMemoized}
+                    label="شماره سند رابطه"
+                    required
+                    error={fieldErrors['relationshipDocumentNumber']}
+                  />
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-gray-600">نوع رابطه</label>
-                    <select
-                      value={currentParty.relationshipType || ''}
-                      onChange={(e) => setCurrentParty({ ...currentParty, relationshipType: e.target.value as RelationshipType })}
-                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                    >
-                      <option value="">انتخاب کنید</option>
-                      <option value={RelationshipType.ATTORNEY}>وکالت</option>
-                      <option value={RelationshipType.MANAGEMENT}>مدیریت</option>
-                      <option value={RelationshipType.GUARDIAN}>ولی</option>
-                      <option value={RelationshipType.OTHER}>سایر</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-semibold text-gray-600">شماره سند رابطه</label>
-                    <input
-                      type="text"
-                      value={currentParty.relationshipDocumentNumber || ''}
-                      onChange={(e) => setCurrentParty({ ...currentParty, relationshipDocumentNumber: e.target.value })}
-                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-semibold text-gray-600">تاریخ سند رابطه</label>
+                    <label className="mb-1 block text-sm font-semibold text-gray-600">
+                      تاریخ سند رابطه <span className="text-red-500">*</span>
+                    </label>
                     <PersianDatePicker
                       value={currentParty.relationshipDocumentDate || ''}
-                      onChange={(value) => setCurrentParty({ ...currentParty, relationshipDocumentDate: value })}
+                      onChange={(value) => {
+                        setCurrentParty(prev => ({ ...prev, relationshipDocumentDate: value }));
+                        if (fieldErrors['relationshipDocumentDate']) clearFieldErrorMemoized('relationshipDocumentDate');
+                      }}
                     />
+                    {fieldErrors['relationshipDocumentDate'] && (
+                      <p className="mt-1 text-sm text-red-600">{fieldErrors['relationshipDocumentDate']}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1495,37 +1759,47 @@ export default function CreateContractPage() {
               <div className="space-y-6">
                 <h3 className="text-xl font-semibold text-gray-900 text-center">اطلاعات اختیار</h3>
                 <div className="space-y-4">
+                  <ValidatedSelect
+                    field="authorityType"
+                    value={currentParty.authorityType || ''}
+                    onChange={(e) => setCurrentParty(prev => ({ ...prev, authorityType: e.target.value }))}
+                    onClearError={clearFieldErrorMemoized}
+                    label="نوع اختیار"
+                    required
+                    error={fieldErrors['authorityType']}
+                    options={[
+                      { value: '', label: 'انتخاب کنید' },
+                      { value: 'وکالت', label: 'وکالت' },
+                      { value: 'قیومیت', label: 'قیومیت' },
+                      { value: 'ولایت', label: 'ولایت' },
+                      { value: 'وصايت', label: 'وصايت' }
+                    ]}
+                  />
+                  <ValidatedInput
+                    field="authorityDocumentNumber"
+                    value={currentParty.authorityDocumentNumber || ''}
+                    onChange={(e) => setCurrentParty(prev => ({ ...prev, authorityDocumentNumber: e.target.value }))}
+                    onClearError={clearFieldErrorMemoized}
+                    label="شماره مدرک اختیار"
+                    required
+                    disabled={!currentParty.authorityType}
+                    error={fieldErrors['authorityDocumentNumber']}
+                  />    
                   <div>
-                    <label className="mb-1 block text-sm font-semibold text-gray-600">نوع اختیار</label>
-                    <select
-                      value={currentParty.authorityType || ''}
-                      onChange={(e) => setCurrentParty({ ...currentParty, authorityType: e.target.value })}
-                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                    >
-                      <option value="">انتخاب کنید</option>
-                      <option value="وکالت">وکالت</option>
-                      <option value="قیومیت">قیومیت</option>
-                      <option value="ولایت">ولایت</option>
-                      <option value="وصايت">وصايت</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-semibold text-gray-600">شماره مدرک اختیار</label>
-                    <input
-                      type="text"
-                      value={currentParty.authorityDocumentNumber || ''}
-                      onChange={(e) => setCurrentParty({ ...currentParty, authorityDocumentNumber: e.target.value })}
-                      className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                      disabled={!currentParty.authorityType}
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-semibold text-gray-600">تاریخ مدرک اختیار</label>
+                    <label className="mb-1 block text-sm font-semibold text-gray-600">
+                      تاریخ مدرک اختیار <span className="text-red-500">*</span>
+                    </label>
                     <PersianDatePicker
                       value={currentParty.authorityDocumentDate || ''}
-                      onChange={(value) => setCurrentParty({ ...currentParty, authorityDocumentDate: value })}
+                      onChange={(value) => {
+                        setCurrentParty(prev => ({ ...prev, authorityDocumentDate: value }));
+                        if (fieldErrors['authorityDocumentDate']) clearFieldErrorMemoized('authorityDocumentDate');
+                      }}
                       disabled={!currentParty.authorityType}
                     />
+                    {fieldErrors['authorityDocumentDate'] && (
+                      <p className="mt-1 text-sm text-red-600">{fieldErrors['authorityDocumentDate']}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1721,6 +1995,27 @@ export default function CreateContractPage() {
     const landlordParties = parties.filter(p => p.partyType === PartyType.LANDLORD);
     const tenantParties = parties.filter(p => p.partyType === PartyType.TENANT);
 
+    // Check if landlord shares are valid
+    const isLandlordShareValid = () => {
+      if (landlordParties.length === 0) return true;
+      const landlordShareType = landlordParties[0].shareType;
+      const landlordTotal = landlordParties.reduce((sum, p) => sum + p.shareValue, 0);
+      const expectedTotal = landlordShareType === ShareType.DANG ? 6 : 100;
+      return landlordTotal === expectedTotal;
+    };
+
+    // Check if tenant shares are valid
+    const isTenantShareValid = () => {
+      if (tenantParties.length === 0) return true;
+      const tenantShareType = tenantParties[0].shareType;
+      const tenantTotal = tenantParties.reduce((sum, p) => sum + p.shareValue, 0);
+      const expectedTotal = tenantShareType === ShareType.DANG ? 6 : 100;
+      return tenantTotal === expectedTotal;
+    };
+
+    const landlordShareInvalid = !isLandlordShareValid();
+    const tenantShareInvalid = !isTenantShareValid();
+
     return (
       <div className="space-y-6">
         <h2 className="text-2xl font-bold text-gray-900">مرحله 2: ثبت طرفین قرارداد</h2>
@@ -1764,7 +2059,12 @@ export default function CreateContractPage() {
                           ? `${party.firstName || ''} ${party.lastName || ''}`.trim()
                           : party.companyName || ''}
                       </td>
-                      <td className="py-3 px-4 text-sm text-gray-800">
+                      <td className={`py-3 px-4 text-sm ${
+                        (party.partyType === PartyType.LANDLORD && landlordShareInvalid) ||
+                        (party.partyType === PartyType.TENANT && tenantShareInvalid)
+                          ? 'text-red-600 font-semibold'
+                          : 'text-gray-800'
+                      }`}>
                         {party.shareValue} {party.shareType === ShareType.DANG ? 'دانگ' : 'درصد'}
                       </td>
                       <td className="py-3 px-4">
@@ -1800,13 +2100,27 @@ export default function CreateContractPage() {
           {parties.length > 0 && (
             <div className="mt-4 pt-4 border-t border-gray-200">
               <div className="text-sm text-gray-600 space-y-1">
-                <div>
+                <div className={landlordShareInvalid ? 'text-red-600' : ''}>
                   <span className="font-semibold">{getPartyTypeLabel(PartyType.LANDLORD)}ان:</span>{' '}
-                  مجموع {landlordParties.reduce((sum, p) => sum + p.shareValue, 0)} {landlordParties[0]?.shareType === ShareType.DANG ? 'دانگ' : 'درصد'}
+                  <span className={landlordShareInvalid ? 'font-bold' : ''}>
+                    مجموع {landlordParties.reduce((sum, p) => sum + p.shareValue, 0)} {landlordParties[0]?.shareType === ShareType.DANG ? 'دانگ' : 'درصد'}
+                  </span>
+                  {landlordShareInvalid && landlordParties.length > 0 && (
+                    <span className="text-red-600 text-xs mr-2">
+                      (باید {landlordParties[0]?.shareType === ShareType.DANG ? '6' : '100'} {landlordParties[0]?.shareType === ShareType.DANG ? 'دانگ' : 'درصد'} باشد)
+                    </span>
+                  )}
                 </div>
-                <div>
+                <div className={tenantShareInvalid ? 'text-red-600' : ''}>
                   <span className="font-semibold">{getPartyTypeLabel(PartyType.TENANT)}ان:</span>{' '}
-                  مجموع {tenantParties.reduce((sum, p) => sum + p.shareValue, 0)} {tenantParties[0]?.shareType === ShareType.DANG ? 'دانگ' : 'درصد'}
+                  <span className={tenantShareInvalid ? 'font-bold' : ''}>
+                    مجموع {tenantParties.reduce((sum, p) => sum + p.shareValue, 0)} {tenantParties[0]?.shareType === ShareType.DANG ? 'دانگ' : 'درصد'}
+                  </span>
+                  {tenantShareInvalid && tenantParties.length > 0 && (
+                    <span className="text-red-600 text-xs mr-2">
+                      (باید {tenantParties[0]?.shareType === ShareType.DANG ? '6' : '100'} {tenantParties[0]?.shareType === ShareType.DANG ? 'دانگ' : 'درصد'} باشد)
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -1825,23 +2139,70 @@ export default function CreateContractPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-600">نوع ملک</label>
-          <input
-            type="text"
-            value={propertyDetails.propertyType}
-            onChange={(e) => setPropertyDetails({ ...propertyDetails, propertyType: e.target.value })}
+          <select
+            value={propertyDetails.propertyTypeCustom ? 'CUSTOM' : propertyDetails.propertyType}
+            onChange={(e) => {
+              if (e.target.value === 'CUSTOM') {
+                setPropertyDetails({ ...propertyDetails, propertyTypeCustom: true, propertyType: '' });
+              } else {
+                setPropertyDetails({ ...propertyDetails, propertyTypeCustom: false, propertyType: e.target.value });
+              }
+            }}
             className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-            placeholder="مثال: آپارتمان"
-          />
+          >
+            <option value="">انتخاب کنید</option>
+            <option value="آپارتمان">آپارتمان</option>
+            <option value="ویلا">ویلا</option>
+            <option value="خانه">خانه</option>
+            <option value="زمین">زمین</option>
+            <option value="مغازه">مغازه</option>
+            <option value="دفتر">دفتر</option>
+            <option value="انبار">انبار</option>
+            <option value="کارگاه">کارگاه</option>
+            <option value="CUSTOM">سایر (دستی)</option>
+          </select>
+          {propertyDetails.propertyTypeCustom && (
+            <input
+              type="text"
+              value={propertyDetails.propertyType}
+              onChange={(e) => setPropertyDetails({ ...propertyDetails, propertyType: e.target.value })}
+              className="mt-2 w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+              placeholder="نوع ملک را وارد کنید"
+            />
+          )}
         </div>
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-600">نوع کاربری</label>
-          <input
-            type="text"
-            value={propertyDetails.usageType}
-            onChange={(e) => setPropertyDetails({ ...propertyDetails, usageType: e.target.value })}
+          <select
+            value={propertyDetails.usageTypeCustom ? 'CUSTOM' : propertyDetails.usageType}
+            onChange={(e) => {
+              if (e.target.value === 'CUSTOM') {
+                setPropertyDetails({ ...propertyDetails, usageTypeCustom: true, usageType: '' });
+              } else {
+                setPropertyDetails({ ...propertyDetails, usageTypeCustom: false, usageType: e.target.value });
+              }
+            }}
             className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-            placeholder="مثال: مسکونی"
-          />
+          >
+            <option value="">انتخاب کنید</option>
+            <option value="مسکونی">مسکونی</option>
+            <option value="تجاری">تجاری</option>
+            <option value="اداری">اداری</option>
+            <option value="صنعتی">صنعتی</option>
+            <option value="کشاورزی">کشاورزی</option>
+            <option value="خدماتی">خدماتی</option>
+            <option value="مختلط">مختلط</option>
+            <option value="CUSTOM">سایر (دستی)</option>
+          </select>
+          {propertyDetails.usageTypeCustom && (
+            <input
+              type="text"
+              value={propertyDetails.usageType}
+              onChange={(e) => setPropertyDetails({ ...propertyDetails, usageType: e.target.value })}
+              className="mt-2 w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+              placeholder="نوع کاربری را وارد کنید"
+            />
+          )}
         </div>
         <div className="md:col-span-2">
           <label className="mb-1 block text-sm font-semibold text-gray-600">آدرس</label>
@@ -1866,9 +2227,25 @@ export default function CreateContractPage() {
           <div className="flex gap-2">
             <input
               type="number"
+              step="0.01"
               value={propertyDetails.area}
-              onChange={(e) => setPropertyDetails({ ...propertyDetails, area: e.target.value })}
+              onChange={(e) => {
+                const value = e.target.value;
+                // Allow empty, numbers, and decimal with max 2 decimal places
+                if (value === '' || /^\d*\.?\d{0,2}$/.test(value)) {
+                  setPropertyDetails({ ...propertyDetails, area: value });
+                }
+              }}
+              onBlur={(e) => {
+                // Round to 2 decimal places on blur
+                const value = e.target.value;
+                if (value && !isNaN(parseFloat(value))) {
+                  const rounded = parseFloat(value).toFixed(2);
+                  setPropertyDetails({ ...propertyDetails, area: rounded });
+                }
+              }}
               className="flex-1 rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+              placeholder="مثال: 120.50"
             />
             <input
               type="text"
@@ -1879,30 +2256,28 @@ export default function CreateContractPage() {
           </div>
         </div>
         <div>
-          <label className="mb-1 block text-sm font-semibold text-gray-600">شماره ثبت</label>
+          <label className="mb-1 block text-sm font-semibold text-gray-600">پلاک ثبتی</label>
           <input
-            type="text"
+            type="number"
+            step="0.01"
             value={propertyDetails.registrationNumber}
-            onChange={(e) => setPropertyDetails({ ...propertyDetails, registrationNumber: e.target.value })}
+            onChange={(e) => {
+              const value = e.target.value;
+              // Allow empty, numbers, and decimal with max 2 decimal places
+              if (value === '' || /^\d*\.?\d{0,2}$/.test(value)) {
+                setPropertyDetails({ ...propertyDetails, registrationNumber: value });
+              }
+            }}
+            onBlur={(e) => {
+              // Round to 2 decimal places on blur
+              const value = e.target.value;
+              if (value && !isNaN(parseFloat(value))) {
+                const rounded = parseFloat(value).toFixed(2);
+                setPropertyDetails({ ...propertyDetails, registrationNumber: rounded });
+              }
+            }}
             className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-semibold text-gray-600">شماره ثبت فرعی</label>
-          <input
-            type="text"
-            value={propertyDetails.subRegistrationNumber}
-            onChange={(e) => setPropertyDetails({ ...propertyDetails, subRegistrationNumber: e.target.value })}
-            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-semibold text-gray-600">شماره ثبت اصلی</label>
-          <input
-            type="text"
-            value={propertyDetails.mainRegistrationNumber}
-            onChange={(e) => setPropertyDetails({ ...propertyDetails, mainRegistrationNumber: e.target.value })}
-            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            placeholder="مثال: 123.45"
           />
         </div>
         <div>
@@ -1916,16 +2291,37 @@ export default function CreateContractPage() {
         </div>
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-600">نوع سند مالکیت</label>
-          <input
-            type="text"
-            value={propertyDetails.ownershipDocumentType}
-            onChange={(e) => setPropertyDetails({ ...propertyDetails, ownershipDocumentType: e.target.value })}
+          <select
+            value={propertyDetails.ownershipDocumentTypeCustom ? 'CUSTOM' : propertyDetails.ownershipDocumentType}
+            onChange={(e) => {
+              if (e.target.value === 'CUSTOM') {
+                setPropertyDetails({ ...propertyDetails, ownershipDocumentTypeCustom: true, ownershipDocumentType: '' });
+              } else {
+                setPropertyDetails({ ...propertyDetails, ownershipDocumentTypeCustom: false, ownershipDocumentType: e.target.value });
+              }
+            }}
             className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-            placeholder="مثال: سند رسمی"
-          />
+          >
+            <option value="">انتخاب کنید</option>
+            <option value="دفترچه ای">دفترچه ای</option>
+            <option value="تک برگ">تک برگ</option>
+            <option value="سند عادی">سند عادی</option>
+            <option value="CUSTOM">سایر (دستی)</option>
+          </select>
+          {propertyDetails.ownershipDocumentTypeCustom && (
+            <input
+              type="text"
+              value={propertyDetails.ownershipDocumentType}
+              onChange={(e) => setPropertyDetails({ ...propertyDetails, ownershipDocumentType: e.target.value })}
+              className="mt-2 w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+              placeholder="نوع سند مالکیت را وارد کنید"
+            />
+          )}
         </div>
         <div>
-          <label className="mb-1 block text-sm font-semibold text-gray-600">سریال سند</label>
+          <label className="mb-1 block text-sm font-semibold text-gray-600">
+            {propertyDetails.ownershipDocumentType === 'سند عادی' ? 'شماره سند' : 'سریال سند'}
+          </label>
           <input
             type="text"
             value={propertyDetails.ownershipDocumentSerial}
@@ -1971,35 +2367,32 @@ export default function CreateContractPage() {
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-semibold text-gray-600">مساحت اتاق خواب (متر مربع)</label>
-          <input
-            type="number"
-            value={propertyDetails.bedroomArea || ''}
-            onChange={(e) => setPropertyDetails({ ...propertyDetails, bedroomArea: e.target.value })}
-            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-semibold text-gray-600">وضعیت شوفاژ</label>
+          <label className="mb-1 block text-sm font-semibold text-gray-600">وضعیت سیستم آب گرم</label>
           <select
             value={propertyDetails.heatingStatus || ''}
             onChange={(e) => setPropertyDetails({ ...propertyDetails, heatingStatus: e.target.value })}
             className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
           >
             <option value="">انتخاب کنید</option>
-            <option value="روشن">روشن</option>
-            <option value="غیر روشن">غیر روشن</option>
+            <option value="پکیج">پکیج</option>
+            <option value="موتورخانه مرکزی">موتورخانه مرکزی</option>
+            <option value="آبگرمکن">آبگرمکن</option>
+            <option value="دستی">دستی</option>
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-sm font-semibold text-gray-600">نوع کولر</label>
-          <input
-            type="text"
+          <label className="mb-1 block text-sm font-semibold text-gray-600">سیستم تهویه</label>
+          <select
             value={propertyDetails.coolerType || ''}
             onChange={(e) => setPropertyDetails({ ...propertyDetails, coolerType: e.target.value })}
             className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-            placeholder="مثال: اسپلیت"
-          />
+          >
+            <option value="">انتخاب کنید</option>
+            <option value="اسپیلت">اسپیلت</option>
+            <option value="داک اسپلیت">داک اسپلیت</option>
+            <option value="سیستم مرکزی ( چیلر )">سیستم مرکزی ( چیلر )</option>
+            <option value="رادیاتور ( کولر آبی‌ )">رادیاتور ( کولر آبی‌ )</option>
+          </select>
         </div>
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-600">شماره تلفن</label>
