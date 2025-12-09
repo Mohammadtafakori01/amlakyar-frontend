@@ -226,7 +226,6 @@ export default function EditContractPage() {
   const [currentStep, setCurrentStep] = useState<Step>(2); // Start from step 2 (skip contract type)
   const [contractId, setContractId] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
-  const [isDataLoaded, setIsDataLoaded] = useState(false);
 
   // Step 1: Contract Type (read-only, just for display)
   const [contractType, setContractType] = useState<ContractType>(ContractType.RENTAL);
@@ -372,7 +371,10 @@ export default function EditContractPage() {
   const [partyModalStep, setPartyModalStep] = useState(1);
   const [editingPartyIndex, setEditingPartyIndex] = useState<number | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [step1FieldErrors, setStep1FieldErrors] = useState<Record<string, string>>({});
+  const [step2FieldErrors, setStep2FieldErrors] = useState<Record<string, string>>({});
   const [step3FieldErrors, setStep3FieldErrors] = useState<Record<string, string>>({});
+  const [step4FieldErrors, setStep4FieldErrors] = useState<Record<string, string>>({});
   
   const [currentParty, setCurrentParty] = useState<Partial<AddPartyRequest>>({
     partyType: PartyType.LANDLORD,
@@ -517,13 +519,11 @@ export default function EditContractPage() {
 
   // Populate form data when contract is loaded
   useEffect(() => {
-    if (selectedContract && selectedContract.id === contractId && !isDataLoaded) {
-      setIsDataLoaded(true);
-      
+    if (selectedContract && selectedContract.id === contractId) {
       // Set contract type
       setContractType(selectedContract.type);
       
-      // Load parties
+      // Load parties - always update when selectedContract changes
       if (selectedContract.parties && selectedContract.parties.length > 0) {
         const loadedParties: AddPartyRequest[] = selectedContract.parties.map((party: ContractParty) => ({
           partyType: party.partyType,
@@ -556,6 +556,9 @@ export default function EditContractPage() {
           relationshipDocumentDate: party.relationshipDocumentDate,
         }));
         setParties(loadedParties);
+      } else {
+        // If parties array is empty or doesn't exist, clear the parties state
+        setParties([]);
       }
       
       // Load property details
@@ -693,7 +696,7 @@ export default function EditContractPage() {
         setOriginalPaymentEntries([]);
       }
     }
-  }, [selectedContract, contractId, isDataLoaded]);
+  }, [selectedContract, contractId]);
 
   // Helper function to convert Persian/Farsi numbers to Latin/English numbers
   const convertToLatinNumbers = (value: string | number | undefined | null): string => {
@@ -723,6 +726,113 @@ export default function EditContractPage() {
   };
 
   // Helper function to extract clear error message from API errors
+  
+  // Helper function to parse step 1 validation errors from backend
+  const parseStep1ValidationErrors = (errorPayload: any): Record<string, string> => {
+    const errors: Record<string, string> = {};
+    
+    if (!errorPayload) return errors;
+    
+    if (errorPayload.statusCode === 400 && errorPayload.message) {
+      const messages = Array.isArray(errorPayload.message) ? errorPayload.message : [errorPayload.message];
+      
+      messages.forEach((msg: string) => {
+        if (msg.includes('type') && (msg.includes('must be an enum value') || msg.includes('must not be empty'))) {
+          errors['type'] = 'نوع قرارداد الزامی است';
+        } else if (msg.includes('estateId') && msg.includes('must be a UUID')) {
+          errors['estateId'] = 'شناسه دفتر باید یک UUID معتبر باشد';
+        } else if (msg.includes('uniqueDocumentId') && msg.includes('must be a string')) {
+          errors['uniqueDocumentId'] = 'شناسه یکتای سند باید یک رشته باشد';
+        }
+      });
+    }
+    
+    return errors;
+  };
+
+  // Helper function to parse step 2 validation errors from backend
+  const parseStep2ValidationErrors = (errorPayload: any): Record<string, string> => {
+    const errors: Record<string, string> = {};
+    
+    if (!errorPayload) return errors;
+    
+    if (errorPayload.statusCode === 400 && errorPayload.message) {
+      const messages = Array.isArray(errorPayload.message) ? errorPayload.message : [errorPayload.message];
+      
+      messages.forEach((msg: string) => {
+        if (msg.includes('parties') && (msg.includes('must not be empty') || msg.includes('must contain at least'))) {
+          errors['parties'] = 'حداقل یک طرف قرارداد باید ثبت شود';
+        }
+      });
+    }
+    
+    return errors;
+  };
+
+  // Helper function to parse step 4 validation errors from backend
+  const parseStep4ValidationErrors = (errorPayload: any): Record<string, string> => {
+    const errors: Record<string, string> = {};
+    
+    if (!errorPayload) return errors;
+    
+    if (errorPayload.statusCode === 400 && errorPayload.message) {
+      const messages = Array.isArray(errorPayload.message) ? errorPayload.message : [errorPayload.message];
+      
+      const fieldMapping: Record<string, string> = {
+        'evictionNoticeDays': 'evictionNoticeDays',
+        'dailyPenaltyAmount': 'dailyPenaltyAmount',
+        'dailyDelayPenalty': 'dailyDelayPenalty',
+        'dailyOccupancyPenalty': 'dailyOccupancyPenalty',
+        'deliveryDate': 'deliveryDate',
+        'deliveryDelayPenalty': 'deliveryDelayPenalty',
+        'usagePurpose': 'usagePurpose',
+        'occupantCount': 'occupantCount',
+        'customTerms': 'customTerms',
+        'earlyTerminationNotice': 'earlyTerminationNotice',
+        'earlyTerminationPayment': 'earlyTerminationPayment',
+        'loanReturnDelayPenalty': 'loanReturnDelayPenalty',
+      };
+      
+      messages.forEach((msg: string) => {
+        const fieldMatch = msg.match(/^([a-zA-Z][a-zA-Z0-9]*)\s+must/);
+        let matchedField = null;
+        
+        if (fieldMatch) {
+          const fieldName = fieldMatch[1];
+          if (fieldMapping[fieldName]) {
+            matchedField = fieldMapping[fieldName];
+          }
+        }
+        
+        if (!matchedField) {
+          for (const [backendField, frontendField] of Object.entries(fieldMapping)) {
+            const regex = new RegExp(`\\b${backendField}\\b`);
+            if (regex.test(msg)) {
+              matchedField = frontendField;
+              break;
+            }
+          }
+        }
+        
+        if (matchedField && !errors[matchedField]) {
+          let translatedMsg = msg;
+          if (msg.includes('must not be less than')) {
+            translatedMsg = 'مقدار نمی‌تواند منفی باشد';
+          } else if (msg.includes('must be a number')) {
+            translatedMsg = 'این فیلد باید عدد باشد';
+          } else if (msg.includes('must be a valid ISO 8601 date string')) {
+            translatedMsg = 'تاریخ نامعتبر است';
+          } else if (msg.includes('must be a string')) {
+            translatedMsg = 'این فیلد باید متن باشد';
+          }
+          errors[matchedField] = translatedMsg;
+        }
+      });
+    }
+    
+    return errors;
+  };
+
   // Helper function to parse step 3 validation errors from backend
   const parseStep3ValidationErrors = (errorPayload: any): Record<string, string> => {
     const errors: Record<string, string> = {};
@@ -782,37 +892,74 @@ export default function EditContractPage() {
       messages.forEach((msg: string) => {
         // Try to extract field name from error message
         // Format: "fieldName must be..." or "fieldName must not be..."
-        for (const [backendField, frontendField] of Object.entries(fieldMapping)) {
-          if (msg.includes(backendField)) {
-            // Get the first error for this field
-            if (!errors[frontendField]) {
-              // Translate common error messages to Persian
-              let translatedMsg = msg;
-              if (msg.includes('must not be empty')) {
-                translatedMsg = 'این فیلد الزامی است';
-              } else if (msg.includes('must be a string')) {
-                translatedMsg = 'این فیلد باید متن باشد';
-              } else if (msg.includes('must be a number')) {
-                translatedMsg = 'این فیلد باید عدد باشد';
-              } else if (msg.includes('must not be less than')) {
-                translatedMsg = 'مقدار باید بزرگتر از صفر باشد';
-              } else if (msg.includes('must be longer than or equal to')) {
-                translatedMsg = 'تعداد کاراکترها کافی نیست';
-              } else if (msg.includes('must be shorter than or equal to')) {
-                translatedMsg = 'تعداد کاراکترها بیش از حد است';
-              } else if (msg.includes('must be a valid ISO 8601 date string')) {
-                translatedMsg = 'تاریخ نامعتبر است';
-              } else if (msg.includes('must be an array')) {
-                translatedMsg = 'این فیلد باید آرایه باشد';
-              } else if (msg.includes('must be an object')) {
-                translatedMsg = 'این فیلد باید آبجکت باشد';
-              } else if (msg.includes('must be a boolean value')) {
-                translatedMsg = 'این فیلد باید boolean باشد';
-              }
-              errors[frontendField] = translatedMsg;
-            }
-            break;
+        // First, try to match the field name at the beginning of the message
+        const fieldMatch = msg.match(/^([a-zA-Z][a-zA-Z0-9]*)\s+must/);
+        let matchedField = null;
+        
+        if (fieldMatch) {
+          const fieldName = fieldMatch[1];
+          // Check if this field is in our mapping
+          if (fieldMapping[fieldName]) {
+            matchedField = fieldMapping[fieldName];
           }
+        }
+        
+        // If not found at the beginning, try to find it anywhere in the message
+        if (!matchedField) {
+          for (const [backendField, frontendField] of Object.entries(fieldMapping)) {
+            // Use word boundary to avoid partial matches
+            const regex = new RegExp(`\\b${backendField}\\b`);
+            if (regex.test(msg)) {
+              matchedField = frontendField;
+              break;
+            }
+          }
+        }
+        
+        if (matchedField && !errors[matchedField]) {
+          // Translate common error messages to Persian
+          let translatedMsg = msg;
+          if (msg.includes('must not be empty')) {
+            translatedMsg = 'این فیلد الزامی است';
+          } else if (msg.includes('must be a string')) {
+            if (matchedField === 'registrationNumber') {
+              translatedMsg = 'شماره پلاک ثبتی باید یک رشته باشد';
+            } else {
+              translatedMsg = 'این فیلد باید متن باشد';
+            }
+          } else if (msg.includes('must be a number')) {
+            translatedMsg = 'این فیلد باید عدد باشد';
+          } else if (msg.includes('must not be less than')) {
+            translatedMsg = 'مقدار باید بزرگتر از صفر باشد';
+          } else if (msg.includes('must be longer than or equal to')) {
+            // Extract the number from the message
+            const match = msg.match(/must be longer than or equal to (\d+) characters?/);
+            if (match) {
+              if (matchedField === 'postalCode') {
+                translatedMsg = `کد پستی باید حداقل ${match[1]} کاراکتر باشد`;
+              } else {
+                translatedMsg = `این فیلد باید حداقل ${match[1]} کاراکتر باشد`;
+              }
+            } else {
+              translatedMsg = 'تعداد کاراکترها کافی نیست';
+            }
+          } else if (msg.includes('must be shorter than or equal to')) {
+            const match = msg.match(/must be shorter than or equal to (\d+) characters?/);
+            if (match) {
+              translatedMsg = `این فیلد باید حداکثر ${match[1]} کاراکتر باشد`;
+            } else {
+              translatedMsg = 'تعداد کاراکترها بیش از حد است';
+            }
+          } else if (msg.includes('must be a valid ISO 8601 date string')) {
+            translatedMsg = 'تاریخ نامعتبر است';
+          } else if (msg.includes('must be an array')) {
+            translatedMsg = 'این فیلد باید آرایه باشد';
+          } else if (msg.includes('must be an object')) {
+            translatedMsg = 'این فیلد باید آبجکت باشد';
+          } else if (msg.includes('must be a boolean value')) {
+            translatedMsg = 'این فیلد باید boolean باشد';
+          }
+          errors[matchedField] = translatedMsg;
         }
       });
     }
@@ -828,6 +975,198 @@ export default function EditContractPage() {
       return newErrors;
     });
   }, []);
+
+  // Validation functions for each step
+  const validateStep2 = (): Record<string, string> => {
+    const errors: Record<string, string> = {};
+    
+    if (parties.length === 0) {
+      errors['parties'] = 'حداقل یک طرف قرارداد باید ثبت شود';
+      return errors;
+    }
+    
+    // Validate each party
+    parties.forEach((party, index) => {
+      const prefix = `parties.${index}`;
+      
+      if (!party.partyType) {
+        errors[`${prefix}.partyType`] = 'نوع طرف قرارداد الزامی است';
+      }
+      
+      if (!party.partyRole) {
+        errors[`${prefix}.partyRole`] = 'نقش طرف قرارداد الزامی است';
+      }
+      
+      if (!party.entityType) {
+        errors[`${prefix}.entityType`] = 'نوع شخصیت الزامی است';
+      }
+      
+      if (!party.shareType) {
+        errors[`${prefix}.shareType`] = 'نوع سهم الزامی است';
+      }
+      
+      if (party.shareValue === undefined || party.shareValue === null || party.shareValue <= 0) {
+        errors[`${prefix}.shareValue`] = 'مقدار سهم الزامی است و باید بزرگتر از صفر باشد';
+      }
+      
+      if (party.entityType === PartyEntityType.NATURAL) {
+        if (!party.firstName || !party.firstName.trim()) {
+          errors[`${prefix}.firstName`] = 'نام الزامی است';
+        }
+        if (!party.lastName || !party.lastName.trim()) {
+          errors[`${prefix}.lastName`] = 'نام خانوادگی الزامی است';
+        }
+        if (!party.nationalId || !party.nationalId.trim()) {
+          errors[`${prefix}.nationalId`] = 'کد ملی الزامی است';
+        } else {
+          const nationalIdLatin = convertToLatinNumbers(party.nationalId);
+          if (nationalIdLatin.length !== 10) {
+            errors[`${prefix}.nationalId`] = 'کد ملی باید دقیقاً 10 رقم باشد';
+          } else if (!/^\d+$/.test(nationalIdLatin)) {
+            errors[`${prefix}.nationalId`] = 'کد ملی باید فقط شامل اعداد باشد';
+          }
+        }
+      } else if (party.entityType === PartyEntityType.LEGAL) {
+        if (!party.companyName || !party.companyName.trim()) {
+          errors[`${prefix}.companyName`] = 'نام شرکت الزامی است';
+        }
+        if (party.companyNationalId) {
+          const companyNationalIdLatin = convertToLatinNumbers(party.companyNationalId);
+          if (companyNationalIdLatin.length !== 11) {
+            errors[`${prefix}.companyNationalId`] = 'شناسه ملی شرکت باید دقیقاً 11 رقم باشد';
+          } else if (!/^\d+$/.test(companyNationalIdLatin)) {
+            errors[`${prefix}.companyNationalId`] = 'شناسه ملی شرکت باید فقط شامل اعداد باشد';
+          }
+        }
+      }
+      
+      if ((party.partyRole === PartyRole.REPRESENTATIVE || party.partyRole === PartyRole.ATTORNEY) && !party.principalPartyId) {
+        errors[`${prefix}.principalPartyId`] = 'شناسه طرف اصیل الزامی است';
+      }
+    });
+    
+    // Validate shares
+    const landlordParties = parties.filter(p => p.partyType === PartyType.LANDLORD);
+    const tenantParties = parties.filter(p => p.partyType === PartyType.TENANT);
+    
+    if (landlordParties.length > 0) {
+      const landlordShareType = landlordParties[0].shareType;
+      const landlordTotal = landlordParties.reduce((sum, p) => sum + p.shareValue, 0);
+      const expectedTotal = landlordShareType === ShareType.DANG ? 6 : 100;
+      if (landlordTotal !== expectedTotal) {
+        errors['landlordShare'] = `مجموع سهم موجرین باید ${expectedTotal} ${landlordShareType === ShareType.DANG ? 'دانگ' : 'درصد'} باشد`;
+      }
+    }
+    
+    if (tenantParties.length > 0) {
+      const tenantShareType = tenantParties[0].shareType;
+      const tenantTotal = tenantParties.reduce((sum, p) => sum + p.shareValue, 0);
+      const expectedTotal = tenantShareType === ShareType.DANG ? 6 : 100;
+      if (tenantTotal !== expectedTotal) {
+        errors['tenantShare'] = `مجموع سهم مستاجرین باید ${expectedTotal} ${tenantShareType === ShareType.DANG ? 'دانگ' : 'درصد'} باشد`;
+      }
+    }
+    
+    return errors;
+  };
+
+  const validateStep3 = (): Record<string, string> => {
+    const errors: Record<string, string> = {};
+    
+    if (!propertyDetails.propertyType || !propertyDetails.propertyType.trim()) {
+      errors['propertyType'] = 'نوع ملک الزامی است';
+    }
+    
+    if (!propertyDetails.usageType || !propertyDetails.usageType.trim()) {
+      errors['usageType'] = 'کاربری ملک الزامی است';
+    }
+    
+    if (!propertyDetails.address || !propertyDetails.address.trim()) {
+      errors['address'] = 'آدرس الزامی است';
+    }
+    
+    if (propertyDetails.postalCode) {
+      const postalCodeLatin = convertToLatinNumbers(propertyDetails.postalCode);
+      if (postalCodeLatin.length !== 10) {
+        errors['postalCode'] = 'کد پستی باید دقیقاً 10 کاراکتر باشد';
+      }
+    }
+    
+    if (!propertyDetails.area || parseLatinNumber(propertyDetails.area) <= 0) {
+      errors['area'] = 'مساحت الزامی است و باید بزرگتر از صفر باشد';
+    }
+    
+    return errors;
+  };
+
+  const validateStep4 = (): Record<string, string> => {
+    const errors: Record<string, string> = {};
+    
+    if (terms.evictionNoticeDays) {
+      const days = parseLatinInteger(terms.evictionNoticeDays);
+      if (days < 0) {
+        errors['evictionNoticeDays'] = 'مهلت تخلیه نمی‌تواند منفی باشد';
+      }
+    }
+    
+    if (terms.dailyPenaltyAmount) {
+      const amount = parseLatinNumber(terms.dailyPenaltyAmount);
+      if (amount < 0) {
+        errors['dailyPenaltyAmount'] = 'مبلغ جریمه روزانه برای تأخیر تحویل نمی‌تواند منفی باشد';
+      }
+    }
+    
+    if (terms.dailyDelayPenalty) {
+      const amount = parseLatinNumber(terms.dailyDelayPenalty);
+      if (amount < 0) {
+        errors['dailyDelayPenalty'] = 'مبلغ جریمه روزانه برای تأخیر پرداخت نمی‌تواند منفی باشد';
+      }
+    }
+    
+    if (terms.dailyOccupancyPenalty) {
+      const amount = parseLatinNumber(terms.dailyOccupancyPenalty);
+      if (amount < 0) {
+        errors['dailyOccupancyPenalty'] = 'مبلغ اجرت ایام تصرف نمی‌تواند منفی باشد';
+      }
+    }
+    
+    if (terms.deliveryDelayPenalty) {
+      const amount = parseLatinNumber(terms.deliveryDelayPenalty);
+      if (amount < 0) {
+        errors['deliveryDelayPenalty'] = 'مبلغ وجه التزام تأخیر تحویل نمی‌تواند منفی باشد';
+      }
+    }
+    
+    if (terms.occupantCount) {
+      const count = parseLatinInteger(terms.occupantCount);
+      if (count < 1) {
+        errors['occupantCount'] = 'تعداد نفرات باید حداقل 1 باشد';
+      }
+    }
+    
+    if (terms.earlyTerminationNotice) {
+      const days = parseLatinInteger(terms.earlyTerminationNotice);
+      if (days < 0) {
+        errors['earlyTerminationNotice'] = 'مهلت اخطار فسخ نمی‌تواند منفی باشد';
+      }
+    }
+    
+    if (terms.earlyTerminationPayment) {
+      const amount = parseLatinNumber(terms.earlyTerminationPayment);
+      if (amount < 0) {
+        errors['earlyTerminationPayment'] = 'پرداخت اضافی برای فسخ زودهنگام نمی‌تواند منفی باشد';
+      }
+    }
+    
+    if (terms.loanReturnDelayPenalty) {
+      const amount = parseLatinNumber(terms.loanReturnDelayPenalty);
+      if (amount < 0) {
+        errors['loanReturnDelayPenalty'] = 'جریمه تأخیر بازگشت قرض الحسنه نمی‌تواند منفی باشد';
+      }
+    }
+    
+    return errors;
+  };
 
   const getErrorMessage = (err: any, defaultMessage: string): string => {
     // Check for 400 Bad Request - prioritize this for clear error messages
@@ -1152,10 +1491,16 @@ export default function EditContractPage() {
       return;
     }
     
-    if (parties.length === 0) {
-      setSnackbar({ open: true, message: 'حداقل یک طرف قرارداد باید اضافه شود', severity: 'error' });
+    // Validate step 2
+    const validationErrors = validateStep2();
+    if (Object.keys(validationErrors).length > 0) {
+      setStep2FieldErrors(validationErrors);
+      setSnackbar({ open: true, message: 'لطفا خطاهای فرم را برطرف کنید', severity: 'error' });
       return;
     }
+    
+    // Clear errors if validation passes
+    setStep2FieldErrors({});
 
     // Validate shares
     const landlordParties = parties.filter(p => p.partyType === PartyType.LANDLORD);
@@ -1236,20 +1581,42 @@ export default function EditContractPage() {
       // Check if the action was rejected
       if (result && 'type' in result && result.type.endsWith('/rejected')) {
         const errorPayload = (result as any).payload;
-        const errorMessage = getErrorMessage(errorPayload || {}, 'خطا در به‌روزرسانی طرفین');
-        console.error('Step 2 submission rejected:', errorMessage);
-        setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+        console.error('Step 2 submission rejected:', errorPayload);
+        
+        // Parse validation errors
+        const backendErrors = parseStep2ValidationErrors(errorPayload);
+        if (Object.keys(backendErrors).length > 0) {
+          setStep2FieldErrors(backendErrors);
+          setSnackbar({ open: true, message: 'لطفا خطاهای فرم را برطرف کنید', severity: 'error' });
+        } else {
+          const errorMessage = getErrorMessage(errorPayload || {}, 'خطا در به‌روزرسانی طرفین');
+          setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+        }
         // Don't proceed to next step on error
         return;
       }
+      
+      // Clear errors on success
+      setStep2FieldErrors({});
       
       setCurrentStep(3);
       setSnackbar({ open: true, message: 'طرفین قرارداد با موفقیت به‌روزرسانی شدند', severity: 'success' });
     } catch (err: any) {
       console.error('Error in step 2:', err);
-      const errorMessage = getErrorMessage(err, 'خطا در به‌روزرسانی طرفین');
-      setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+      
+      // Try to parse validation errors from the error object
+      const errorPayload = err?.response?.data || err?.payload || err;
+      const backendErrors = parseStep2ValidationErrors(errorPayload);
+      
+      if (Object.keys(backendErrors).length > 0) {
+        setStep2FieldErrors(backendErrors);
+        setSnackbar({ open: true, message: 'لطفا خطاهای فرم را برطرف کنید', severity: 'error' });
+      } else {
+        const errorMessage = getErrorMessage(err, 'خطا در به‌روزرسانی طرفین');
+        setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+      }
       // Don't proceed to next step on error
+      return;
     }
   };
 
@@ -1260,23 +1627,16 @@ export default function EditContractPage() {
       return;
     }
 
-    // Validate required fields
-    if (!propertyDetails.propertyType || !propertyDetails.propertyType.trim()) {
-      setSnackbar({ open: true, message: 'نوع ملک الزامی است', severity: 'error' });
+    // Validate step 3
+    const validationErrors = validateStep3();
+    if (Object.keys(validationErrors).length > 0) {
+      setStep3FieldErrors(validationErrors);
+      setSnackbar({ open: true, message: 'لطفا خطاهای فرم را برطرف کنید', severity: 'error' });
       return;
     }
-    if (!propertyDetails.usageType || !propertyDetails.usageType.trim()) {
-      setSnackbar({ open: true, message: 'نوع کاربری الزامی است', severity: 'error' });
-      return;
-    }
-    if (!propertyDetails.address || !propertyDetails.address.trim()) {
-      setSnackbar({ open: true, message: 'آدرس الزامی است', severity: 'error' });
-      return;
-    }
-    if (!propertyDetails.area || parseLatinNumber(propertyDetails.area) <= 0) {
-      setSnackbar({ open: true, message: 'مساحت باید یک عدد مثبت باشد', severity: 'error' });
-      return;
-    }
+    
+    // Clear errors if validation passes
+    setStep3FieldErrors({});
 
     try {
       console.log('Submitting step 3 with contractId:', currentContractId);
@@ -1299,7 +1659,7 @@ export default function EditContractPage() {
         area: parseLatinNumber(propertyDetails.area),
         areaUnit: propertyDetails.areaUnit || undefined,
         postalCode: propertyDetails.postalCode ? convertToLatinNumbers(propertyDetails.postalCode.trim()) || undefined : undefined,
-        registrationNumber: propertyDetails.registrationNumber ? parseLatinNumber(propertyDetails.registrationNumber) : undefined,
+        registrationNumber: propertyDetails.registrationNumber ? convertToLatinNumbers(propertyDetails.registrationNumber.trim()) || undefined : undefined,
         section: propertyDetails.section ? convertToLatinNumbers(propertyDetails.section.trim()) || undefined : undefined,
         ownershipDocumentType: propertyDetails.ownershipDocumentType?.trim() || undefined,
         ownershipDocumentSerial: propertyDetails.ownershipDocumentSerial ? convertToLatinNumbers(propertyDetails.ownershipDocumentSerial.trim()) || undefined : undefined,
@@ -1385,9 +1745,20 @@ export default function EditContractPage() {
       setSnackbar({ open: true, message: 'جزئیات ملک با موفقیت به‌روزرسانی شد', severity: 'success' });
     } catch (err: any) {
       console.error('Error in step 3:', err);
-      const errorMessage = getErrorMessage(err, 'خطا در به‌روزرسانی جزئیات ملک');
-      setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+      
+      // Try to parse validation errors from the error object
+      const errorPayload = err?.response?.data || err?.payload || err;
+      const validationErrors = parseStep3ValidationErrors(errorPayload);
+      
+      if (Object.keys(validationErrors).length > 0) {
+        setStep3FieldErrors(validationErrors);
+        setSnackbar({ open: true, message: 'لطفا خطاهای فرم را برطرف کنید', severity: 'error' });
+      } else {
+        const errorMessage = getErrorMessage(err, 'خطا در به‌روزرسانی جزئیات ملک');
+        setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+      }
       // Don't proceed to next step on error
+      return;
     }
   };
 
@@ -1482,9 +1853,20 @@ export default function EditContractPage() {
       setSnackbar({ open: true, message: 'شرایط قرارداد با موفقیت به‌روزرسانی شد', severity: 'success' });
     } catch (err: any) {
       console.error('Error in step 4:', err);
-      const errorMessage = getErrorMessage(err, 'خطا در به‌روزرسانی شرایط');
-      setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+      
+      // Try to parse validation errors from the error object
+      const errorPayload = err?.response?.data || err?.payload || err;
+      const backendErrors = parseStep4ValidationErrors(errorPayload);
+      
+      if (Object.keys(backendErrors).length > 0) {
+        setStep4FieldErrors(backendErrors);
+        setSnackbar({ open: true, message: 'لطفا خطاهای فرم را برطرف کنید', severity: 'error' });
+      } else {
+        const errorMessage = getErrorMessage(err, 'خطا در به‌روزرسانی شرایط');
+        setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+      }
       // Don't proceed to next step on error
+      return;
     }
   };
 
@@ -1685,7 +2067,7 @@ export default function EditContractPage() {
   // Copy renderStep functions from create page - I'll need to read them
   // For now, let me create a simplified version that will work
 
-  if (isLoading || !isDataLoaded) {
+  if (isLoading || !selectedContract || selectedContract.id !== contractId) {
     return (
       <PrivateRoute>
         <RoleGuard allowedRoles={[UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.MASTER]}>
@@ -2437,6 +2819,24 @@ export default function EditContractPage() {
       <div className="space-y-6">
         <h2 className="text-2xl font-bold text-gray-900">مرحله 2: ثبت طرفین قرارداد</h2>
         
+        {step2FieldErrors['parties'] && (
+          <div className="rounded-2xl border-2 border-red-500 bg-red-50 p-4">
+            <p className="text-sm text-red-600">{step2FieldErrors['parties']}</p>
+          </div>
+        )}
+        
+        {step2FieldErrors['landlordShare'] && (
+          <div className="rounded-2xl border-2 border-red-500 bg-red-50 p-4">
+            <p className="text-sm text-red-600">{step2FieldErrors['landlordShare']}</p>
+          </div>
+        )}
+        
+        {step2FieldErrors['tenantShare'] && (
+          <div className="rounded-2xl border-2 border-red-500 bg-red-50 p-4">
+            <p className="text-sm text-red-600">{step2FieldErrors['tenantShare']}</p>
+          </div>
+        )}
+        
         <div className="rounded-2xl border border-gray-200 bg-white p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-800">طرفین قرارداد</h3>
@@ -2570,8 +2970,15 @@ export default function EditContractPage() {
               } else {
                 setPropertyDetails({ ...propertyDetails, propertyTypeCustom: false, propertyType: e.target.value });
               }
+              if (step3FieldErrors['propertyType']) {
+                clearStep3FieldError('propertyType');
+              }
             }}
-            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            className={`w-full rounded-2xl border px-4 py-2 text-sm text-gray-800 focus:ring-2 ${
+              step3FieldErrors['propertyType']
+                ? 'border-red-500 focus:border-red-500 focus:ring-red-100'
+                : 'border-gray-200 focus:border-primary-500 focus:ring-primary-100'
+            }`}
           >
             <option value="">انتخاب کنید</option>
             <option value="آپارتمان">آپارتمان</option>
@@ -2588,10 +2995,22 @@ export default function EditContractPage() {
             <input
               type="text"
               value={propertyDetails.propertyType}
-              onChange={(e) => setPropertyDetails({ ...propertyDetails, propertyType: e.target.value })}
-              className="mt-2 w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+              onChange={(e) => {
+                setPropertyDetails({ ...propertyDetails, propertyType: e.target.value });
+                if (step3FieldErrors['propertyType']) {
+                  clearStep3FieldError('propertyType');
+                }
+              }}
+              className={`mt-2 w-full rounded-2xl border px-4 py-2 text-sm text-gray-800 focus:ring-2 ${
+                step3FieldErrors['propertyType']
+                  ? 'border-red-500 focus:border-red-500 focus:ring-red-100'
+                  : 'border-gray-200 focus:border-primary-500 focus:ring-primary-100'
+              }`}
               placeholder="نوع ملک را وارد کنید"
             />
+          )}
+          {step3FieldErrors['propertyType'] && (
+            <p className="mt-1 text-sm text-red-600">{step3FieldErrors['propertyType']}</p>
           )}
         </div>
         <div>
@@ -2604,8 +3023,15 @@ export default function EditContractPage() {
               } else {
                 setPropertyDetails({ ...propertyDetails, usageTypeCustom: false, usageType: e.target.value });
               }
+              if (step3FieldErrors['usageType']) {
+                clearStep3FieldError('usageType');
+              }
             }}
-            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            className={`w-full rounded-2xl border px-4 py-2 text-sm text-gray-800 focus:ring-2 ${
+              step3FieldErrors['usageType']
+                ? 'border-red-500 focus:border-red-500 focus:ring-red-100'
+                : 'border-gray-200 focus:border-primary-500 focus:ring-primary-100'
+            }`}
           >
             <option value="">انتخاب کنید</option>
             <option value="مسکونی">مسکونی</option>
@@ -2621,10 +3047,22 @@ export default function EditContractPage() {
             <input
               type="text"
               value={propertyDetails.usageType}
-              onChange={(e) => setPropertyDetails({ ...propertyDetails, usageType: e.target.value })}
-              className="mt-2 w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+              onChange={(e) => {
+                setPropertyDetails({ ...propertyDetails, usageType: e.target.value });
+                if (step3FieldErrors['usageType']) {
+                  clearStep3FieldError('usageType');
+                }
+              }}
+              className={`mt-2 w-full rounded-2xl border px-4 py-2 text-sm text-gray-800 focus:ring-2 ${
+                step3FieldErrors['usageType']
+                  ? 'border-red-500 focus:border-red-500 focus:ring-red-100'
+                  : 'border-gray-200 focus:border-primary-500 focus:ring-primary-100'
+              }`}
               placeholder="نوع کاربری را وارد کنید"
             />
+          )}
+          {step3FieldErrors['usageType'] && (
+            <p className="mt-1 text-sm text-red-600">{step3FieldErrors['usageType']}</p>
           )}
         </div>
         <div className="md:col-span-2">
@@ -2632,18 +3070,42 @@ export default function EditContractPage() {
           <input
             type="text"
             value={propertyDetails.address}
-            onChange={(e) => setPropertyDetails({ ...propertyDetails, address: e.target.value })}
-            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            onChange={(e) => {
+              setPropertyDetails({ ...propertyDetails, address: e.target.value });
+              if (step3FieldErrors['address']) {
+                clearStep3FieldError('address');
+              }
+            }}
+            className={`w-full rounded-2xl border px-4 py-2 text-sm text-gray-800 focus:ring-2 ${
+              step3FieldErrors['address']
+                ? 'border-red-500 focus:border-red-500 focus:ring-red-100'
+                : 'border-gray-200 focus:border-primary-500 focus:ring-primary-100'
+            }`}
           />
+          {step3FieldErrors['address'] && (
+            <p className="mt-1 text-sm text-red-600">{step3FieldErrors['address']}</p>
+          )}
         </div>
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-600">کد پستی</label>
           <input
             type="text"
             value={propertyDetails.postalCode}
-            onChange={(e) => setPropertyDetails({ ...propertyDetails, postalCode: e.target.value })}
-            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            onChange={(e) => {
+              setPropertyDetails({ ...propertyDetails, postalCode: e.target.value });
+              if (step3FieldErrors['postalCode']) {
+                clearStep3FieldError('postalCode');
+              }
+            }}
+            className={`w-full rounded-2xl border px-4 py-2 text-sm text-gray-800 focus:ring-2 ${
+              step3FieldErrors['postalCode']
+                ? 'border-red-500 focus:border-red-500 focus:ring-red-100'
+                : 'border-gray-200 focus:border-primary-500 focus:ring-primary-100'
+            }`}
           />
+          {step3FieldErrors['postalCode'] && (
+            <p className="mt-1 text-sm text-red-600">{step3FieldErrors['postalCode']}</p>
+          )}
         </div>
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-600">مساحت</label>
@@ -2658,6 +3120,9 @@ export default function EditContractPage() {
                 if (value === '' || /^\d*\.?\d{0,2}$/.test(value)) {
                   setPropertyDetails({ ...propertyDetails, area: value });
                 }
+                if (step3FieldErrors['area']) {
+                  clearStep3FieldError('area');
+                }
               }}
               onBlur={(e) => {
                 // Round to 2 decimal places on blur
@@ -2667,9 +3132,16 @@ export default function EditContractPage() {
                   setPropertyDetails({ ...propertyDetails, area: rounded });
                 }
               }}
-              className="flex-1 rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+              className={`flex-1 rounded-2xl border px-4 py-2 text-sm text-gray-800 focus:ring-2 ${
+                step3FieldErrors['area']
+                  ? 'border-red-500 focus:border-red-500 focus:ring-red-100'
+                  : 'border-gray-200 focus:border-primary-500 focus:ring-primary-100'
+              }`}
               placeholder="مثال: 120.50"
             />
+            {step3FieldErrors['area'] && (
+              <p className="mt-1 text-sm text-red-600">{step3FieldErrors['area']}</p>
+            )}
             <input
               type="text"
               value={propertyDetails.areaUnit}
@@ -2681,27 +3153,23 @@ export default function EditContractPage() {
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-600">پلاک ثبتی</label>
           <input
-            type="number"
-            step="0.01"
+            type="text"
             value={propertyDetails.registrationNumber}
             onChange={(e) => {
-              const value = e.target.value;
-              // Allow empty, numbers, and decimal with max 2 decimal places
-              if (value === '' || /^\d*\.?\d{0,2}$/.test(value)) {
-                setPropertyDetails({ ...propertyDetails, registrationNumber: value });
+              setPropertyDetails({ ...propertyDetails, registrationNumber: e.target.value });
+              if (step3FieldErrors['registrationNumber']) {
+                clearStep3FieldError('registrationNumber');
               }
             }}
-            onBlur={(e) => {
-              // Round to 2 decimal places on blur
-              const value = e.target.value;
-              if (value && !isNaN(parseFloat(value))) {
-                const rounded = parseFloat(value).toFixed(2);
-                setPropertyDetails({ ...propertyDetails, registrationNumber: rounded });
-              }
-            }}
-            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-            placeholder="مثال: 123.45"
+            className={`w-full rounded-2xl border px-4 py-2 text-sm text-gray-800 focus:ring-2 ${
+              step3FieldErrors['registrationNumber']
+                ? 'border-red-500 focus:border-red-500 focus:ring-red-100'
+                : 'border-gray-200 focus:border-primary-500 focus:ring-primary-100'
+            }`}
           />
+          {step3FieldErrors['registrationNumber'] && (
+            <p className="mt-1 text-sm text-red-600">{step3FieldErrors['registrationNumber']}</p>
+          )}
         </div>
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-600">بخش</label>
@@ -3036,124 +3504,231 @@ export default function EditContractPage() {
               <option value="ایرانی و فرنگی">ایرانی و فرنگی</option>
             </select>
           </div>
-          <div className="flex flex-wrap items-center gap-4">
-            <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600">
-              <input
-                type="checkbox"
-                checked={propertyDetails.amenities.meetingHall}
-                onChange={(e) => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, meetingHall: e.target.checked } })}
-                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-              />
-              سالن اجتماعات
-            </label>
-            <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600">
-              <input
-                type="checkbox"
-                checked={propertyDetails.amenities.club}
-                onChange={(e) => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, club: e.target.checked } })}
-                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-              />
-              باشگاه
-            </label>
-            <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600">
-              <input
-                type="checkbox"
-                checked={propertyDetails.amenities.amphitheater}
-                onChange={(e) => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, amphitheater: e.target.checked } })}
-                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-              />
-              سالن آمفی تئاتر
-            </label>
-            <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600">
-              <input
-                type="checkbox"
-                checked={propertyDetails.amenities.security}
-                onChange={(e) => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, security: e.target.checked } })}
-                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-              />
-              نگهبانی
-            </label>
-            <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600">
-              <input
-                type="checkbox"
-                checked={propertyDetails.amenities.balcony}
-                onChange={(e) => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, balcony: e.target.checked } })}
-                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-              />
-              بالکن
-            </label>
-            <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600">
-              <input
-                type="checkbox"
-                checked={propertyDetails.amenities.hood}
-                onChange={(e) => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, hood: e.target.checked } })}
-                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-              />
-              هود
-            </label>
-            <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600">
-              <input
-                type="checkbox"
-                checked={propertyDetails.amenities.janitorial}
-                onChange={(e) => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, janitorial: e.target.checked } })}
-                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-              />
-              سرایداری
-            </label>
-            <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600">
-              <input
-                type="checkbox"
-                checked={propertyDetails.amenities.lobby}
-                onChange={(e) => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, lobby: e.target.checked } })}
-                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-              />
-              لابی
-            </label>
-            <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600">
-              <input
-                type="checkbox"
-                checked={propertyDetails.amenities.terrace}
-                onChange={(e) => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, terrace: e.target.checked } })}
-                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-              />
-              تراس
-            </label>
-            <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600">
-              <input
-                type="checkbox"
-                checked={propertyDetails.amenities.videoIntercom}
-                onChange={(e) => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, videoIntercom: e.target.checked } })}
-                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-              />
-              آیفون تصویری
-            </label>
-            <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600">
-              <input
-                type="checkbox"
-                checked={propertyDetails.amenities.remoteParkingGate}
-                onChange={(e) => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, remoteParkingGate: e.target.checked } })}
-                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-              />
-              درب ریموت دار پارکینگ
-            </label>
-            <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600">
-              <input
-                type="checkbox"
-                checked={propertyDetails.amenities.tableGas}
-                onChange={(e) => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, tableGas: e.target.checked } })}
-                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-              />
-              گاز رومیزی
-            </label>
-            <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600">
-              <input
-                type="checkbox"
-                checked={propertyDetails.amenities.centralAntenna}
-                onChange={(e) => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, centralAntenna: e.target.checked } })}
-                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-              />
-              آنتن مرکزی
-            </label>
+          <div className="md:col-span-2 w-full">
+            <label className="mb-3 block text-sm font-semibold text-gray-600">امکانات</label>
+            <div className="flex flex-wrap gap-3 w-full">
+              <button
+                type="button"
+                onClick={() => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, meetingHall: !propertyDetails.amenities.meetingHall } })}
+                className={`inline-flex items-center justify-center px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                  propertyDetails.amenities.meetingHall
+                    ? 'bg-primary-600 text-white shadow-lg shadow-primary-200 border-2 border-primary-600'
+                    : 'bg-gray-50 text-gray-700 border-2 border-gray-200 hover:border-primary-300 hover:bg-gray-100'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={propertyDetails.amenities.meetingHall}
+                  onChange={() => {}}
+                  className="hidden"
+                />
+                سالن اجتماعات
+              </button>
+              <button
+                type="button"
+                onClick={() => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, club: !propertyDetails.amenities.club } })}
+                className={`inline-flex items-center justify-center px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                  propertyDetails.amenities.club
+                    ? 'bg-primary-600 text-white shadow-lg shadow-primary-200 border-2 border-primary-600'
+                    : 'bg-gray-50 text-gray-700 border-2 border-gray-200 hover:border-primary-300 hover:bg-gray-100'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={propertyDetails.amenities.club}
+                  onChange={() => {}}
+                  className="hidden"
+                />
+                باشگاه
+              </button>
+              <button
+                type="button"
+                onClick={() => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, amphitheater: !propertyDetails.amenities.amphitheater } })}
+                className={`inline-flex items-center justify-center px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                  propertyDetails.amenities.amphitheater
+                    ? 'bg-primary-600 text-white shadow-lg shadow-primary-200 border-2 border-primary-600'
+                    : 'bg-gray-50 text-gray-700 border-2 border-gray-200 hover:border-primary-300 hover:bg-gray-100'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={propertyDetails.amenities.amphitheater}
+                  onChange={() => {}}
+                  className="hidden"
+                />
+                سالن آمفی تئاتر
+              </button>
+              <button
+                type="button"
+                onClick={() => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, security: !propertyDetails.amenities.security } })}
+                className={`inline-flex items-center justify-center px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                  propertyDetails.amenities.security
+                    ? 'bg-primary-600 text-white shadow-lg shadow-primary-200 border-2 border-primary-600'
+                    : 'bg-gray-50 text-gray-700 border-2 border-gray-200 hover:border-primary-300 hover:bg-gray-100'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={propertyDetails.amenities.security}
+                  onChange={() => {}}
+                  className="hidden"
+                />
+                نگهبانی
+              </button>
+              <button
+                type="button"
+                onClick={() => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, balcony: !propertyDetails.amenities.balcony } })}
+                className={`inline-flex items-center justify-center px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                  propertyDetails.amenities.balcony
+                    ? 'bg-primary-600 text-white shadow-lg shadow-primary-200 border-2 border-primary-600'
+                    : 'bg-gray-50 text-gray-700 border-2 border-gray-200 hover:border-primary-300 hover:bg-gray-100'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={propertyDetails.amenities.balcony}
+                  onChange={() => {}}
+                  className="hidden"
+                />
+                بالکن
+              </button>
+              <button
+                type="button"
+                onClick={() => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, hood: !propertyDetails.amenities.hood } })}
+                className={`inline-flex items-center justify-center px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                  propertyDetails.amenities.hood
+                    ? 'bg-primary-600 text-white shadow-lg shadow-primary-200 border-2 border-primary-600'
+                    : 'bg-gray-50 text-gray-700 border-2 border-gray-200 hover:border-primary-300 hover:bg-gray-100'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={propertyDetails.amenities.hood}
+                  onChange={() => {}}
+                  className="hidden"
+                />
+                هود
+              </button>
+              <button
+                type="button"
+                onClick={() => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, janitorial: !propertyDetails.amenities.janitorial } })}
+                className={`inline-flex items-center justify-center px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                  propertyDetails.amenities.janitorial
+                    ? 'bg-primary-600 text-white shadow-lg shadow-primary-200 border-2 border-primary-600'
+                    : 'bg-gray-50 text-gray-700 border-2 border-gray-200 hover:border-primary-300 hover:bg-gray-100'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={propertyDetails.amenities.janitorial}
+                  onChange={() => {}}
+                  className="hidden"
+                />
+                سرایداری
+              </button>
+              <button
+                type="button"
+                onClick={() => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, lobby: !propertyDetails.amenities.lobby } })}
+                className={`inline-flex items-center justify-center px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                  propertyDetails.amenities.lobby
+                    ? 'bg-primary-600 text-white shadow-lg shadow-primary-200 border-2 border-primary-600'
+                    : 'bg-gray-50 text-gray-700 border-2 border-gray-200 hover:border-primary-300 hover:bg-gray-100'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={propertyDetails.amenities.lobby}
+                  onChange={() => {}}
+                  className="hidden"
+                />
+                لابی
+              </button>
+              <button
+                type="button"
+                onClick={() => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, terrace: !propertyDetails.amenities.terrace } })}
+                className={`inline-flex items-center justify-center px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                  propertyDetails.amenities.terrace
+                    ? 'bg-primary-600 text-white shadow-lg shadow-primary-200 border-2 border-primary-600'
+                    : 'bg-gray-50 text-gray-700 border-2 border-gray-200 hover:border-primary-300 hover:bg-gray-100'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={propertyDetails.amenities.terrace}
+                  onChange={() => {}}
+                  className="hidden"
+                />
+                تراس
+              </button>
+              <button
+                type="button"
+                onClick={() => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, videoIntercom: !propertyDetails.amenities.videoIntercom } })}
+                className={`inline-flex items-center justify-center px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                  propertyDetails.amenities.videoIntercom
+                    ? 'bg-primary-600 text-white shadow-lg shadow-primary-200 border-2 border-primary-600'
+                    : 'bg-gray-50 text-gray-700 border-2 border-gray-200 hover:border-primary-300 hover:bg-gray-100'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={propertyDetails.amenities.videoIntercom}
+                  onChange={() => {}}
+                  className="hidden"
+                />
+                آیفون تصویری
+              </button>
+              <button
+                type="button"
+                onClick={() => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, remoteParkingGate: !propertyDetails.amenities.remoteParkingGate } })}
+                className={`inline-flex items-center justify-center px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                  propertyDetails.amenities.remoteParkingGate
+                    ? 'bg-primary-600 text-white shadow-lg shadow-primary-200 border-2 border-primary-600'
+                    : 'bg-gray-50 text-gray-700 border-2 border-gray-200 hover:border-primary-300 hover:bg-gray-100'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={propertyDetails.amenities.remoteParkingGate}
+                  onChange={() => {}}
+                  className="hidden"
+                />
+                درب ریموت دار پارکینگ
+              </button>
+              <button
+                type="button"
+                onClick={() => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, tableGas: !propertyDetails.amenities.tableGas } })}
+                className={`inline-flex items-center justify-center px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                  propertyDetails.amenities.tableGas
+                    ? 'bg-primary-600 text-white shadow-lg shadow-primary-200 border-2 border-primary-600'
+                    : 'bg-gray-50 text-gray-700 border-2 border-gray-200 hover:border-primary-300 hover:bg-gray-100'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={propertyDetails.amenities.tableGas}
+                  onChange={() => {}}
+                  className="hidden"
+                />
+                گاز رومیزی
+              </button>
+              <button
+                type="button"
+                onClick={() => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, centralAntenna: !propertyDetails.amenities.centralAntenna } })}
+                className={`inline-flex items-center justify-center px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 ${
+                  propertyDetails.amenities.centralAntenna
+                    ? 'bg-primary-600 text-white shadow-lg shadow-primary-200 border-2 border-primary-600'
+                    : 'bg-gray-50 text-gray-700 border-2 border-gray-200 hover:border-primary-300 hover:bg-gray-100'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={propertyDetails.amenities.centralAntenna}
+                  onChange={() => {}}
+                  className="hidden"
+                />
+                آنتن مرکزی
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -3169,36 +3744,100 @@ export default function EditContractPage() {
           <input
             type="number"
             value={terms.evictionNoticeDays}
-            onChange={(e) => setTerms({ ...terms, evictionNoticeDays: e.target.value })}
-            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            onChange={(e) => {
+              setTerms({ ...terms, evictionNoticeDays: e.target.value });
+              if (step4FieldErrors['evictionNoticeDays']) {
+                setStep4FieldErrors(prev => {
+                  const newErrors = { ...prev };
+                  delete newErrors['evictionNoticeDays'];
+                  return newErrors;
+                });
+              }
+            }}
+            className={`w-full rounded-2xl border px-4 py-2 text-sm text-gray-800 focus:ring-2 ${
+              step4FieldErrors['evictionNoticeDays']
+                ? 'border-red-500 focus:border-red-500 focus:ring-red-100'
+                : 'border-gray-200 focus:border-primary-500 focus:ring-primary-100'
+            }`}
           />
+          {step4FieldErrors['evictionNoticeDays'] && (
+            <p className="mt-1 text-sm text-red-600">{step4FieldErrors['evictionNoticeDays']}</p>
+          )}
         </div>
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-600">جریمه روزانه (ریال)</label>
           <input
             type="number"
             value={terms.dailyPenaltyAmount}
-            onChange={(e) => setTerms({ ...terms, dailyPenaltyAmount: e.target.value })}
-            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            onChange={(e) => {
+              setTerms({ ...terms, dailyPenaltyAmount: e.target.value });
+              if (step4FieldErrors['dailyPenaltyAmount']) {
+                setStep4FieldErrors(prev => {
+                  const newErrors = { ...prev };
+                  delete newErrors['dailyPenaltyAmount'];
+                  return newErrors;
+                });
+              }
+            }}
+            className={`w-full rounded-2xl border px-4 py-2 text-sm text-gray-800 focus:ring-2 ${
+              step4FieldErrors['dailyPenaltyAmount']
+                ? 'border-red-500 focus:border-red-500 focus:ring-red-100'
+                : 'border-gray-200 focus:border-primary-500 focus:ring-primary-100'
+            }`}
           />
+          {step4FieldErrors['dailyPenaltyAmount'] && (
+            <p className="mt-1 text-sm text-red-600">{step4FieldErrors['dailyPenaltyAmount']}</p>
+          )}
         </div>
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-600">جریمه تاخیر روزانه (ریال)</label>
           <input
             type="number"
             value={terms.dailyDelayPenalty}
-            onChange={(e) => setTerms({ ...terms, dailyDelayPenalty: e.target.value })}
-            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            onChange={(e) => {
+              setTerms({ ...terms, dailyDelayPenalty: e.target.value });
+              if (step4FieldErrors['dailyDelayPenalty']) {
+                setStep4FieldErrors(prev => {
+                  const newErrors = { ...prev };
+                  delete newErrors['dailyDelayPenalty'];
+                  return newErrors;
+                });
+              }
+            }}
+            className={`w-full rounded-2xl border px-4 py-2 text-sm text-gray-800 focus:ring-2 ${
+              step4FieldErrors['dailyDelayPenalty']
+                ? 'border-red-500 focus:border-red-500 focus:ring-red-100'
+                : 'border-gray-200 focus:border-primary-500 focus:ring-primary-100'
+            }`}
           />
+          {step4FieldErrors['dailyDelayPenalty'] && (
+            <p className="mt-1 text-sm text-red-600">{step4FieldErrors['dailyDelayPenalty']}</p>
+          )}
         </div>
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-600">جریمه تصرف روزانه (ریال)</label>
           <input
             type="number"
             value={terms.dailyOccupancyPenalty}
-            onChange={(e) => setTerms({ ...terms, dailyOccupancyPenalty: e.target.value })}
-            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            onChange={(e) => {
+              setTerms({ ...terms, dailyOccupancyPenalty: e.target.value });
+              if (step4FieldErrors['dailyOccupancyPenalty']) {
+                setStep4FieldErrors(prev => {
+                  const newErrors = { ...prev };
+                  delete newErrors['dailyOccupancyPenalty'];
+                  return newErrors;
+                });
+              }
+            }}
+            className={`w-full rounded-2xl border px-4 py-2 text-sm text-gray-800 focus:ring-2 ${
+              step4FieldErrors['dailyOccupancyPenalty']
+                ? 'border-red-500 focus:border-red-500 focus:ring-red-100'
+                : 'border-gray-200 focus:border-primary-500 focus:ring-primary-100'
+            }`}
           />
+          {step4FieldErrors['dailyOccupancyPenalty'] && (
+            <p className="mt-1 text-sm text-red-600">{step4FieldErrors['dailyOccupancyPenalty']}</p>
+          )}
         </div>
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-600">تاریخ تحویل</label>
@@ -3231,9 +3870,25 @@ export default function EditContractPage() {
           <input
             type="number"
             value={terms.occupantCount}
-            onChange={(e) => setTerms({ ...terms, occupantCount: e.target.value })}
-            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            onChange={(e) => {
+              setTerms({ ...terms, occupantCount: e.target.value });
+              if (step4FieldErrors['occupantCount']) {
+                setStep4FieldErrors(prev => {
+                  const newErrors = { ...prev };
+                  delete newErrors['occupantCount'];
+                  return newErrors;
+                });
+              }
+            }}
+            className={`w-full rounded-2xl border px-4 py-2 text-sm text-gray-800 focus:ring-2 ${
+              step4FieldErrors['occupantCount']
+                ? 'border-red-500 focus:border-red-500 focus:ring-red-100'
+                : 'border-gray-200 focus:border-primary-500 focus:ring-primary-100'
+            }`}
           />
+          {step4FieldErrors['occupantCount'] && (
+            <p className="mt-1 text-sm text-red-600">{step4FieldErrors['occupantCount']}</p>
+          )}
         </div>
         <div className="md:col-span-2">
           <label className="mb-1 block text-sm font-semibold text-gray-600">شرایط خاص</label>
