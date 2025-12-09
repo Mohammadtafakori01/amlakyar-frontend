@@ -226,6 +226,7 @@ export default function CreateContractPage() {
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
   // Validation errors state - stores field-level errors
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [step3FieldErrors, setStep3FieldErrors] = useState<Record<string, string>>({});
 
   // Step 1: Contract Type
   const [contractType, setContractType] = useState<ContractType>(ContractType.RENTAL);
@@ -279,21 +280,33 @@ export default function CreateContractPage() {
       gas: '',
     },
     heatingStatus: '',
+    heatingStatusCustom: false,
     coolerType: '',
+    coolerTypeCustom: false,
     phoneNumber: '',
     phoneStatus: '',
     ownershipDocumentPage: '',
     ownershipDocumentBook: '',
+    uniqueDocumentId: '',
     propertyShareType: '',
     amenities: {
       flooring: '',
+      flooringCustom: false,
       bathroom: '',
-      water: '',
+      bathroomCustom: false,
       meetingHall: false,
       club: false,
-      waterCommons: false,
-      hotWaterSystem: '',
-      ventilationSystem: '',
+      amphitheater: false,
+      security: false,
+      balcony: false,
+      hood: false,
+      janitorial: false,
+      lobby: false,
+      terrace: false,
+      videoIntercom: false,
+      remoteParkingGate: false,
+      tableGas: false,
+      centralAntenna: false,
     },
   });
 
@@ -602,6 +615,112 @@ export default function CreateContractPage() {
     setFieldErrors(prev => ({ ...prev, [field]: error }));
   };
 
+  // Helper function to parse step 3 validation errors from backend
+  const parseStep3ValidationErrors = (errorPayload: any): Record<string, string> => {
+    const errors: Record<string, string> = {};
+    
+    if (!errorPayload) return errors;
+    
+    // Check if it's a 400 error with validation messages
+    if (errorPayload.statusCode === 400 && errorPayload.message) {
+      const messages = Array.isArray(errorPayload.message) ? errorPayload.message : [errorPayload.message];
+      
+      // Map backend field names to frontend field names
+      const fieldMapping: Record<string, string> = {
+        'propertyType': 'propertyType',
+        'usageType': 'usageType',
+        'address': 'address',
+        'postalCode': 'postalCode',
+        'registrationNumber': 'registrationNumber',
+        'section': 'section',
+        'area': 'area',
+        'areaUnit': 'areaUnit',
+        'ownershipDocumentType': 'ownershipDocumentType',
+        'ownershipDocumentSerial': 'ownershipDocumentSerial',
+        'ownershipDocumentOwner': 'ownershipDocumentOwner',
+        'storageCount': 'storageCount',
+        'storageNumbers': 'storageNumbers',
+        'parkingCount': 'parkingCount',
+        'parkingNumbers': 'parkingNumbers',
+        'bedroomCount': 'bedroomCount',
+        'utilityType': 'utilityType',
+        'heatingStatus': 'heatingStatus',
+        'coolerType': 'coolerType',
+        'phoneNumber': 'phoneNumber',
+        'phoneStatus': 'phoneStatus',
+        'ownershipDocumentPage': 'ownershipDocumentPage',
+        'ownershipDocumentBook': 'ownershipDocumentBook',
+        'uniqueDocumentId': 'uniqueDocumentId',
+        'propertyShareType': 'propertyShareType',
+        'amenities': 'amenities',
+        'amenities.flooring': 'amenities.flooring',
+        'amenities.bathroom': 'amenities.bathroom',
+        'amenities.meetingHall': 'amenities.meetingHall',
+        'amenities.club': 'amenities.club',
+        'amenities.amphitheater': 'amenities.amphitheater',
+        'amenities.security': 'amenities.security',
+        'amenities.balcony': 'amenities.balcony',
+        'amenities.hood': 'amenities.hood',
+        'amenities.janitorial': 'amenities.janitorial',
+        'amenities.lobby': 'amenities.lobby',
+        'amenities.terrace': 'amenities.terrace',
+        'amenities.videoIntercom': 'amenities.videoIntercom',
+        'amenities.remoteParkingGate': 'amenities.remoteParkingGate',
+        'amenities.tableGas': 'amenities.tableGas',
+        'amenities.centralAntenna': 'amenities.centralAntenna',
+      };
+      
+      // Parse each error message
+      messages.forEach((msg: string) => {
+        // Try to extract field name from error message
+        // Format: "fieldName must be..." or "fieldName must not be..."
+        for (const [backendField, frontendField] of Object.entries(fieldMapping)) {
+          if (msg.includes(backendField)) {
+            // Get the first error for this field
+            if (!errors[frontendField]) {
+              // Translate common error messages to Persian
+              let translatedMsg = msg;
+              if (msg.includes('must not be empty')) {
+                translatedMsg = 'این فیلد الزامی است';
+              } else if (msg.includes('must be a string')) {
+                translatedMsg = 'این فیلد باید متن باشد';
+              } else if (msg.includes('must be a number')) {
+                translatedMsg = 'این فیلد باید عدد باشد';
+              } else if (msg.includes('must not be less than')) {
+                translatedMsg = 'مقدار باید بزرگتر از صفر باشد';
+              } else if (msg.includes('must be longer than or equal to')) {
+                translatedMsg = 'تعداد کاراکترها کافی نیست';
+              } else if (msg.includes('must be shorter than or equal to')) {
+                translatedMsg = 'تعداد کاراکترها بیش از حد است';
+              } else if (msg.includes('must be a valid ISO 8601 date string')) {
+                translatedMsg = 'تاریخ نامعتبر است';
+              } else if (msg.includes('must be an array')) {
+                translatedMsg = 'این فیلد باید آرایه باشد';
+              } else if (msg.includes('must be an object')) {
+                translatedMsg = 'این فیلد باید آبجکت باشد';
+              } else if (msg.includes('must be a boolean value')) {
+                translatedMsg = 'این فیلد باید boolean باشد';
+              }
+              errors[frontendField] = translatedMsg;
+            }
+            break;
+          }
+        }
+      });
+    }
+    
+    return errors;
+  };
+
+  // Helper function to clear step 3 field errors
+  const clearStep3FieldError = useCallback((field: string) => {
+    setStep3FieldErrors(prev => {
+      const newErrors = { ...prev };
+      delete newErrors[field];
+      return newErrors;
+    });
+  }, []);
+
 
   // Helper function to clear all errors
   const clearAllErrors = useCallback(() => {
@@ -904,24 +1023,52 @@ export default function CreateContractPage() {
         utilityType: (propertyDetails.utilityType?.electricity || propertyDetails.utilityType?.water || propertyDetails.utilityType?.gas) ? propertyDetails.utilityType : undefined,
         heatingStatus: propertyDetails.heatingStatus?.trim() || undefined,
         coolerType: propertyDetails.coolerType?.trim() || undefined,
-        phoneNumber: propertyDetails.phoneNumber ? convertToLatinNumbers(propertyDetails.phoneNumber.trim()) || undefined : undefined,
+        phoneNumber: propertyDetails.phoneStatus === 'دایر' && propertyDetails.phoneNumber ? convertToLatinNumbers(propertyDetails.phoneNumber.trim()) || undefined : undefined,
         phoneStatus: propertyDetails.phoneStatus?.trim() || undefined,
-        ownershipDocumentPage: propertyDetails.ownershipDocumentPage ? convertToLatinNumbers(propertyDetails.ownershipDocumentPage.trim()) || undefined : undefined,
-        ownershipDocumentBook: propertyDetails.ownershipDocumentBook ? convertToLatinNumbers(propertyDetails.ownershipDocumentBook.trim()) || undefined : undefined,
+        ownershipDocumentPage: propertyDetails.ownershipDocumentType === 'دفترچه ای' && propertyDetails.ownershipDocumentPage ? convertToLatinNumbers(propertyDetails.ownershipDocumentPage.trim()) || undefined : undefined,
+        ownershipDocumentBook: propertyDetails.ownershipDocumentType === 'دفترچه ای' && propertyDetails.ownershipDocumentBook ? convertToLatinNumbers(propertyDetails.ownershipDocumentBook.trim()) || undefined : undefined,
+        uniqueDocumentId: propertyDetails.ownershipDocumentType === 'تک برگ' && propertyDetails.uniqueDocumentId ? convertToLatinNumbers(propertyDetails.uniqueDocumentId.trim()) || undefined : undefined,
         propertyShareType: propertyDetails.propertyShareType?.trim() || undefined,
-        amenities: propertyDetails.amenities || undefined,
+        amenities: propertyDetails.amenities ? {
+          flooring: propertyDetails.amenities.flooring || undefined,
+          bathroom: propertyDetails.amenities.bathroom || undefined,
+          meetingHall: propertyDetails.amenities.meetingHall || undefined,
+          club: propertyDetails.amenities.club || undefined,
+          amphitheater: propertyDetails.amenities.amphitheater || undefined,
+          security: propertyDetails.amenities.security || undefined,
+          balcony: propertyDetails.amenities.balcony || undefined,
+          hood: propertyDetails.amenities.hood || undefined,
+          janitorial: propertyDetails.amenities.janitorial || undefined,
+          lobby: propertyDetails.amenities.lobby || undefined,
+          terrace: propertyDetails.amenities.terrace || undefined,
+          videoIntercom: propertyDetails.amenities.videoIntercom || undefined,
+          remoteParkingGate: propertyDetails.amenities.remoteParkingGate || undefined,
+          tableGas: propertyDetails.amenities.tableGas || undefined,
+          centralAntenna: propertyDetails.amenities.centralAntenna || undefined,
+        } : undefined,
       };
       const result = await updateProperty(currentContractId, propertyData);
       
       // Check if the action was rejected
       if (result && 'type' in result && result.type.endsWith('/rejected')) {
         const errorPayload = (result as any).payload;
-        const errorMessage = getErrorMessage(errorPayload || {}, 'خطا در ثبت جزئیات ملک');
-        console.error('Step 3 submission rejected:', errorMessage);
-        setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+        console.error('Step 3 submission rejected:', errorPayload);
+        
+        // Parse validation errors
+        const validationErrors = parseStep3ValidationErrors(errorPayload);
+        if (Object.keys(validationErrors).length > 0) {
+          setStep3FieldErrors(validationErrors);
+          setSnackbar({ open: true, message: 'لطفا خطاهای فرم را برطرف کنید', severity: 'error' });
+        } else {
+          const errorMessage = getErrorMessage(errorPayload || {}, 'خطا در ثبت جزئیات ملک');
+          setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+        }
         // Don't proceed to next step on error
         return;
       }
+      
+      // Clear errors on success
+      setStep3FieldErrors({});
       
       // The response is a property object, not a contract object
       // Extract the contract ID from the response (it has contractId or contract.id)
@@ -2147,8 +2294,15 @@ export default function CreateContractPage() {
               } else {
                 setPropertyDetails({ ...propertyDetails, propertyTypeCustom: false, propertyType: e.target.value });
               }
+              if (step3FieldErrors['propertyType']) {
+                clearStep3FieldError('propertyType');
+              }
             }}
-            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            className={`w-full rounded-2xl border px-4 py-2 text-sm text-gray-800 focus:ring-2 ${
+              step3FieldErrors['propertyType']
+                ? 'border-red-500 focus:border-red-500 focus:ring-red-100'
+                : 'border-gray-200 focus:border-primary-500 focus:ring-primary-100'
+            }`}
           >
             <option value="">انتخاب کنید</option>
             <option value="آپارتمان">آپارتمان</option>
@@ -2165,10 +2319,22 @@ export default function CreateContractPage() {
             <input
               type="text"
               value={propertyDetails.propertyType}
-              onChange={(e) => setPropertyDetails({ ...propertyDetails, propertyType: e.target.value })}
-              className="mt-2 w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+              onChange={(e) => {
+                setPropertyDetails({ ...propertyDetails, propertyType: e.target.value });
+                if (step3FieldErrors['propertyType']) {
+                  clearStep3FieldError('propertyType');
+                }
+              }}
+              className={`mt-2 w-full rounded-2xl border px-4 py-2 text-sm text-gray-800 focus:ring-2 ${
+                step3FieldErrors['propertyType']
+                  ? 'border-red-500 focus:border-red-500 focus:ring-red-100'
+                  : 'border-gray-200 focus:border-primary-500 focus:ring-primary-100'
+              }`}
               placeholder="نوع ملک را وارد کنید"
             />
+          )}
+          {step3FieldErrors['propertyType'] && (
+            <p className="mt-1 text-sm text-red-600">{step3FieldErrors['propertyType']}</p>
           )}
         </div>
         <div>
@@ -2181,8 +2347,15 @@ export default function CreateContractPage() {
               } else {
                 setPropertyDetails({ ...propertyDetails, usageTypeCustom: false, usageType: e.target.value });
               }
+              if (step3FieldErrors['usageType']) {
+                clearStep3FieldError('usageType');
+              }
             }}
-            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            className={`w-full rounded-2xl border px-4 py-2 text-sm text-gray-800 focus:ring-2 ${
+              step3FieldErrors['usageType']
+                ? 'border-red-500 focus:border-red-500 focus:ring-red-100'
+                : 'border-gray-200 focus:border-primary-500 focus:ring-primary-100'
+            }`}
           >
             <option value="">انتخاب کنید</option>
             <option value="مسکونی">مسکونی</option>
@@ -2198,10 +2371,22 @@ export default function CreateContractPage() {
             <input
               type="text"
               value={propertyDetails.usageType}
-              onChange={(e) => setPropertyDetails({ ...propertyDetails, usageType: e.target.value })}
-              className="mt-2 w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+              onChange={(e) => {
+                setPropertyDetails({ ...propertyDetails, usageType: e.target.value });
+                if (step3FieldErrors['usageType']) {
+                  clearStep3FieldError('usageType');
+                }
+              }}
+              className={`mt-2 w-full rounded-2xl border px-4 py-2 text-sm text-gray-800 focus:ring-2 ${
+                step3FieldErrors['usageType']
+                  ? 'border-red-500 focus:border-red-500 focus:ring-red-100'
+                  : 'border-gray-200 focus:border-primary-500 focus:ring-primary-100'
+              }`}
               placeholder="نوع کاربری را وارد کنید"
             />
+          )}
+          {step3FieldErrors['usageType'] && (
+            <p className="mt-1 text-sm text-red-600">{step3FieldErrors['usageType']}</p>
           )}
         </div>
         <div className="md:col-span-2">
@@ -2209,18 +2394,42 @@ export default function CreateContractPage() {
           <input
             type="text"
             value={propertyDetails.address}
-            onChange={(e) => setPropertyDetails({ ...propertyDetails, address: e.target.value })}
-            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            onChange={(e) => {
+              setPropertyDetails({ ...propertyDetails, address: e.target.value });
+              if (step3FieldErrors['address']) {
+                clearStep3FieldError('address');
+              }
+            }}
+            className={`w-full rounded-2xl border px-4 py-2 text-sm text-gray-800 focus:ring-2 ${
+              step3FieldErrors['address']
+                ? 'border-red-500 focus:border-red-500 focus:ring-red-100'
+                : 'border-gray-200 focus:border-primary-500 focus:ring-primary-100'
+            }`}
           />
+          {step3FieldErrors['address'] && (
+            <p className="mt-1 text-sm text-red-600">{step3FieldErrors['address']}</p>
+          )}
         </div>
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-600">کد پستی</label>
           <input
             type="text"
             value={propertyDetails.postalCode}
-            onChange={(e) => setPropertyDetails({ ...propertyDetails, postalCode: e.target.value })}
-            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+            onChange={(e) => {
+              setPropertyDetails({ ...propertyDetails, postalCode: e.target.value });
+              if (step3FieldErrors['postalCode']) {
+                clearStep3FieldError('postalCode');
+              }
+            }}
+            className={`w-full rounded-2xl border px-4 py-2 text-sm text-gray-800 focus:ring-2 ${
+              step3FieldErrors['postalCode']
+                ? 'border-red-500 focus:border-red-500 focus:ring-red-100'
+                : 'border-gray-200 focus:border-primary-500 focus:ring-primary-100'
+            }`}
           />
+          {step3FieldErrors['postalCode'] && (
+            <p className="mt-1 text-sm text-red-600">{step3FieldErrors['postalCode']}</p>
+          )}
         </div>
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-600">مساحت</label>
@@ -2235,6 +2444,9 @@ export default function CreateContractPage() {
                 if (value === '' || /^\d*\.?\d{0,2}$/.test(value)) {
                   setPropertyDetails({ ...propertyDetails, area: value });
                 }
+                if (step3FieldErrors['area']) {
+                  clearStep3FieldError('area');
+                }
               }}
               onBlur={(e) => {
                 // Round to 2 decimal places on blur
@@ -2244,7 +2456,11 @@ export default function CreateContractPage() {
                   setPropertyDetails({ ...propertyDetails, area: rounded });
                 }
               }}
-              className="flex-1 rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+              className={`flex-1 rounded-2xl border px-4 py-2 text-sm text-gray-800 focus:ring-2 ${
+                step3FieldErrors['area']
+                  ? 'border-red-500 focus:border-red-500 focus:ring-red-100'
+                  : 'border-gray-200 focus:border-primary-500 focus:ring-primary-100'
+              }`}
               placeholder="مثال: 120.50"
             />
             <input
@@ -2369,22 +2585,43 @@ export default function CreateContractPage() {
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-600">وضعیت سیستم آب گرم</label>
           <select
-            value={propertyDetails.heatingStatus || ''}
-            onChange={(e) => setPropertyDetails({ ...propertyDetails, heatingStatus: e.target.value })}
+            value={propertyDetails.heatingStatusCustom ? 'CUSTOM' : propertyDetails.heatingStatus}
+            onChange={(e) => {
+              if (e.target.value === 'CUSTOM') {
+                setPropertyDetails({ ...propertyDetails, heatingStatusCustom: true, heatingStatus: '' });
+              } else {
+                setPropertyDetails({ ...propertyDetails, heatingStatusCustom: false, heatingStatus: e.target.value });
+              }
+            }}
             className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
           >
             <option value="">انتخاب کنید</option>
             <option value="پکیج">پکیج</option>
             <option value="موتورخانه مرکزی">موتورخانه مرکزی</option>
             <option value="آبگرمکن">آبگرمکن</option>
-            <option value="دستی">دستی</option>
+            <option value="CUSTOM">سایر (دستی)</option>
           </select>
+          {propertyDetails.heatingStatusCustom && (
+            <input
+              type="text"
+              value={propertyDetails.heatingStatus}
+              onChange={(e) => setPropertyDetails({ ...propertyDetails, heatingStatus: e.target.value })}
+              className="mt-2 w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+              placeholder="وضعیت سیستم آب گرم را وارد کنید"
+            />
+          )}
         </div>
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-600">سیستم تهویه</label>
           <select
-            value={propertyDetails.coolerType || ''}
-            onChange={(e) => setPropertyDetails({ ...propertyDetails, coolerType: e.target.value })}
+            value={propertyDetails.coolerTypeCustom ? 'CUSTOM' : propertyDetails.coolerType}
+            onChange={(e) => {
+              if (e.target.value === 'CUSTOM') {
+                setPropertyDetails({ ...propertyDetails, coolerTypeCustom: true, coolerType: '' });
+              } else {
+                setPropertyDetails({ ...propertyDetails, coolerTypeCustom: false, coolerType: e.target.value });
+              }
+            }}
             className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
           >
             <option value="">انتخاب کنید</option>
@@ -2392,23 +2629,31 @@ export default function CreateContractPage() {
             <option value="داک اسپلیت">داک اسپلیت</option>
             <option value="سیستم مرکزی ( چیلر )">سیستم مرکزی ( چیلر )</option>
             <option value="رادیاتور ( کولر آبی‌ )">رادیاتور ( کولر آبی‌ )</option>
+            <option value="CUSTOM">سایر (دستی)</option>
           </select>
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-semibold text-gray-600">شماره تلفن</label>
-          <input
-            type="text"
-            value={propertyDetails.phoneNumber || ''}
-            onChange={(e) => setPropertyDetails({ ...propertyDetails, phoneNumber: e.target.value })}
-            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-            placeholder="02112345678"
-          />
+          {propertyDetails.coolerTypeCustom && (
+            <input
+              type="text"
+              value={propertyDetails.coolerType}
+              onChange={(e) => setPropertyDetails({ ...propertyDetails, coolerType: e.target.value })}
+              className="mt-2 w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+              placeholder="سیستم تهویه را وارد کنید"
+            />
+          )}
         </div>
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-600">وضعیت تلفن</label>
           <select
             value={propertyDetails.phoneStatus || ''}
-            onChange={(e) => setPropertyDetails({ ...propertyDetails, phoneStatus: e.target.value })}
+            onChange={(e) => {
+              const newStatus = e.target.value;
+              setPropertyDetails({ 
+                ...propertyDetails, 
+                phoneStatus: newStatus,
+                // اگر وضعیت "دایر" نیست، شماره تلفن را پاک کن
+                phoneNumber: newStatus === 'دایر' ? propertyDetails.phoneNumber : ''
+              });
+            }}
             className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
           >
             <option value="">انتخاب کنید</option>
@@ -2416,24 +2661,52 @@ export default function CreateContractPage() {
             <option value="غیر دایر">غیر دایر</option>
           </select>
         </div>
-        <div>
-          <label className="mb-1 block text-sm font-semibold text-gray-600">صفحه سند</label>
-          <input
-            type="text"
-            value={propertyDetails.ownershipDocumentPage || ''}
-            onChange={(e) => setPropertyDetails({ ...propertyDetails, ownershipDocumentPage: e.target.value })}
-            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-semibold text-gray-600">دفتر سند</label>
-          <input
-            type="text"
-            value={propertyDetails.ownershipDocumentBook || ''}
-            onChange={(e) => setPropertyDetails({ ...propertyDetails, ownershipDocumentBook: e.target.value })}
-            className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-          />
-        </div>
+        {propertyDetails.phoneStatus === 'دایر' && (
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-gray-600">شماره تلفن</label>
+            <input
+              type="text"
+              value={propertyDetails.phoneNumber || ''}
+              onChange={(e) => setPropertyDetails({ ...propertyDetails, phoneNumber: e.target.value })}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+              placeholder="02112345678"
+            />
+          </div>
+        )}
+        {propertyDetails.ownershipDocumentType === 'دفترچه ای' && (
+          <>
+            <div>
+              <label className="mb-1 block text-sm font-semibold text-gray-600">صفحه سند</label>
+              <input
+                type="text"
+                value={propertyDetails.ownershipDocumentPage || ''}
+                onChange={(e) => setPropertyDetails({ ...propertyDetails, ownershipDocumentPage: e.target.value })}
+                className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-semibold text-gray-600">دفتر سند</label>
+              <input
+                type="text"
+                value={propertyDetails.ownershipDocumentBook || ''}
+                onChange={(e) => setPropertyDetails({ ...propertyDetails, ownershipDocumentBook: e.target.value })}
+                className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+              />
+            </div>
+          </>
+        )}
+        {propertyDetails.ownershipDocumentType === 'تک برگ' && (
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-gray-600">شناسه یکتای سند</label>
+            <input
+              type="text"
+              value={propertyDetails.uniqueDocumentId || ''}
+              onChange={(e) => setPropertyDetails({ ...propertyDetails, uniqueDocumentId: e.target.value })}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+              placeholder="شناسه یکتای سند را وارد کنید"
+            />
+          </div>
+        )}
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-600">نوع سهم</label>
           <select
@@ -2515,50 +2788,48 @@ export default function CreateContractPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="mb-1 block text-sm font-semibold text-gray-600">کفپوش</label>
-            <input
-              type="text"
-              value={propertyDetails.amenities.flooring}
-              onChange={(e) => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, flooring: e.target.value } })}
+            <select
+              value={propertyDetails.amenities.flooringCustom ? 'CUSTOM' : propertyDetails.amenities.flooring}
+              onChange={(e) => {
+                if (e.target.value === 'CUSTOM') {
+                  setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, flooringCustom: true, flooring: '' } });
+                } else {
+                  setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, flooringCustom: false, flooring: e.target.value } });
+                }
+              }}
               className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-            />
+            >
+              <option value="">انتخاب کنید</option>
+              <option value="سرامیک">سرامیک</option>
+              <option value="سنگ">سنگ</option>
+              <option value="لمینت یا پارکت">لمینت یا پارکت</option>
+              <option value="موکت">موکت</option>
+              <option value="CUSTOM">سایر</option>
+            </select>
+            {propertyDetails.amenities.flooringCustom && (
+              <input
+                type="text"
+                value={propertyDetails.amenities.flooring}
+                onChange={(e) => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, flooring: e.target.value } })}
+                className="mt-2 w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                placeholder="کفپوش را وارد کنید"
+              />
+            )}
           </div>
           <div>
             <label className="mb-1 block text-sm font-semibold text-gray-600">سرویس بهداشتی</label>
-            <input
-              type="text"
+            <select
               value={propertyDetails.amenities.bathroom}
               onChange={(e) => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, bathroom: e.target.value } })}
               className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-            />
+            >
+              <option value="">انتخاب کنید</option>
+              <option value="فرنگی">فرنگی</option>
+              <option value="ایرانی">ایرانی</option>
+              <option value="ایرانی و فرنگی">ایرانی و فرنگی</option>
+            </select>
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-semibold text-gray-600">آب</label>
-            <input
-              type="text"
-              value={propertyDetails.amenities.water}
-              onChange={(e) => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, water: e.target.value } })}
-              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-semibold text-gray-600">سیستم آب گرم</label>
-            <input
-              type="text"
-              value={propertyDetails.amenities.hotWaterSystem}
-              onChange={(e) => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, hotWaterSystem: e.target.value } })}
-              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-semibold text-gray-600">سیستم تهویه</label>
-            <input
-              type="text"
-              value={propertyDetails.amenities.ventilationSystem}
-              onChange={(e) => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, ventilationSystem: e.target.value } })}
-              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-            />
-          </div>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-4">
             <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600">
               <input
                 type="checkbox"
@@ -2580,11 +2851,101 @@ export default function CreateContractPage() {
             <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600">
               <input
                 type="checkbox"
-                checked={propertyDetails.amenities.waterCommons}
-                onChange={(e) => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, waterCommons: e.target.checked } })}
+                checked={propertyDetails.amenities.amphitheater}
+                onChange={(e) => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, amphitheater: e.target.checked } })}
                 className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
               />
-              آب مشترک
+              سالن آمفی تئاتر
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600">
+              <input
+                type="checkbox"
+                checked={propertyDetails.amenities.security}
+                onChange={(e) => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, security: e.target.checked } })}
+                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              نگهبانی
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600">
+              <input
+                type="checkbox"
+                checked={propertyDetails.amenities.balcony}
+                onChange={(e) => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, balcony: e.target.checked } })}
+                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              بالکن
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600">
+              <input
+                type="checkbox"
+                checked={propertyDetails.amenities.hood}
+                onChange={(e) => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, hood: e.target.checked } })}
+                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              هود
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600">
+              <input
+                type="checkbox"
+                checked={propertyDetails.amenities.janitorial}
+                onChange={(e) => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, janitorial: e.target.checked } })}
+                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              سرایداری
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600">
+              <input
+                type="checkbox"
+                checked={propertyDetails.amenities.lobby}
+                onChange={(e) => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, lobby: e.target.checked } })}
+                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              لابی
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600">
+              <input
+                type="checkbox"
+                checked={propertyDetails.amenities.terrace}
+                onChange={(e) => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, terrace: e.target.checked } })}
+                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              تراس
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600">
+              <input
+                type="checkbox"
+                checked={propertyDetails.amenities.videoIntercom}
+                onChange={(e) => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, videoIntercom: e.target.checked } })}
+                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              آیفون تصویری
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600">
+              <input
+                type="checkbox"
+                checked={propertyDetails.amenities.remoteParkingGate}
+                onChange={(e) => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, remoteParkingGate: e.target.checked } })}
+                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              درب ریموت دار پارکینگ
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600">
+              <input
+                type="checkbox"
+                checked={propertyDetails.amenities.tableGas}
+                onChange={(e) => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, tableGas: e.target.checked } })}
+                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              گاز رومیزی
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600">
+              <input
+                type="checkbox"
+                checked={propertyDetails.amenities.centralAntenna}
+                onChange={(e) => setPropertyDetails({ ...propertyDetails, amenities: { ...propertyDetails.amenities, centralAntenna: e.target.checked } })}
+                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              آنتن مرکزی
             </label>
           </div>
         </div>

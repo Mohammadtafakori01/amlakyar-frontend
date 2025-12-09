@@ -116,12 +116,19 @@ export interface ContractParty {
 export interface PropertyAmenities {
   flooring?: string;
   bathroom?: string;
-  water?: string;
   meetingHall?: boolean;
   club?: boolean;
-  waterCommons?: boolean;
-  hotWaterSystem?: string;
-  ventilationSystem?: string;
+  amphitheater?: boolean;
+  security?: boolean;
+  balcony?: boolean;
+  hood?: boolean;
+  janitorial?: boolean;
+  lobby?: boolean;
+  terrace?: boolean;
+  videoIntercom?: boolean;
+  remoteParkingGate?: boolean;
+  tableGas?: boolean;
+  centralAntenna?: boolean;
 }
 
 export interface PropertyUtilityType {
@@ -159,6 +166,7 @@ export interface PropertyDetails {
   phoneStatus?: string;                    // وضعیت تلفن (دایر/غیر دایر)
   ownershipDocumentPage?: string;           // صفحه سند
   ownershipDocumentBook?: string;           // دفتر سند
+  uniqueDocumentId?: string;                // شناسه یکتای سند (برای تک برگ)
   propertyShareType?: string;               // نوع سهم (دانگ/دستگاه/یک باب)
 }
 
