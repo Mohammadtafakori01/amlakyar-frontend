@@ -603,7 +603,7 @@ export default function EditContractPage() {
           phoneStatus: pd.phoneStatus || '',
           ownershipDocumentPage: pd.ownershipDocumentPage || '',
           ownershipDocumentBook: pd.ownershipDocumentBook || '',
-          uniqueDocumentId: pd.uniqueDocumentId || '',
+          uniqueDocumentId: pd.uniqueDocumentId !== undefined && pd.uniqueDocumentId !== null ? String(pd.uniqueDocumentId) : '',
           propertyShareType: pd.propertyShareType || '',
           amenities: {
             flooring: pd.amenities?.flooring || '',
@@ -3370,12 +3370,13 @@ export default function EditContractPage() {
             </div>
           </>
         )}
+        
         {propertyDetails.ownershipDocumentType === 'تک برگ' && (
           <div>
             <label className="mb-1 block text-sm font-semibold text-gray-600">شناسه یکتای سند</label>
             <input
               type="text"
-              value={propertyDetails.uniqueDocumentId || ''}
+              value={propertyDetails.uniqueDocumentId ?? ''}
               onChange={(e) => setPropertyDetails({ ...propertyDetails, uniqueDocumentId: e.target.value })}
               className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
               placeholder="شناسه یکتای سند را وارد کنید"
