@@ -1849,9 +1849,19 @@ export default function EditContractPage() {
     try {
       // Build the current update data
       const currentUpdateData: UpdateContractRequest = {
-        contractDate: draftData.contractDate || undefined,
-        startDate: contractType === ContractType.RENTAL ? (draftData.startDate || undefined) : undefined,
-        endDate: contractType === ContractType.RENTAL ? (draftData.endDate || undefined) : undefined,
+        contractDate: draftData.contractDate 
+          ? (draftData.contractDate.includes('/') ? formatToGregorianDate(draftData.contractDate) : draftData.contractDate)
+          : undefined,
+        startDate: contractType === ContractType.RENTAL 
+          ? (draftData.startDate 
+              ? (draftData.startDate.includes('/') ? formatToGregorianDate(draftData.startDate) : draftData.startDate)
+              : undefined)
+          : undefined,
+        endDate: contractType === ContractType.RENTAL 
+          ? (draftData.endDate 
+              ? (draftData.endDate.includes('/') ? formatToGregorianDate(draftData.endDate) : draftData.endDate)
+              : undefined)
+          : undefined,
         rentalAmount: contractType === ContractType.RENTAL ? (draftData.rentalAmount ? parseLatinNumber(draftData.rentalAmount) : undefined) : undefined,
         purchaseAmount: contractType === ContractType.PURCHASE ? (draftData.purchaseAmount ? parseLatinNumber(draftData.purchaseAmount) : undefined) : undefined,
         depositAmount: draftData.depositAmount ? parseLatinNumber(draftData.depositAmount) : undefined,
@@ -1868,10 +1878,21 @@ export default function EditContractPage() {
       };
 
       // Build original data for comparison
+      // Note: originalDraftData should already be in Gregorian format from backend, but convert if needed
       const originalUpdateData: UpdateContractRequest = {
-        contractDate: originalDraftData.contractDate || undefined,
-        startDate: contractType === ContractType.RENTAL ? (originalDraftData.startDate || undefined) : undefined,
-        endDate: contractType === ContractType.RENTAL ? (originalDraftData.endDate || undefined) : undefined,
+        contractDate: originalDraftData.contractDate 
+          ? (originalDraftData.contractDate.includes('/') ? formatToGregorianDate(originalDraftData.contractDate) : originalDraftData.contractDate)
+          : undefined,
+        startDate: contractType === ContractType.RENTAL 
+          ? (originalDraftData.startDate 
+              ? (originalDraftData.startDate.includes('/') ? formatToGregorianDate(originalDraftData.startDate) : originalDraftData.startDate)
+              : undefined)
+          : undefined,
+        endDate: contractType === ContractType.RENTAL 
+          ? (originalDraftData.endDate 
+              ? (originalDraftData.endDate.includes('/') ? formatToGregorianDate(originalDraftData.endDate) : originalDraftData.endDate)
+              : undefined)
+          : undefined,
         rentalAmount: contractType === ContractType.RENTAL ? (originalDraftData.rentalAmount ? parseLatinNumber(originalDraftData.rentalAmount) : undefined) : undefined,
         purchaseAmount: contractType === ContractType.PURCHASE ? (originalDraftData.purchaseAmount ? parseLatinNumber(originalDraftData.purchaseAmount) : undefined) : undefined,
         depositAmount: originalDraftData.depositAmount ? parseLatinNumber(originalDraftData.depositAmount) : undefined,
@@ -1936,9 +1957,19 @@ export default function EditContractPage() {
       // IMPORTANT: Save financial and administrative data before finalizing
       // The finalizeContract endpoint doesn't accept financial data, so we need to save it first
       const currentUpdateData: UpdateContractRequest = {
-        contractDate: draftData.contractDate || undefined,
-        startDate: contractType === ContractType.RENTAL ? (draftData.startDate || undefined) : undefined,
-        endDate: contractType === ContractType.RENTAL ? (draftData.endDate || undefined) : undefined,
+        contractDate: draftData.contractDate 
+          ? (draftData.contractDate.includes('/') ? formatToGregorianDate(draftData.contractDate) : draftData.contractDate)
+          : undefined,
+        startDate: contractType === ContractType.RENTAL 
+          ? (draftData.startDate 
+              ? (draftData.startDate.includes('/') ? formatToGregorianDate(draftData.startDate) : draftData.startDate)
+              : undefined)
+          : undefined,
+        endDate: contractType === ContractType.RENTAL 
+          ? (draftData.endDate 
+              ? (draftData.endDate.includes('/') ? formatToGregorianDate(draftData.endDate) : draftData.endDate)
+              : undefined)
+          : undefined,
         rentalAmount: contractType === ContractType.RENTAL ? (draftData.rentalAmount ? parseLatinNumber(draftData.rentalAmount) : undefined) : undefined,
         purchaseAmount: contractType === ContractType.PURCHASE ? (draftData.purchaseAmount ? parseLatinNumber(draftData.purchaseAmount) : undefined) : undefined,
         depositAmount: draftData.depositAmount ? parseLatinNumber(draftData.depositAmount) : undefined,
@@ -1955,10 +1986,21 @@ export default function EditContractPage() {
       };
 
       // Build original data for comparison
+      // Note: originalDraftData should already be in Gregorian format from backend, but convert if needed
       const originalUpdateData: UpdateContractRequest = {
-        contractDate: originalDraftData.contractDate || undefined,
-        startDate: contractType === ContractType.RENTAL ? (originalDraftData.startDate || undefined) : undefined,
-        endDate: contractType === ContractType.RENTAL ? (originalDraftData.endDate || undefined) : undefined,
+        contractDate: originalDraftData.contractDate 
+          ? (originalDraftData.contractDate.includes('/') ? formatToGregorianDate(originalDraftData.contractDate) : originalDraftData.contractDate)
+          : undefined,
+        startDate: contractType === ContractType.RENTAL 
+          ? (originalDraftData.startDate 
+              ? (originalDraftData.startDate.includes('/') ? formatToGregorianDate(originalDraftData.startDate) : originalDraftData.startDate)
+              : undefined)
+          : undefined,
+        endDate: contractType === ContractType.RENTAL 
+          ? (originalDraftData.endDate 
+              ? (originalDraftData.endDate.includes('/') ? formatToGregorianDate(originalDraftData.endDate) : originalDraftData.endDate)
+              : undefined)
+          : undefined,
         rentalAmount: contractType === ContractType.RENTAL ? (originalDraftData.rentalAmount ? parseLatinNumber(originalDraftData.rentalAmount) : undefined) : undefined,
         purchaseAmount: contractType === ContractType.PURCHASE ? (originalDraftData.purchaseAmount ? parseLatinNumber(originalDraftData.purchaseAmount) : undefined) : undefined,
         depositAmount: originalDraftData.depositAmount ? parseLatinNumber(originalDraftData.depositAmount) : undefined,
