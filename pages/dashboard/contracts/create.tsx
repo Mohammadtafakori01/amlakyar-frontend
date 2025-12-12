@@ -26,6 +26,7 @@ import {
 import Loading from '../../../src/shared/components/common/Loading';
 import ErrorDisplay from '../../../src/shared/components/common/ErrorDisplay';
 import PersianDatePicker from '../../../src/shared/components/common/PersianDatePicker';
+import { formatNumber, parseFormattedNumber } from '../../../src/shared/utils/numberUtils';
 
 type Step = 1 | 2 | 3 | 4 | 5;
 
@@ -315,35 +316,17 @@ export default function CreateContractPage() {
 
   // Step 4: Terms
   const [terms, setTerms] = useState({
-    evictionNoticeDays: '',
-    dailyPenaltyAmount: '',
     dailyDelayPenalty: '',
     dailyOccupancyPenalty: '',
     deliveryDate: '',
     deliveryDelayPenalty: '',
     usagePurpose: '',
+    usagePurposeOther: '',
     occupantCount: '',
     customTerms: '',
     // NEW: Article 6 conditions
-    permittedUse: '',
-    hasTransferRight: false,
-    lessorOwnershipConfirmed: true,
     rentPaymentDeadline: '',
-    utilityCostsResponsibility: '',
-    maintenanceFeesResponsibility: '',
-    majorRepairsResponsibility: '',
-    minorRepairsResponsibility: '',
-    propertyTaxResponsibility: '',
-    incomeTaxResponsibility: '',
-    goodwillRights: '',
-    returnCondition: '',
-    lessorLoanReturnObligation: true,
-    lesseeRepairRight: false,
     renewalConditions: '',
-    earlyTerminationNotice: '',
-    earlyTerminationPayment: '',
-    propertyTransferNotification: true,
-    loanReturnDelayPenalty: '',
   });
 
   // Step 5: Finalize
@@ -355,17 +338,9 @@ export default function CreateContractPage() {
     purchaseAmount: '',
     depositAmount: '',
     // NEW: Administrative fields
-    consultancyNumber: '',
     registrationArea: '',
-    registrationOffice: '',
-    consultantRegistrationVolume: '',
-    consultantRegistrationNumber: '',
-    consultantRegistrationDate: '',
     witness1Name: '',
     witness2Name: '',
-    legalExpertName: '',
-    consultantFee: '',
-    contractCopies: '3',
   });
 
   // Payment Entries
@@ -694,8 +669,6 @@ export default function CreateContractPage() {
       const messages = Array.isArray(errorPayload.message) ? errorPayload.message : [errorPayload.message];
       
       const fieldMapping: Record<string, string> = {
-        'evictionNoticeDays': 'evictionNoticeDays',
-        'dailyPenaltyAmount': 'dailyPenaltyAmount',
         'dailyDelayPenalty': 'dailyDelayPenalty',
         'dailyOccupancyPenalty': 'dailyOccupancyPenalty',
         'deliveryDate': 'deliveryDate',
@@ -703,9 +676,6 @@ export default function CreateContractPage() {
         'usagePurpose': 'usagePurpose',
         'occupantCount': 'occupantCount',
         'customTerms': 'customTerms',
-        'earlyTerminationNotice': 'earlyTerminationNotice',
-        'earlyTerminationPayment': 'earlyTerminationPayment',
-        'loanReturnDelayPenalty': 'loanReturnDelayPenalty',
       };
       
       messages.forEach((msg: string) => {
@@ -1033,20 +1003,6 @@ export default function CreateContractPage() {
   const validateStep4 = (): Record<string, string> => {
     const errors: Record<string, string> = {};
     
-    if (terms.evictionNoticeDays) {
-      const days = parseLatinInteger(terms.evictionNoticeDays);
-      if (days < 0) {
-        errors['evictionNoticeDays'] = 'مهلت تخلیه نمی‌تواند منفی باشد';
-      }
-    }
-    
-    if (terms.dailyPenaltyAmount) {
-      const amount = parseLatinNumber(terms.dailyPenaltyAmount);
-      if (amount < 0) {
-        errors['dailyPenaltyAmount'] = 'مبلغ جریمه روزانه برای تأخیر تحویل نمی‌تواند منفی باشد';
-      }
-    }
-    
     if (terms.dailyDelayPenalty) {
       const amount = parseLatinNumber(terms.dailyDelayPenalty);
       if (amount < 0) {
@@ -1072,27 +1028,6 @@ export default function CreateContractPage() {
       const count = parseLatinInteger(terms.occupantCount);
       if (count < 1) {
         errors['occupantCount'] = 'تعداد نفرات باید حداقل 1 باشد';
-      }
-    }
-    
-    if (terms.earlyTerminationNotice) {
-      const days = parseLatinInteger(terms.earlyTerminationNotice);
-      if (days < 0) {
-        errors['earlyTerminationNotice'] = 'مهلت اخطار فسخ نمی‌تواند منفی باشد';
-      }
-    }
-    
-    if (terms.earlyTerminationPayment) {
-      const amount = parseLatinNumber(terms.earlyTerminationPayment);
-      if (amount < 0) {
-        errors['earlyTerminationPayment'] = 'پرداخت اضافی برای فسخ زودهنگام نمی‌تواند منفی باشد';
-      }
-    }
-    
-    if (terms.loanReturnDelayPenalty) {
-      const amount = parseLatinNumber(terms.loanReturnDelayPenalty);
-      if (amount < 0) {
-        errors['loanReturnDelayPenalty'] = 'جریمه تأخیر بازگشت قرض الحسنه نمی‌تواند منفی باشد';
       }
     }
     
@@ -1532,35 +1467,16 @@ export default function CreateContractPage() {
       }
       
       const termsData: any = {
-        evictionNoticeDays: terms.evictionNoticeDays ? parseLatinInteger(terms.evictionNoticeDays) : undefined,
-        dailyPenaltyAmount: terms.dailyPenaltyAmount ? parseLatinNumber(terms.dailyPenaltyAmount) : undefined,
         dailyDelayPenalty: terms.dailyDelayPenalty ? parseLatinNumber(terms.dailyDelayPenalty) : undefined,
         dailyOccupancyPenalty: terms.dailyOccupancyPenalty ? parseLatinNumber(terms.dailyOccupancyPenalty) : undefined,
         deliveryDate: terms.deliveryDate || undefined,
         deliveryDelayPenalty: terms.deliveryDelayPenalty ? parseLatinNumber(terms.deliveryDelayPenalty) : undefined,
-        usagePurpose: terms.usagePurpose || undefined,
+        usagePurpose: terms.usagePurpose === 'سایر' ? terms.usagePurposeOther : (terms.usagePurpose || undefined),
         occupantCount: terms.occupantCount ? parseLatinInteger(terms.occupantCount) : undefined,
         customTerms: terms.customTerms || undefined,
         // NEW: Article 6 conditions
-        permittedUse: terms.permittedUse?.trim() || undefined,
-        hasTransferRight: terms.hasTransferRight,
-        lessorOwnershipConfirmed: terms.lessorOwnershipConfirmed,
         rentPaymentDeadline: terms.rentPaymentDeadline?.trim() || undefined,
-        utilityCostsResponsibility: terms.utilityCostsResponsibility?.trim() || undefined,
-        maintenanceFeesResponsibility: terms.maintenanceFeesResponsibility?.trim() || undefined,
-        majorRepairsResponsibility: terms.majorRepairsResponsibility?.trim() || undefined,
-        minorRepairsResponsibility: terms.minorRepairsResponsibility?.trim() || undefined,
-        propertyTaxResponsibility: terms.propertyTaxResponsibility?.trim() || undefined,
-        incomeTaxResponsibility: terms.incomeTaxResponsibility?.trim() || undefined,
-        goodwillRights: terms.goodwillRights?.trim() || undefined,
-        returnCondition: terms.returnCondition?.trim() || undefined,
-        lessorLoanReturnObligation: terms.lessorLoanReturnObligation,
-        lesseeRepairRight: terms.lesseeRepairRight,
         renewalConditions: terms.renewalConditions?.trim() || undefined,
-        earlyTerminationNotice: terms.earlyTerminationNotice ? parseLatinInteger(terms.earlyTerminationNotice) : undefined,
-        earlyTerminationPayment: terms.earlyTerminationPayment ? parseLatinNumber(terms.earlyTerminationPayment) : undefined,
-        propertyTransferNotification: terms.propertyTransferNotification,
-        loanReturnDelayPenalty: terms.loanReturnDelayPenalty ? parseLatinNumber(terms.loanReturnDelayPenalty) : undefined,
       };
       const result = await updateTerms(currentContractId, termsData);
       
@@ -1638,17 +1554,9 @@ export default function CreateContractPage() {
           cardNumber: entry.cardNumber ? convertToLatinNumbers(entry.cardNumber) : undefined,
         })) : undefined,
         // NEW: Administrative fields
-        consultancyNumber: draftData.consultancyNumber?.trim() || undefined,
         registrationArea: draftData.registrationArea?.trim() || undefined,
-        registrationOffice: draftData.registrationOffice?.trim() || undefined,
-        consultantRegistrationVolume: draftData.consultantRegistrationVolume?.trim() || undefined,
-        consultantRegistrationNumber: draftData.consultantRegistrationNumber?.trim() || undefined,
-        consultantRegistrationDate: draftData.consultantRegistrationDate || undefined,
         witness1Name: draftData.witness1Name?.trim() || undefined,
         witness2Name: draftData.witness2Name?.trim() || undefined,
-        legalExpertName: draftData.legalExpertName?.trim() || undefined,
-        consultantFee: draftData.consultantFee ? parseLatinNumber(draftData.consultantFee) : undefined,
-        contractCopies: draftData.contractCopies ? parseLatinInteger(draftData.contractCopies) : undefined,
       };
       await saveDraft(currentContractId, draft);
       setSnackbar({ open: true, message: 'پیش‌نویس با موفقیت ذخیره شد', severity: 'success' });
@@ -1694,17 +1602,9 @@ export default function CreateContractPage() {
           cardNumber: entry.cardNumber ? convertToLatinNumbers(entry.cardNumber) : undefined,
         })) : undefined,
         // NEW: Administrative fields
-        consultancyNumber: draftData.consultancyNumber ? convertToLatinNumbers(draftData.consultancyNumber.trim()) || undefined : undefined,
         registrationArea: draftData.registrationArea?.trim() || undefined,
-        registrationOffice: draftData.registrationOffice?.trim() || undefined,
-        consultantRegistrationVolume: draftData.consultantRegistrationVolume ? convertToLatinNumbers(draftData.consultantRegistrationVolume.trim()) || undefined : undefined,
-        consultantRegistrationNumber: draftData.consultantRegistrationNumber ? convertToLatinNumbers(draftData.consultantRegistrationNumber.trim()) || undefined : undefined,
-        consultantRegistrationDate: draftData.consultantRegistrationDate || undefined,
         witness1Name: draftData.witness1Name?.trim() || undefined,
         witness2Name: draftData.witness2Name?.trim() || undefined,
-        legalExpertName: draftData.legalExpertName?.trim() || undefined,
-        consultantFee: draftData.consultantFee ? parseLatinNumber(draftData.consultantFee) : undefined,
-        contractCopies: draftData.contractCopies ? parseLatinInteger(draftData.contractCopies) : undefined,
       };
       
       // Only update if there's data to save
@@ -3529,62 +3429,14 @@ export default function CreateContractPage() {
       <h2 className="text-2xl font-bold text-gray-900">مرحله 4: ثبت شرایط قرارداد</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="mb-1 block text-sm font-semibold text-gray-600">مهلت اخطار تخلیه (روز)</label>
+          <label className="mb-1 block text-sm font-semibold text-gray-600">جریمه تاخیر در پرداخت قرض الحسنه (ریال)</label>
           <input
-            type="number"
-            value={terms.evictionNoticeDays}
+            type="text"
+            value={terms.dailyDelayPenalty !== '' ? formatNumber(parseFormattedNumber(terms.dailyDelayPenalty)) : ''}
             onChange={(e) => {
-              setTerms({ ...terms, evictionNoticeDays: e.target.value });
-              if (step4FieldErrors['evictionNoticeDays']) {
-                setStep4FieldErrors(prev => {
-                  const newErrors = { ...prev };
-                  delete newErrors['evictionNoticeDays'];
-                  return newErrors;
-                });
-              }
-            }}
-            className={`w-full rounded-2xl border px-4 py-2 text-sm text-gray-800 focus:ring-2 ${
-              step4FieldErrors['evictionNoticeDays']
-                ? 'border-red-500 focus:border-red-500 focus:ring-red-100'
-                : 'border-gray-200 focus:border-primary-500 focus:ring-primary-100'
-            }`}
-          />
-          {step4FieldErrors['evictionNoticeDays'] && (
-            <p className="mt-1 text-sm text-red-600">{step4FieldErrors['evictionNoticeDays']}</p>
-          )}
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-semibold text-gray-600">جریمه روزانه (ریال)</label>
-          <input
-            type="number"
-            value={terms.dailyPenaltyAmount}
-            onChange={(e) => {
-              setTerms({ ...terms, dailyPenaltyAmount: e.target.value });
-              if (step4FieldErrors['dailyPenaltyAmount']) {
-                setStep4FieldErrors(prev => {
-                  const newErrors = { ...prev };
-                  delete newErrors['dailyPenaltyAmount'];
-                  return newErrors;
-                });
-              }
-            }}
-            className={`w-full rounded-2xl border px-4 py-2 text-sm text-gray-800 focus:ring-2 ${
-              step4FieldErrors['dailyPenaltyAmount']
-                ? 'border-red-500 focus:border-red-500 focus:ring-red-100'
-                : 'border-gray-200 focus:border-primary-500 focus:ring-primary-100'
-            }`}
-          />
-          {step4FieldErrors['dailyPenaltyAmount'] && (
-            <p className="mt-1 text-sm text-red-600">{step4FieldErrors['dailyPenaltyAmount']}</p>
-          )}
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-semibold text-gray-600">جریمه تاخیر روزانه (ریال)</label>
-          <input
-            type="number"
-            value={terms.dailyDelayPenalty}
-            onChange={(e) => {
-              setTerms({ ...terms, dailyDelayPenalty: e.target.value });
+              const parsed = parseFormattedNumber(e.target.value);
+              const rawValue = parsed === 0 && !e.target.value.trim() ? '' : parsed.toString();
+              setTerms({ ...terms, dailyDelayPenalty: rawValue });
               if (step4FieldErrors['dailyDelayPenalty']) {
                 setStep4FieldErrors(prev => {
                   const newErrors = { ...prev };
@@ -3604,12 +3456,14 @@ export default function CreateContractPage() {
           )}
         </div>
         <div>
-          <label className="mb-1 block text-sm font-semibold text-gray-600">جریمه تصرف روزانه (ریال)</label>
+          <label className="mb-1 block text-sm font-semibold text-gray-600">اجرت المثل ایام تصرف (ریال)</label>
           <input
-            type="number"
-            value={terms.dailyOccupancyPenalty}
+            type="text"
+            value={terms.dailyOccupancyPenalty !== '' ? formatNumber(parseFormattedNumber(terms.dailyOccupancyPenalty)) : ''}
             onChange={(e) => {
-              setTerms({ ...terms, dailyOccupancyPenalty: e.target.value });
+              const parsed = parseFormattedNumber(e.target.value);
+              const rawValue = parsed === 0 && !e.target.value.trim() ? '' : parsed.toString();
+              setTerms({ ...terms, dailyOccupancyPenalty: rawValue });
               if (step4FieldErrors['dailyOccupancyPenalty']) {
                 setStep4FieldErrors(prev => {
                   const newErrors = { ...prev };
@@ -3638,21 +3492,38 @@ export default function CreateContractPage() {
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-600">جریمه تاخیر تحویل (ریال)</label>
           <input
-            type="number"
-            value={terms.deliveryDelayPenalty}
-            onChange={(e) => setTerms({ ...terms, deliveryDelayPenalty: e.target.value })}
+            type="text"
+            value={terms.deliveryDelayPenalty !== '' ? formatNumber(parseFormattedNumber(terms.deliveryDelayPenalty)) : ''}
+            onChange={(e) => {
+              const parsed = parseFormattedNumber(e.target.value);
+              const rawValue = parsed === 0 && !e.target.value.trim() ? '' : parsed.toString();
+              setTerms({ ...terms, deliveryDelayPenalty: rawValue });
+            }}
             className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-semibold text-gray-600">هدف استفاده</label>
-          <input
-            type="text"
+          <label className="mb-1 block text-sm font-semibold text-gray-600">کاربری</label>
+          <select
             value={terms.usagePurpose}
-            onChange={(e) => setTerms({ ...terms, usagePurpose: e.target.value })}
+            onChange={(e) => setTerms({ ...terms, usagePurpose: e.target.value, usagePurposeOther: e.target.value === 'سایر' ? terms.usagePurposeOther : '' })}
             className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-            placeholder="مثال: سکونت"
-          />
+          >
+            <option value="">انتخاب کنید</option>
+            <option value="مسکونی">مسکونی</option>
+            <option value="اداری">اداری</option>
+            <option value="تجاری">تجاری</option>
+            <option value="سایر">سایر (دستی)</option>
+          </select>
+          {terms.usagePurpose === 'سایر' && (
+            <input
+              type="text"
+              value={terms.usagePurposeOther}
+              onChange={(e) => setTerms({ ...terms, usagePurposeOther: e.target.value })}
+              className="mt-2 w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+              placeholder="لطفا کاربری را وارد کنید"
+            />
+          )}
         </div>
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-600">تعداد ساکنین</label>
@@ -3664,13 +3535,13 @@ export default function CreateContractPage() {
           />
         </div>
         <div className="md:col-span-2">
-          <label className="mb-1 block text-sm font-semibold text-gray-600">شرایط خاص</label>
+          <label className="mb-1 block text-sm font-semibold text-gray-600">توضیحات</label>
           <textarea
             value={terms.customTerms}
             onChange={(e) => setTerms({ ...terms, customTerms: e.target.value })}
             rows={4}
             className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-            placeholder="شرایط خاص قرارداد..."
+            placeholder="توضیحات قرارداد..."
           />
         </div>
       </div>
@@ -3680,19 +3551,6 @@ export default function CreateContractPage() {
         <h3 className="text-lg font-semibold text-gray-800 mb-4">ماده 6 - شرایط قرارداد</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="mb-1 block text-sm font-semibold text-gray-600">نوع استفاده مجاز</label>
-            <select
-              value={terms.permittedUse}
-              onChange={(e) => setTerms({ ...terms, permittedUse: e.target.value })}
-              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-            >
-              <option value="">انتخاب کنید</option>
-              <option value="مسکونی">مسکونی</option>
-              <option value="تجاری">تجاری</option>
-              <option value="اداری">اداری</option>
-            </select>
-          </div>
-          <div>
             <label className="mb-1 block text-sm font-semibold text-gray-600">مهلت پرداخت</label>
             <select
               value={terms.rentPaymentDeadline}
@@ -3701,127 +3559,36 @@ export default function CreateContractPage() {
             >
               <option value="">انتخاب کنید</option>
               <option value="اول">اول ماه</option>
-              <option value="آخر">آخر ماه</option>
+              <option value="دوم">دوم ماه</option>
+              <option value="سوم">سوم ماه</option>
+              <option value="چهارم">چهارم ماه</option>
+              <option value="پنجم">پنجم ماه</option>
+              <option value="ششم">ششم ماه</option>
+              <option value="هفتم">هفتم ماه</option>
+              <option value="هشتم">هشتم ماه</option>
+              <option value="نهم">نهم ماه</option>
+              <option value="دهم">دهم ماه</option>
+              <option value="یازدهم">یازدهم ماه</option>
+              <option value="دوازدهم">دوازدهم ماه</option>
+              <option value="سیزدهم">سیزدهم ماه</option>
+              <option value="چهاردهم">چهاردهم ماه</option>
+              <option value="پانزدهم">پانزدهم ماه</option>
+              <option value="شانزدهم">شانزدهم ماه</option>
+              <option value="هفدهم">هفدهم ماه</option>
+              <option value="هجدهم">هجدهم ماه</option>
+              <option value="نوزدهم">نوزدهم ماه</option>
+              <option value="بیستم">بیستم ماه</option>
+              <option value="بیست و یکم">بیست و یکم ماه</option>
+              <option value="بیست و دوم">بیست و دوم ماه</option>
+              <option value="بیست و سوم">بیست و سوم ماه</option>
+              <option value="بیست و چهارم">بیست و چهارم ماه</option>
+              <option value="بیست و پنجم">بیست و پنجم ماه</option>
+              <option value="بیست و ششم">بیست و ششم ماه</option>
+              <option value="بیست و هفتم">بیست و هفتم ماه</option>
+              <option value="بیست و هشتم">بیست و هشتم ماه</option>
+              <option value="بیست و نهم">بیست و نهم ماه</option>
+              <option value="سی ام">سی ام ماه</option>
             </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-semibold text-gray-600">مسئولیت هزینه‌های مصرفی</label>
-            <select
-              value={terms.utilityCostsResponsibility}
-              onChange={(e) => setTerms({ ...terms, utilityCostsResponsibility: e.target.value })}
-              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-            >
-              <option value="">انتخاب کنید</option>
-              <option value="موجر">موجر</option>
-              <option value="مستاجر">مستاجر</option>
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-semibold text-gray-600">مسئولیت شارژ ساختمان</label>
-            <select
-              value={terms.maintenanceFeesResponsibility}
-              onChange={(e) => setTerms({ ...terms, maintenanceFeesResponsibility: e.target.value })}
-              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-            >
-              <option value="">انتخاب کنید</option>
-              <option value="موجر">موجر</option>
-              <option value="مستاجر">مستاجر</option>
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-semibold text-gray-600">مسئولیت تعمیرات اساسی</label>
-            <select
-              value={terms.majorRepairsResponsibility}
-              onChange={(e) => setTerms({ ...terms, majorRepairsResponsibility: e.target.value })}
-              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-            >
-              <option value="">انتخاب کنید</option>
-              <option value="موجر">موجر</option>
-              <option value="مستاجر">مستاجر</option>
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-semibold text-gray-600">مسئولیت تعمیرات جزئی</label>
-            <select
-              value={terms.minorRepairsResponsibility}
-              onChange={(e) => setTerms({ ...terms, minorRepairsResponsibility: e.target.value })}
-              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-            >
-              <option value="">انتخاب کنید</option>
-              <option value="موجر">موجر</option>
-              <option value="مستاجر">مستاجر</option>
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-semibold text-gray-600">مسئولیت مالیات ملک</label>
-            <select
-              value={terms.propertyTaxResponsibility}
-              onChange={(e) => setTerms({ ...terms, propertyTaxResponsibility: e.target.value })}
-              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-            >
-              <option value="">انتخاب کنید</option>
-              <option value="موجر">موجر</option>
-              <option value="مستاجر">مستاجر</option>
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-semibold text-gray-600">مسئولیت مالیات درآمد</label>
-            <select
-              value={terms.incomeTaxResponsibility}
-              onChange={(e) => setTerms({ ...terms, incomeTaxResponsibility: e.target.value })}
-              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-            >
-              <option value="">انتخاب کنید</option>
-              <option value="موجر">موجر</option>
-              <option value="مستاجر">مستاجر</option>
-            </select>
-          </div>
-          <div className="md:col-span-2">
-            <label className="mb-1 block text-sm font-semibold text-gray-600">حق سرقفلی</label>
-            <textarea
-              value={terms.goodwillRights}
-              onChange={(e) => setTerms({ ...terms, goodwillRights: e.target.value })}
-              rows={2}
-              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-              placeholder="شرایط حق سرقفلی..."
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="mb-1 block text-sm font-semibold text-gray-600">شرایط بازگشت ملک</label>
-            <textarea
-              value={terms.returnCondition}
-              onChange={(e) => setTerms({ ...terms, returnCondition: e.target.value })}
-              rows={2}
-              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-              placeholder="شرایط بازگشت ملک..."
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-semibold text-gray-600">مهلت اخطار فسخ (روز)</label>
-            <input
-              type="number"
-              value={terms.earlyTerminationNotice}
-              onChange={(e) => setTerms({ ...terms, earlyTerminationNotice: e.target.value })}
-              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-semibold text-gray-600">پرداخت اضافی برای فسخ زودهنگام (ریال)</label>
-            <input
-              type="number"
-              value={terms.earlyTerminationPayment}
-              onChange={(e) => setTerms({ ...terms, earlyTerminationPayment: e.target.value })}
-              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-semibold text-gray-600">جریمه تأخیر بازگشت قرض الحسنه (ریال)</label>
-            <input
-              type="number"
-              value={terms.loanReturnDelayPenalty}
-              onChange={(e) => setTerms({ ...terms, loanReturnDelayPenalty: e.target.value })}
-              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-            />
           </div>
           <div className="md:col-span-2">
             <label className="mb-1 block text-sm font-semibold text-gray-600">شرایط تمدید</label>
@@ -3832,53 +3599,6 @@ export default function CreateContractPage() {
               className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
               placeholder="شرایط تمدید قرارداد..."
             />
-          </div>
-          <div className="flex items-center gap-4">
-            <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600">
-              <input
-                type="checkbox"
-                checked={terms.hasTransferRight}
-                onChange={(e) => setTerms({ ...terms, hasTransferRight: e.target.checked })}
-                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-              />
-              حق انتقال به غیر
-            </label>
-            <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600">
-              <input
-                type="checkbox"
-                checked={terms.lessorOwnershipConfirmed}
-                onChange={(e) => setTerms({ ...terms, lessorOwnershipConfirmed: e.target.checked })}
-                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-              />
-              تأیید مالکیت موجر
-            </label>
-            <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600">
-              <input
-                type="checkbox"
-                checked={terms.lessorLoanReturnObligation}
-                onChange={(e) => setTerms({ ...terms, lessorLoanReturnObligation: e.target.checked })}
-                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-              />
-              تعهد موجر به بازگشت قرض الحسنه
-            </label>
-            <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600">
-              <input
-                type="checkbox"
-                checked={terms.lesseeRepairRight}
-                onChange={(e) => setTerms({ ...terms, lesseeRepairRight: e.target.checked })}
-                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-              />
-              حق مستاجر برای تعمیرات ضروری
-            </label>
-            <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600">
-              <input
-                type="checkbox"
-                checked={terms.propertyTransferNotification}
-                onChange={(e) => setTerms({ ...terms, propertyTransferNotification: e.target.checked })}
-                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-              />
-              اطلاع‌رسانی انتقال ملک
-            </label>
           </div>
         </div>
       </div>
@@ -3918,18 +3638,26 @@ export default function CreateContractPage() {
             <div>
               <label className="mb-1 block text-sm font-semibold text-gray-600">مبلغ اجاره (ریال)</label>
               <input
-                type="number"
-                value={draftData.rentalAmount}
-                onChange={(e) => setDraftData({ ...draftData, rentalAmount: e.target.value })}
+                type="text"
+                value={draftData.rentalAmount !== '' ? formatNumber(parseFormattedNumber(draftData.rentalAmount)) : ''}
+                onChange={(e) => {
+                  const parsed = parseFormattedNumber(e.target.value);
+                  const rawValue = parsed === 0 && !e.target.value.trim() ? '' : parsed.toString();
+                  setDraftData({ ...draftData, rentalAmount: rawValue });
+                }}
                 className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
               />
             </div>
             <div>
               <label className="mb-1 block text-sm font-semibold text-gray-600">مبلغ ودیعه (ریال)</label>
               <input
-                type="number"
-                value={draftData.depositAmount}
-                onChange={(e) => setDraftData({ ...draftData, depositAmount: e.target.value })}
+                type="text"
+                value={draftData.depositAmount !== '' ? formatNumber(parseFormattedNumber(draftData.depositAmount)) : ''}
+                onChange={(e) => {
+                  const parsed = parseFormattedNumber(e.target.value);
+                  const rawValue = parsed === 0 && !e.target.value.trim() ? '' : parsed.toString();
+                  setDraftData({ ...draftData, depositAmount: rawValue });
+                }}
                 className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
               />
             </div>
@@ -3940,18 +3668,26 @@ export default function CreateContractPage() {
             <div>
               <label className="mb-1 block text-sm font-semibold text-gray-600">مبلغ خرید (ریال)</label>
               <input
-                type="number"
-                value={draftData.purchaseAmount}
-                onChange={(e) => setDraftData({ ...draftData, purchaseAmount: e.target.value })}
+                type="text"
+                value={draftData.purchaseAmount !== '' ? formatNumber(parseFormattedNumber(draftData.purchaseAmount)) : ''}
+                onChange={(e) => {
+                  const parsed = parseFormattedNumber(e.target.value);
+                  const rawValue = parsed === 0 && !e.target.value.trim() ? '' : parsed.toString();
+                  setDraftData({ ...draftData, purchaseAmount: rawValue });
+                }}
                 className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
               />
             </div>
             <div>
               <label className="mb-1 block text-sm font-semibold text-gray-600">پیش‌پرداخت (ریال)</label>
               <input
-                type="number"
-                value={draftData.depositAmount}
-                onChange={(e) => setDraftData({ ...draftData, depositAmount: e.target.value })}
+                type="text"
+                value={draftData.depositAmount !== '' ? formatNumber(parseFormattedNumber(draftData.depositAmount)) : ''}
+                onChange={(e) => {
+                  const parsed = parseFormattedNumber(e.target.value);
+                  const rawValue = parsed === 0 && !e.target.value.trim() ? '' : parsed.toString();
+                  setDraftData({ ...draftData, depositAmount: rawValue });
+                }}
                 className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
               />
             </div>
@@ -3964,55 +3700,12 @@ export default function CreateContractPage() {
         <h3 className="text-lg font-semibold text-gray-800 mb-4">اطلاعات اداری</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="mb-1 block text-sm font-semibold text-gray-600">شماره مشاوره املاک</label>
-            <input
-              type="text"
-              value={draftData.consultancyNumber}
-              onChange={(e) => setDraftData({ ...draftData, consultancyNumber: e.target.value })}
-              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-            />
-          </div>
-          <div>
             <label className="mb-1 block text-sm font-semibold text-gray-600">حوزه ثبتي</label>
             <input
               type="text"
               value={draftData.registrationArea}
               onChange={(e) => setDraftData({ ...draftData, registrationArea: e.target.value })}
               className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-semibold text-gray-600">دفتر ثبت</label>
-            <input
-              type="text"
-              value={draftData.registrationOffice}
-              onChange={(e) => setDraftData({ ...draftData, registrationOffice: e.target.value })}
-              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-semibold text-gray-600">جلد ثبت مشاور</label>
-            <input
-              type="text"
-              value={draftData.consultantRegistrationVolume}
-              onChange={(e) => setDraftData({ ...draftData, consultantRegistrationVolume: e.target.value })}
-              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-semibold text-gray-600">شماره ثبت مشاور</label>
-            <input
-              type="text"
-              value={draftData.consultantRegistrationNumber}
-              onChange={(e) => setDraftData({ ...draftData, consultantRegistrationNumber: e.target.value })}
-              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-semibold text-gray-600">تاریخ ثبت مشاور</label>
-            <PersianDatePicker
-              value={draftData.consultantRegistrationDate}
-              onChange={(value) => setDraftData({ ...draftData, consultantRegistrationDate: value })}
             />
           </div>
           <div>
@@ -4031,34 +3724,6 @@ export default function CreateContractPage() {
               value={draftData.witness2Name}
               onChange={(e) => setDraftData({ ...draftData, witness2Name: e.target.value })}
               className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-semibold text-gray-600">نام کارشناس حقوقی</label>
-            <input
-              type="text"
-              value={draftData.legalExpertName}
-              onChange={(e) => setDraftData({ ...draftData, legalExpertName: e.target.value })}
-              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-semibold text-gray-600">حق الزحمه مشاور (ریال)</label>
-            <input
-              type="number"
-              value={draftData.consultantFee}
-              onChange={(e) => setDraftData({ ...draftData, consultantFee: e.target.value })}
-              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-semibold text-gray-600">تعداد نسخ قرارداد</label>
-            <input
-              type="number"
-              value={draftData.contractCopies}
-              onChange={(e) => setDraftData({ ...draftData, contractCopies: e.target.value })}
-              className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-              min="1"
             />
           </div>
         </div>

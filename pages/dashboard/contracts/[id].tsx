@@ -302,21 +302,15 @@ export default function ContractDetailPage() {
                 <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm lg:col-span-2">
                   <h2 className="mb-4 text-xl font-semibold text-gray-900">شرایط قرارداد</h2>
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    {contract.terms.evictionNoticeDays && (
-                      <div>
-                        <label className="text-sm font-semibold text-gray-600">روزهای اخطار تخلیه</label>
-                        <p className="mt-1 text-sm text-gray-800">{contract.terms.evictionNoticeDays} روز</p>
-                      </div>
-                    )}
                     {contract.terms.usagePurpose && (
                       <div>
-                        <label className="text-sm font-semibold text-gray-600">هدف استفاده</label>
+                        <label className="text-sm font-semibold text-gray-600">کاربری</label>
                         <p className="mt-1 text-sm text-gray-800">{contract.terms.usagePurpose}</p>
                       </div>
                     )}
                     {contract.terms.customTerms && (
                       <div className="md:col-span-2">
-                        <label className="text-sm font-semibold text-gray-600">شرایط خاص</label>
+                        <label className="text-sm font-semibold text-gray-600">توضیحات</label>
                         <p className="mt-1 text-sm text-gray-800 whitespace-pre-wrap">{contract.terms.customTerms}</p>
                       </div>
                     )}

@@ -13,6 +13,7 @@ import Loading from '../../../src/shared/components/common/Loading';
 import ErrorDisplay from '../../../src/shared/components/common/ErrorDisplay';
 import { AppDispatch } from '../../../src/app/store';
 import { fetchContracts as fetchContractsThunk, fetchArchive as fetchArchiveThunk } from '../../../src/domains/contracts/store/contractsSlice';
+import { formatToPersianDate } from '../../../src/shared/utils/dateUtils';
 
 export default function ContractsPage() {
   const router = useRouter();
@@ -398,6 +399,7 @@ export default function ContractsPage() {
                       <thead>
                         <tr className="bg-gray-50 text-xs font-semibold uppercase text-gray-500">
                           <th className="px-4 py-3">شماره قرارداد</th>
+                          <th className="px-4 py-3">نام املاک</th>
                           <th className="px-4 py-3">نوع</th>
                           <th className="px-4 py-3">وضعیت</th>
                           <th className="px-4 py-3">تاریخ قرارداد</th>
@@ -408,13 +410,14 @@ export default function ContractsPage() {
                         {(Array.isArray(archiveContracts) ? archiveContracts : []).map((contract) => (
                           <tr key={contract.id} className="border-t border-gray-100 hover:bg-gray-50">
                             <td className="px-4 py-3 font-semibold">{contract.contractNumber}</td>
+                            <td className="px-4 py-3">{(contract as any).estate?.establishmentName || '—'}</td>
                             <td className="px-4 py-3">{getContractTypeLabel(contract.type)}</td>
                             <td className="px-4 py-3">
                               <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${getStatusColor(contract.status)}`}>
                                 {getStatusLabel(contract.status)}
                               </span>
                             </td>
-                            <td className="px-4 py-3">{contract.contractDate}</td>
+                            <td className="px-4 py-3">{formatToPersianDate(contract.contractDate)}</td>
                             <td className="px-4 py-3">
                               <div className="flex gap-2">
                                 <button
@@ -446,6 +449,7 @@ export default function ContractsPage() {
                     <thead>
                       <tr className="bg-gray-50 text-xs font-semibold uppercase text-gray-500">
                         <th className="px-4 py-3">شماره قرارداد</th>
+                        <th className="px-4 py-3">نام املاک</th>
                         <th className="px-4 py-3">نوع</th>
                         <th className="px-4 py-3">وضعیت</th>
                         <th className="px-4 py-3">تاریخ قرارداد</th>
@@ -456,13 +460,14 @@ export default function ContractsPage() {
                       {(Array.isArray(searchResults) ? searchResults : []).map((contract) => (
                         <tr key={contract.id} className="border-t border-gray-100 hover:bg-gray-50">
                           <td className="px-4 py-3 font-semibold">{contract.contractNumber}</td>
+                          <td className="px-4 py-3">{(contract as any).estate?.establishmentName || '—'}</td>
                           <td className="px-4 py-3">{getContractTypeLabel(contract.type)}</td>
                           <td className="px-4 py-3">
                             <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${getStatusColor(contract.status)}`}>
                               {getStatusLabel(contract.status)}
                             </span>
                           </td>
-                          <td className="px-4 py-3">{contract.contractDate}</td>
+                          <td className="px-4 py-3">{formatToPersianDate(contract.contractDate)}</td>
                           <td className="px-4 py-3">
                             <div className="flex gap-2">
                               <button
@@ -516,6 +521,7 @@ export default function ContractsPage() {
                   <thead>
                     <tr className="bg-gray-50 text-xs font-semibold uppercase text-gray-500">
                       <th className="px-4 py-3">شماره قرارداد</th>
+                      <th className="px-4 py-3">نام املاک</th>
                       <th className="px-4 py-3">نوع</th>
                       <th className="px-4 py-3">وضعیت</th>
                       <th className="px-4 py-3">تاریخ قرارداد</th>
@@ -526,13 +532,14 @@ export default function ContractsPage() {
                     {(Array.isArray(contracts) ? contracts : []).map((contract) => (
                       <tr key={contract.id} className="border-t border-gray-100 hover:bg-gray-50">
                         <td className="px-4 py-3 font-semibold">{contract.contractNumber}</td>
+                        <td className="px-4 py-3">{(contract as any).estate?.establishmentName || '—'}</td>
                         <td className="px-4 py-3">{getContractTypeLabel(contract.type)}</td>
                         <td className="px-4 py-3">
                           <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${getStatusColor(contract.status)}`}>
                             {getStatusLabel(contract.status)}
                           </span>
                         </td>
-                        <td className="px-4 py-3">{contract.contractDate}</td>
+                        <td className="px-4 py-3">{formatToPersianDate(contract.contractDate)}</td>
                         <td className="px-4 py-3">
                           <div className="flex gap-2">
                             <button
