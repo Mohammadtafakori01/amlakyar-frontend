@@ -31,6 +31,7 @@ import {
   clearNeighborhoods,
 } from '../store/propertyAdsSlice';
 import {
+  PropertyAd,
   CreatePropertyAdRequest,
   UpdatePropertyAdRequest,
   PropertyAdFilters,
@@ -129,7 +130,7 @@ export const usePropertyAds = () => {
       [dispatch]
     ),
     setSelectedPropertyAd: useCallback(
-      (ad: typeof state.selectedPropertyAd) => dispatch(setSelectedPropertyAd(ad)),
+      (ad: PropertyAd | null) => dispatch(setSelectedPropertyAd(ad)),
       [dispatch]
     ),
     setFilters: useCallback((filters: PropertyAdFilters) => dispatch(setFilters(filters)), [dispatch]),

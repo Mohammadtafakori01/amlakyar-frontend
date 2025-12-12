@@ -135,6 +135,7 @@ export default function CustomerPropertyAdDetailPage() {
                 <div className="relative rounded-2xl overflow-hidden border border-gray-200 bg-white shadow-sm">
                   <div className="relative aspect-video w-full bg-gray-100">
                     {currentImage && getImageUrl(currentImage.filePath) ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
                       <img
                         src={getImageUrl(currentImage.filePath)!}
                         alt={ad.title}
@@ -199,6 +200,7 @@ export default function CustomerPropertyAdDetailPage() {
                             }`}
                           >
                             {thumbUrl ? (
+                              /* eslint-disable-next-line @next/next/no-img-element */
                               <img
                                 src={thumbUrl}
                                 alt={`تصویر ${index + 1}`}

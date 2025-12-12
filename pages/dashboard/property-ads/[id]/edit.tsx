@@ -872,6 +872,7 @@ export default function EditPropertyAdPage() {
                                   اصلی
                                 </span>
                               )}
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
                                 src={imageUrl}
                                 alt={selectedPropertyAd.title}
@@ -902,6 +903,7 @@ export default function EditPropertyAdPage() {
                     <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                       {imageFiles.map((file, index) => (
                         <div key={index} className="relative">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={URL.createObjectURL(file)}
                             alt={`Preview ${index + 1}`}

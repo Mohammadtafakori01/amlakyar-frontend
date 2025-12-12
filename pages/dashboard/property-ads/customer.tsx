@@ -79,7 +79,7 @@ export default function CustomerPropertyAdsPage() {
     if (pagination && pagination.page !== currentPage) {
       setCurrentPage(pagination.page);
     }
-  }, [pagination?.page]);
+  }, [pagination, currentPage]);
 
   const handleApplyFilters = () => {
     setFilters(localFilters);
@@ -348,6 +348,7 @@ export default function CustomerPropertyAdsPage() {
                         {/* Image */}
                         <div className="relative h-48 w-full overflow-hidden bg-gray-100">
                           {imageUrl ? (
+                            /* eslint-disable-next-line @next/next/no-img-element */
                             <img
                               src={imageUrl}
                               alt={ad.title}

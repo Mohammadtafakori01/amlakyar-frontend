@@ -429,6 +429,7 @@ export default function PropertyAdsPage() {
                         className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition hover:shadow-md"
                       >
                         {imageUrl ? (
+                          /* eslint-disable-next-line @next/next/no-img-element */
                           <img
                             src={imageUrl}
                             alt={ad.title}

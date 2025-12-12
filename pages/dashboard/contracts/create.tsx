@@ -1587,9 +1587,19 @@ export default function CreateContractPage() {
 
     try {
       const draft: SaveDraftRequest = {
-        contractDate: draftData.contractDate || undefined,
-        startDate: contractType === ContractType.RENTAL ? (draftData.startDate || undefined) : undefined,
-        endDate: contractType === ContractType.RENTAL ? (draftData.endDate || undefined) : undefined,
+        contractDate: draftData.contractDate 
+          ? (draftData.contractDate.includes('/') ? formatToGregorianDate(draftData.contractDate) : draftData.contractDate)
+          : undefined,
+        startDate: contractType === ContractType.RENTAL 
+          ? (draftData.startDate 
+              ? (draftData.startDate.includes('/') ? formatToGregorianDate(draftData.startDate) : draftData.startDate)
+              : undefined)
+          : undefined,
+        endDate: contractType === ContractType.RENTAL 
+          ? (draftData.endDate 
+              ? (draftData.endDate.includes('/') ? formatToGregorianDate(draftData.endDate) : draftData.endDate)
+              : undefined)
+          : undefined,
         rentalAmount: contractType === ContractType.RENTAL ? (draftData.rentalAmount ? parseLatinNumber(draftData.rentalAmount) : undefined) : undefined,
         purchaseAmount: contractType === ContractType.PURCHASE ? (draftData.purchaseAmount ? parseLatinNumber(draftData.purchaseAmount) : undefined) : undefined,
         depositAmount: draftData.depositAmount ? parseLatinNumber(draftData.depositAmount) : undefined,
@@ -1642,9 +1652,19 @@ export default function CreateContractPage() {
       // IMPORTANT: Save financial data before finalizing
       // The finalizeContract endpoint doesn't accept financial data, so we need to save it first
       const draft: SaveDraftRequest = {
-        contractDate: draftData.contractDate || undefined,
-        startDate: contractType === ContractType.RENTAL ? (draftData.startDate || undefined) : undefined,
-        endDate: contractType === ContractType.RENTAL ? (draftData.endDate || undefined) : undefined,
+        contractDate: draftData.contractDate 
+          ? (draftData.contractDate.includes('/') ? formatToGregorianDate(draftData.contractDate) : draftData.contractDate)
+          : undefined,
+        startDate: contractType === ContractType.RENTAL 
+          ? (draftData.startDate 
+              ? (draftData.startDate.includes('/') ? formatToGregorianDate(draftData.startDate) : draftData.startDate)
+              : undefined)
+          : undefined,
+        endDate: contractType === ContractType.RENTAL 
+          ? (draftData.endDate 
+              ? (draftData.endDate.includes('/') ? formatToGregorianDate(draftData.endDate) : draftData.endDate)
+              : undefined)
+          : undefined,
         rentalAmount: contractType === ContractType.RENTAL ? (draftData.rentalAmount ? parseLatinNumber(draftData.rentalAmount) : undefined) : undefined,
         purchaseAmount: contractType === ContractType.PURCHASE ? (draftData.purchaseAmount ? parseLatinNumber(draftData.purchaseAmount) : undefined) : undefined,
         depositAmount: draftData.depositAmount ? parseLatinNumber(draftData.depositAmount) : undefined,
