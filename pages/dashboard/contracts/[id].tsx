@@ -12,6 +12,8 @@ import Loading from '../../../src/shared/components/common/Loading';
 import ErrorDisplay from '../../../src/shared/components/common/ErrorDisplay';
 import { contractsApi } from '../../../src/domains/contracts/api/contractsApi';
 import { downloadPdf } from '../../../src/shared/utils/downloadUtils';
+import { formatToPersianDate } from '../../../src/shared/utils/dateUtils';
+import { formatPrice } from '../../../src/shared/utils/numberUtils';
 
 export default function ContractDetailPage() {
   const router = useRouter();
@@ -183,15 +185,15 @@ export default function ContractDetailPage() {
                   </div>
                   <div>
                     <label className="text-sm font-semibold text-gray-600">تاریخ قرارداد</label>
-                    <p className="mt-1 text-sm text-gray-800">{contract.contractDate || '-'}</p>
+                    <p className="mt-1 text-sm text-gray-800">{contract.contractDate ? formatToPersianDate(contract.contractDate) : '-'}</p>
                   </div>
                   <div>
                     <label className="text-sm font-semibold text-gray-600">تاریخ شروع</label>
-                    <p className="mt-1 text-sm text-gray-800">{contract.startDate || '-'}</p>
+                    <p className="mt-1 text-sm text-gray-800">{contract.startDate ? formatToPersianDate(contract.startDate) : '-'}</p>
                   </div>
                   <div>
                     <label className="text-sm font-semibold text-gray-600">تاریخ پایان</label>
-                    <p className="mt-1 text-sm text-gray-800">{contract.endDate || '-'}</p>
+                    <p className="mt-1 text-sm text-gray-800">{contract.endDate ? formatToPersianDate(contract.endDate) : '-'}</p>
                   </div>
                 </div>
               </div>
@@ -205,13 +207,13 @@ export default function ContractDetailPage() {
                       <div>
                         <label className="text-sm font-semibold text-gray-600">مبلغ اجاره</label>
                         <p className="mt-1 text-sm text-gray-800">
-                          {contract.rentalAmount ? `${contract.rentalAmount.toLocaleString('fa-IR')} تومان` : 'تعیین نشده'}
+                          {contract.rentalAmount ? `${formatPrice(contract.rentalAmount)} ریال` : 'تعیین نشده'}
                         </p>
                       </div>
                       <div>
                         <label className="text-sm font-semibold text-gray-600">مبلغ ودیعه</label>
                         <p className="mt-1 text-sm text-gray-800">
-                          {contract.depositAmount ? `${contract.depositAmount.toLocaleString('fa-IR')} تومان` : 'تعیین نشده'}
+                          {contract.depositAmount ? `${formatPrice(contract.depositAmount)} ریال` : 'تعیین نشده'}
                         </p>
                       </div>
                     </>
@@ -219,7 +221,7 @@ export default function ContractDetailPage() {
                     <div>
                       <label className="text-sm font-semibold text-gray-600">مبلغ خرید</label>
                       <p className="mt-1 text-sm text-gray-800">
-                        {contract.purchaseAmount ? `${contract.purchaseAmount.toLocaleString('fa-IR')} تومان` : 'تعیین نشده'}
+                        {contract.purchaseAmount ? `${formatPrice(contract.purchaseAmount)} ریال` : 'تعیین نشده'}
                       </p>
                     </div>
                   )}
@@ -233,31 +235,188 @@ export default function ContractDetailPage() {
               {Array.isArray(contract.parties) && contract.parties.length > 0 && (
                 <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm lg:col-span-2">
                   <h2 className="mb-4 text-xl font-semibold text-gray-900">طرفین قرارداد</h2>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full text-right text-sm">
-                      <thead>
-                        <tr className="border-b border-gray-200">
-                          <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600">نام</th>
-                          <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600">نوع</th>
-                          <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600">کد ملی</th>
-                          <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600">نقش</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {contract.parties.map((party: any, index: number) => (
-                          <tr key={index} className="border-b border-gray-100">
-                            <td className="px-4 py-3">
-                              {party.firstName && party.lastName
-                                ? `${party.firstName} ${party.lastName}`
-                                : party.companyName || '-'}
-                            </td>
-                            <td className="px-4 py-3">{party.partyType === 'LANDLORD' ? 'موجر' : 'مستاجر'}</td>
-                            <td className="px-4 py-3">{party.nationalId || party.companyNationalId || '-'}</td>
-                            <td className="px-4 py-3">{party.partyRole === 'PRINCIPAL' ? 'اصلی' : party.partyRole === 'REPRESENTATIVE' ? 'نماینده' : 'وکیل'}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div className="space-y-4">
+                    {contract.parties.map((party: any, index: number) => (
+                      <div key={index} className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                        <div className="mb-3 flex items-center justify-between border-b border-gray-300 pb-2">
+                          <h3 className="text-base font-semibold text-gray-900">
+                            {party.firstName && party.lastName
+                              ? `${party.firstName} ${party.lastName}`
+                              : party.companyName || `طرف قرارداد ${index + 1}`}
+                          </h3>
+                          <div className="flex gap-2">
+                            <span className="rounded-full bg-primary-100 px-3 py-1 text-xs font-semibold text-primary-700">
+                              {party.partyType === 'LANDLORD' ? 'موجر' : 'مستاجر'}
+                            </span>
+                            <span className="rounded-full bg-gray-200 px-3 py-1 text-xs font-semibold text-gray-700">
+                              {party.partyRole === 'PRINCIPAL' ? 'اصلی' : party.partyRole === 'REPRESENTATIVE' ? 'نماینده' : 'وکیل'}
+                            </span>
+                            {party.entityType && (
+                              <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
+                                {party.entityType === 'NATURAL' ? 'حقیقی' : 'حقوقی'}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+                          {party.entityType === 'NATURAL' ? (
+                            <>
+                              {party.firstName && (
+                                <div>
+                                  <label className="text-xs font-semibold text-gray-600">نام</label>
+                                  <p className="mt-1 text-sm text-gray-800">{party.firstName}</p>
+                                </div>
+                              )}
+                              {party.lastName && (
+                                <div>
+                                  <label className="text-xs font-semibold text-gray-600">نام خانوادگی</label>
+                                  <p className="mt-1 text-sm text-gray-800">{party.lastName}</p>
+                                </div>
+                              )}
+                              {party.nationalId && (
+                                <div>
+                                  <label className="text-xs font-semibold text-gray-600">کد ملی</label>
+                                  <p className="mt-1 text-sm text-gray-800">{party.nationalId}</p>
+                                </div>
+                              )}
+                              {party.idCardNumber && (
+                                <div>
+                                  <label className="text-xs font-semibold text-gray-600">شماره شناسنامه</label>
+                                  <p className="mt-1 text-sm text-gray-800">{party.idCardNumber}</p>
+                                </div>
+                              )}
+                              {party.childOf && (
+                                <div>
+                                  <label className="text-xs font-semibold text-gray-600">نام پدر</label>
+                                  <p className="mt-1 text-sm text-gray-800">{party.childOf}</p>
+                                </div>
+                              )}
+                              {party.birthDate && (
+                                <div>
+                                  <label className="text-xs font-semibold text-gray-600">تاریخ تولد</label>
+                                  <p className="mt-1 text-sm text-gray-800">{formatToPersianDate(party.birthDate)}</p>
+                                </div>
+                              )}
+                              {party.issuedFrom && (
+                                <div>
+                                  <label className="text-xs font-semibold text-gray-600">محل صدور</label>
+                                  <p className="mt-1 text-sm text-gray-800">{party.issuedFrom}</p>
+                                </div>
+                              )}
+                              {party.phone && (
+                                <div>
+                                  <label className="text-xs font-semibold text-gray-600">شماره تماس</label>
+                                  <p className="mt-1 text-sm text-gray-800">{party.phone}</p>
+                                </div>
+                              )}
+                              {party.postalCode && (
+                                <div>
+                                  <label className="text-xs font-semibold text-gray-600">کد پستی</label>
+                                  <p className="mt-1 text-sm text-gray-800">{party.postalCode}</p>
+                                </div>
+                              )}
+                              {party.address && (
+                                <div className="md:col-span-2 lg:col-span-3">
+                                  <label className="text-xs font-semibold text-gray-600">آدرس</label>
+                                  <p className="mt-1 text-sm text-gray-800">{party.address}</p>
+                                </div>
+                              )}
+                              {party.resident && (
+                                <div>
+                                  <label className="text-xs font-semibold text-gray-600">ساکن</label>
+                                  <p className="mt-1 text-sm text-gray-800">{party.resident}</p>
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              {party.companyName && (
+                                <div>
+                                  <label className="text-xs font-semibold text-gray-600">نام شرکت</label>
+                                  <p className="mt-1 text-sm text-gray-800">{party.companyName}</p>
+                                </div>
+                              )}
+                              {party.companyNationalId && (
+                                <div>
+                                  <label className="text-xs font-semibold text-gray-600">شناسه ملی شرکت</label>
+                                  <p className="mt-1 text-sm text-gray-800">{party.companyNationalId}</p>
+                                </div>
+                              )}
+                              {party.registrationNumber && (
+                                <div>
+                                  <label className="text-xs font-semibold text-gray-600">شماره ثبت</label>
+                                  <p className="mt-1 text-sm text-gray-800">{party.registrationNumber}</p>
+                                </div>
+                              )}
+                              {party.officialGazette && (
+                                <div className="md:col-span-2 lg:col-span-3">
+                                  <label className="text-xs font-semibold text-gray-600">روزنامه رسمی</label>
+                                  <p className="mt-1 text-sm text-gray-800">{party.officialGazette}</p>
+                                </div>
+                              )}
+                            </>
+                          )}
+                          {party.shareType && party.shareValue !== undefined && (
+                            <div>
+                              <label className="text-xs font-semibold text-gray-600">سهم</label>
+                              <p className="mt-1 text-sm text-gray-800">
+                                {party.shareValue} {party.shareType === 'DANG' ? 'دانگ' : 'درصد'}
+                              </p>
+                            </div>
+                          )}
+                          {party.partyRole !== 'PRINCIPAL' && party.principalParty && (
+                            <div className="md:col-span-2 lg:col-span-3">
+                              <label className="text-xs font-semibold text-gray-600">طرف اصیل</label>
+                              <p className="mt-1 text-sm text-gray-800">
+                                {party.principalParty.firstName && party.principalParty.lastName
+                                  ? `${party.principalParty.firstName} ${party.principalParty.lastName}`
+                                  : party.principalParty.companyName || '-'}
+                              </p>
+                            </div>
+                          )}
+                          {party.relationshipType && (
+                            <div>
+                              <label className="text-xs font-semibold text-gray-600">نوع رابطه</label>
+                              <p className="mt-1 text-sm text-gray-800">
+                                {party.relationshipType === 'ATTORNEY' ? 'وکالت' :
+                                 party.relationshipType === 'MANAGEMENT' ? 'مدیریت' :
+                                 party.relationshipType === 'GUARDIAN' ? 'ولی' : 'سایر'}
+                              </p>
+                            </div>
+                          )}
+                          {party.relationshipDocumentNumber && (
+                            <div>
+                              <label className="text-xs font-semibold text-gray-600">شماره مدرک رابطه</label>
+                              <p className="mt-1 text-sm text-gray-800">{party.relationshipDocumentNumber}</p>
+                            </div>
+                          )}
+                          {party.relationshipDocumentDate && (
+                            <div>
+                              <label className="text-xs font-semibold text-gray-600">تاریخ مدرک رابطه</label>
+                              <p className="mt-1 text-sm text-gray-800">{formatToPersianDate(party.relationshipDocumentDate)}</p>
+                            </div>
+                          )}
+                          {party.authorityType && (
+                            <div>
+                              <label className="text-xs font-semibold text-gray-600">نوع اختیار</label>
+                              <p className="mt-1 text-sm text-gray-800">{party.authorityType}</p>
+                            </div>
+                          )}
+                          {party.authorityDocumentNumber && (
+                            <div>
+                              <label className="text-xs font-semibold text-gray-600">شماره مدرک اختیار</label>
+                              <p className="mt-1 text-sm text-gray-800">{party.authorityDocumentNumber}</p>
+                            </div>
+                          )}
+                          {party.authorityDocumentDate && (
+                            <div>
+                              <label className="text-xs font-semibold text-gray-600">تاریخ مدرک اختیار</label>
+                              <p className="mt-1 text-sm text-gray-800">{formatToPersianDate(party.authorityDocumentDate)}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}

@@ -6,8 +6,15 @@ import moment from 'moment-jalaali';
  * @returns Persian date string (e.g., "1402/10/25")
  */
 export const formatToPersianDate = (date: string): string => {
-  if (!date) return '';
-  const m = moment(date, 'YYYY-MM-DD');
+  if (!date || typeof date !== 'string') return '';
+  const trimmedDate = date.trim();
+  if (!trimmedDate) return '';
+  
+  const m = moment(trimmedDate, 'YYYY-MM-DD', true); // strict parsing
+  if (!m.isValid()) {
+    console.warn('Invalid Gregorian date format:', date);
+    return '';
+  }
   return m.format('jYYYY/jMM/jDD');
 };
 
@@ -17,8 +24,15 @@ export const formatToPersianDate = (date: string): string => {
  * @returns Date string in YYYY-MM-DD format
  */
 export const formatToGregorianDate = (persianDate: string): string => {
-  if (!persianDate) return '';
-  const m = moment(persianDate, 'jYYYY/jMM/jDD');
+  if (!persianDate || typeof persianDate !== 'string') return '';
+  const trimmedDate = persianDate.trim();
+  if (!trimmedDate) return '';
+  
+  const m = moment(trimmedDate, 'jYYYY/jMM/jDD', true); // strict parsing
+  if (!m.isValid()) {
+    console.warn('Invalid Persian date format:', persianDate);
+    return '';
+  }
   return m.format('YYYY-MM-DD');
 };
 

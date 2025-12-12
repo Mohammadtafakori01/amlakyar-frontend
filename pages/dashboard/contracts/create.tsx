@@ -27,6 +27,7 @@ import Loading from '../../../src/shared/components/common/Loading';
 import ErrorDisplay from '../../../src/shared/components/common/ErrorDisplay';
 import PersianDatePicker from '../../../src/shared/components/common/PersianDatePicker';
 import { formatNumber, parseFormattedNumber } from '../../../src/shared/utils/numberUtils';
+import { formatToPersianDate, formatToGregorianDate } from '../../../src/shared/utils/dateUtils';
 
 type Step = 1 | 2 | 3 | 4 | 5;
 
@@ -1245,20 +1246,55 @@ export default function CreateContractPage() {
       }
       
       // Convert all numeric values and string fields that may contain numbers in parties to Latin numbers before sending
-      const partiesWithLatinNumbers = parties.map(party => ({
-        ...party,
-        shareValue: parseLatinNumber(party.shareValue),
-        // Convert string fields that may contain Persian numbers
-        nationalId: party.nationalId ? convertToLatinNumbers(party.nationalId) : undefined,
-        companyNationalId: party.companyNationalId ? convertToLatinNumbers(party.companyNationalId) : undefined,
-        postalCode: party.postalCode ? convertToLatinNumbers(party.postalCode) : undefined,
-        address: party.address ? convertToLatinNumbers(party.address) : undefined,
-        idCardNumber: party.idCardNumber ? convertToLatinNumbers(party.idCardNumber) : undefined,
-        phone: party.phone ? convertToLatinNumbers(party.phone) : undefined,
-        authorityDocumentNumber: party.authorityDocumentNumber ? convertToLatinNumbers(party.authorityDocumentNumber) : undefined,
-        registrationNumber: party.registrationNumber ? convertToLatinNumbers(party.registrationNumber) : undefined,
-        relationshipDocumentNumber: party.relationshipDocumentNumber ? convertToLatinNumbers(party.relationshipDocumentNumber) : undefined,
-      }));
+      const partiesWithLatinNumbers = parties.map(party => {
+        // Convert birthDate: if it exists and has value, convert from Persian to Gregorian
+        let convertedBirthDate: string | undefined = undefined;
+        if (party.birthDate && typeof party.birthDate === 'string' && party.birthDate.trim() !== '') {
+          if (party.birthDate.includes('/')) {
+            // Persian format (yyyy/mm/dd), convert to Gregorian
+            const converted = formatToGregorianDate(party.birthDate);
+            convertedBirthDate = converted || party.birthDate; // Fallback to original if conversion fails
+          } else if (party.birthDate.includes('-')) {
+            // Already in Gregorian format (YYYY-MM-DD)
+            convertedBirthDate = party.birthDate;
+          } else {
+            // Unknown format, keep as is
+            convertedBirthDate = party.birthDate;
+          }
+        }
+        
+        // Debug: log birthDate conversion
+        if (party.birthDate) {
+          console.log('BirthDate conversion:', {
+            original: party.birthDate,
+            converted: convertedBirthDate,
+            partyIndex: parties.indexOf(party)
+          });
+        }
+        
+        return {
+          ...party,
+          shareValue: parseLatinNumber(party.shareValue),
+          // Convert string fields that may contain Persian numbers
+          nationalId: party.nationalId ? convertToLatinNumbers(party.nationalId) : undefined,
+          companyNationalId: party.companyNationalId ? convertToLatinNumbers(party.companyNationalId) : undefined,
+          postalCode: party.postalCode ? convertToLatinNumbers(party.postalCode) : undefined,
+          address: party.address ? convertToLatinNumbers(party.address) : undefined,
+          idCardNumber: party.idCardNumber ? convertToLatinNumbers(party.idCardNumber) : undefined,
+          phone: party.phone ? convertToLatinNumbers(party.phone) : undefined,
+          authorityDocumentNumber: party.authorityDocumentNumber ? convertToLatinNumbers(party.authorityDocumentNumber) : undefined,
+          registrationNumber: party.registrationNumber ? convertToLatinNumbers(party.registrationNumber) : undefined,
+          relationshipDocumentNumber: party.relationshipDocumentNumber ? convertToLatinNumbers(party.relationshipDocumentNumber) : undefined,
+          // Convert Persian dates to Gregorian format for backend
+          birthDate: convertedBirthDate,
+          relationshipDocumentDate: party.relationshipDocumentDate && party.relationshipDocumentDate.trim() !== ''
+            ? (party.relationshipDocumentDate.includes('/') ? formatToGregorianDate(party.relationshipDocumentDate) : party.relationshipDocumentDate)
+            : (party.relationshipDocumentDate !== undefined ? party.relationshipDocumentDate : undefined),
+          authorityDocumentDate: party.authorityDocumentDate && party.authorityDocumentDate.trim() !== ''
+            ? (party.authorityDocumentDate.includes('/') ? formatToGregorianDate(party.authorityDocumentDate) : party.authorityDocumentDate)
+            : (party.authorityDocumentDate !== undefined ? party.authorityDocumentDate : undefined),
+        };
+      });
       
       const result = await createContractStep2(currentContractId, { parties: partiesWithLatinNumbers });
       
@@ -1270,6 +1306,14 @@ export default function CreateContractPage() {
         setSnackbar({ open: true, message: errorMessage, severity: 'error' });
         // Don't proceed to next step on error
         return;
+      }
+      
+      // Reload contract data to get updated parties from backend
+      try {
+        await fetchContractById(currentContractId);
+      } catch (reloadErr) {
+        console.error('Error reloading contract after save:', reloadErr);
+        // Continue anyway - the save was successful
       }
       
       setCurrentStep(3);
@@ -1572,6 +1616,13 @@ export default function CreateContractPage() {
       return;
     }
 
+    // بررسی اعتبارسنجی پرداختی‌ها
+    const paymentValidation = validatePayments();
+    if (!paymentValidation.isValid) {
+      setSnackbar({ open: true, message: paymentValidation.errorMessage || 'مجموع پرداختی‌ها کافی نیست', severity: 'error' });
+      return;
+    }
+
     try {
       console.log('Finalizing contract with contractId:', currentContractId);
       
@@ -1840,6 +1891,35 @@ export default function CreateContractPage() {
     return paymentEntries.reduce((sum, entry) => sum + entry.amount, 0);
   };
 
+  // بررسی اعتبارسنجی مجموع پرداختی‌ها
+  const validatePayments = (): { isValid: boolean; errorMessage?: string } => {
+    if (contractType === ContractType.RENTAL) {
+      // برای اجاره‌نامه: مجموع رهن باید >= مبلغ ودیعه باشد
+      const depositAmount = draftData.depositAmount ? parseFloat(draftData.depositAmount) : 0;
+      const mortgageTotal = getPaymentTotal(PaymentType.MORTGAGE);
+      
+      if (depositAmount > 0 && mortgageTotal < depositAmount) {
+        return {
+          isValid: false,
+          errorMessage: `مجموع رهن (${mortgageTotal.toLocaleString('fa-IR')} ریال) کمتر از مبلغ ودیعه (${depositAmount.toLocaleString('fa-IR')} ریال) است. لطفا پرداختی‌های بیشتری اضافه کنید.`
+        };
+      }
+    } else if (contractType === ContractType.PURCHASE) {
+      // برای مبایعه‌نامه: مجموع همه پرداختی‌ها باید >= مبلغ خرید باشد
+      const purchaseAmount = draftData.purchaseAmount ? parseFloat(draftData.purchaseAmount) : 0;
+      const allPaymentsTotal = getAllPaymentsTotal();
+      
+      if (purchaseAmount > 0 && allPaymentsTotal < purchaseAmount) {
+        return {
+          isValid: false,
+          errorMessage: `مجموع پرداختی‌ها (${allPaymentsTotal.toLocaleString('fa-IR')} ریال) کمتر از مبلغ خرید (${purchaseAmount.toLocaleString('fa-IR')} ریال) است. لطفا پرداختی‌های بیشتری اضافه کنید.`
+        };
+      }
+    }
+    
+    return { isValid: true };
+  };
+
   const renderPartyModal = () => {
     const principalParties = parties.filter(p => p.partyRole === PartyRole.PRINCIPAL);
     const needsRelationshipStep = currentParty.partyRole !== PartyRole.PRINCIPAL;
@@ -2099,6 +2179,54 @@ export default function CreateContractPage() {
                     required
                     error={fieldErrors['nationalId']}
                   />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <ValidatedInput
+                      field="childOf"
+                      value={currentParty.childOf || ''}
+                      onChange={(e) => setCurrentParty(prev => ({ ...prev, childOf: e.target.value }))}
+                      onClearError={clearFieldErrorMemoized}
+                      label="نام پدر"
+                      error={fieldErrors['childOf']}
+                    />
+                    <div className="w-full">
+                      <label className="mb-1 block text-sm font-semibold text-gray-600">
+                        تاریخ تولد
+                      </label>
+                      <PersianDatePicker
+                        field="birthDate"
+                        key={`birthDate-${editingPartyIndex !== null ? editingPartyIndex : 'new'}-${currentParty.firstName || ''}-${currentParty.lastName || ''}`}
+                        value={currentParty.birthDate || ''}
+                        onChange={(value) => {
+                          setCurrentParty(prev => ({ ...prev, birthDate: value }));
+                          if (fieldErrors['birthDate']) clearFieldErrorMemoized('birthDate');
+                        }}
+                        placeholder="انتخاب تاریخ تولد"
+                        className="w-full"
+                      />
+                      {fieldErrors['birthDate'] && (
+                        <p className="mt-1 text-sm text-red-600">{fieldErrors['birthDate']}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <ValidatedInput
+                      field="issuedFrom"
+                      value={currentParty.issuedFrom || ''}
+                      onChange={(e) => setCurrentParty(prev => ({ ...prev, issuedFrom: e.target.value }))}
+                      onClearError={clearFieldErrorMemoized}
+                      label="محل صدور"
+                      error={fieldErrors['issuedFrom']}
+                    />
+                    <ValidatedInput
+                      field="phone"
+                      value={currentParty.phone || ''}
+                      onChange={(e) => setCurrentParty(prev => ({ ...prev, phone: e.target.value }))}
+                      onClearError={clearFieldErrorMemoized}
+                      label="شماره تماس"
+                      type="tel"
+                      error={fieldErrors['phone']}
+                    />
+                  </div>
                   <ValidatedTextarea
                     field="address"
                     value={currentParty.address || ''}
@@ -3742,6 +3870,25 @@ export default function CreateContractPage() {
           </button>
         </div>
 
+        {/* هشدار اعتبارسنجی پرداختی‌ها */}
+        {(() => {
+          const validation = validatePayments();
+          if (!validation.isValid) {
+            return (
+              <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+                <div className="flex items-start gap-2">
+                  <span className="text-red-600 font-semibold">⚠️</span>
+                  <div>
+                    <p className="font-semibold mb-1">هشدار: مجموع پرداختی‌ها کافی نیست</p>
+                    <p>{validation.errorMessage}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+          return null;
+        })()}
+
         {contractType === ContractType.RENTAL && (
           <div className="mb-6">
             <h4 className="text-sm font-semibold text-gray-700 mb-2">رهن</h4>
@@ -4193,7 +4340,12 @@ export default function CreateContractPage() {
                         </button>
                         <button
                           onClick={handleFinalize}
-                          className="inline-flex items-center gap-2 rounded-2xl bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
+                          disabled={!validatePayments().isValid}
+                          className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold ${
+                            validatePayments().isValid
+                              ? 'bg-green-600 text-white hover:bg-green-700'
+                              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          }`}
                         >
                           <FiCheck />
                           نهایی‌سازی
