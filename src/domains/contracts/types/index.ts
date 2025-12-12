@@ -248,6 +248,11 @@ export interface Contract {
   propertyDetails?: PropertyDetails;
   terms?: ContractTerms;
   paymentEntries?: PaymentEntry[];          // روش‌های پرداخت
+  estate?: {                                // اطلاعات املاک (در صورت وجود)
+    id: string;
+    establishmentName: string;
+    guildId?: string;
+  };
   createdAt: string;
   updatedAt: string;
 }

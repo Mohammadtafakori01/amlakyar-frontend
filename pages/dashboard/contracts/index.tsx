@@ -410,7 +410,7 @@ export default function ContractsPage() {
                         {(Array.isArray(archiveContracts) ? archiveContracts : []).map((contract) => (
                           <tr key={contract.id} className="border-t border-gray-100 hover:bg-gray-50">
                             <td className="px-4 py-3 font-semibold">{contract.contractNumber}</td>
-                            <td className="px-4 py-3">{(contract as any).estate?.establishmentName || '—'}</td>
+                            <td className="px-4 py-3">{contract.estate?.establishmentName || '—'}</td>
                             <td className="px-4 py-3">{getContractTypeLabel(contract.type)}</td>
                             <td className="px-4 py-3">
                               <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${getStatusColor(contract.status)}`}>
