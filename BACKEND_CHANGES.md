@@ -214,3 +214,4 @@ export interface ContractTerms {
 - نسخه: 1.0.0
 - توضیحات: حذف فیلدهای evictionNoticeDays و dailyPenaltyAmount و تغییر نام‌های نمایشی
 
+

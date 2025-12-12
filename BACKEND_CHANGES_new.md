@@ -386,3 +386,4 @@ ALTER TABLE contracts
   ADD COLUMN contract_copies INT DEFAULT 3;
 ```
 
+

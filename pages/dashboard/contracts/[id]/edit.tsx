@@ -1773,7 +1773,9 @@ export default function EditContractPage() {
       const termsData: any = {
         dailyDelayPenalty: terms.dailyDelayPenalty ? parseLatinNumber(terms.dailyDelayPenalty) : undefined,
         dailyOccupancyPenalty: terms.dailyOccupancyPenalty ? parseLatinNumber(terms.dailyOccupancyPenalty) : undefined,
-        deliveryDate: terms.deliveryDate || undefined,
+        deliveryDate: terms.deliveryDate 
+          ? (terms.deliveryDate.includes('/') ? formatToGregorianDate(terms.deliveryDate) : terms.deliveryDate)
+          : undefined,
         deliveryDelayPenalty: terms.deliveryDelayPenalty ? parseLatinNumber(terms.deliveryDelayPenalty) : undefined,
         usagePurpose: terms.usagePurpose === 'سایر' ? terms.usagePurposeOther : (terms.usagePurpose || undefined),
         occupantCount: terms.occupantCount ? parseLatinInteger(terms.occupantCount) : undefined,
