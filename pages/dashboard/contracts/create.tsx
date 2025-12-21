@@ -1159,7 +1159,18 @@ export default function CreateContractPage() {
 
   const handlePartyModalPrev = () => {
     if (partyModalStep > 1) {
-      setPartyModalStep(partyModalStep - 1);
+      // Determine if step 6 should be shown
+      const needsRelationshipStep = currentParty.partyRole !== PartyRole.PRINCIPAL;
+      const needsAuthorizationStep = currentParty.partyRole === PartyRole.PRINCIPAL && 
+        currentParty.entityType === PartyEntityType.NATURAL && 
+        currentParty.authorityType;
+      
+      // If going back from step 7 and step 6 should be skipped, go directly to step 5
+      if (partyModalStep === 7 && !needsRelationshipStep && !needsAuthorizationStep) {
+        setPartyModalStep(5);
+      } else {
+        setPartyModalStep(partyModalStep - 1);
+      }
     }
   };
 
@@ -1396,23 +1407,55 @@ export default function CreateContractPage() {
         ownershipDocumentBook: propertyDetails.ownershipDocumentType === 'دفترچه ای' && propertyDetails.ownershipDocumentBook ? convertToLatinNumbers(propertyDetails.ownershipDocumentBook.trim()) || undefined : undefined,
         uniqueDocumentId: propertyDetails.ownershipDocumentType === 'تک برگ' && propertyDetails.uniqueDocumentId ? convertToLatinNumbers(propertyDetails.uniqueDocumentId.trim()) || undefined : undefined,
         propertyShareType: propertyDetails.propertyShareType?.trim() || undefined,
-        amenities: propertyDetails.amenities ? {
-          flooring: propertyDetails.amenities.flooring || undefined,
-          bathroom: propertyDetails.amenities.bathroom || undefined,
-          meetingHall: propertyDetails.amenities.meetingHall || undefined,
-          club: propertyDetails.amenities.club || undefined,
-          amphitheater: propertyDetails.amenities.amphitheater || undefined,
-          security: propertyDetails.amenities.security || undefined,
-          balcony: propertyDetails.amenities.balcony || undefined,
-          hood: propertyDetails.amenities.hood || undefined,
-          janitorial: propertyDetails.amenities.janitorial || undefined,
-          lobby: propertyDetails.amenities.lobby || undefined,
-          terrace: propertyDetails.amenities.terrace || undefined,
-          videoIntercom: propertyDetails.amenities.videoIntercom || undefined,
-          remoteParkingGate: propertyDetails.amenities.remoteParkingGate || undefined,
-          tableGas: propertyDetails.amenities.tableGas || undefined,
-          centralAntenna: propertyDetails.amenities.centralAntenna || undefined,
-        } : undefined,
+        amenities: propertyDetails.amenities ? (() => {
+          const amenitiesObj: any = {};
+          if (propertyDetails.amenities.flooring !== undefined && propertyDetails.amenities.flooring !== null && propertyDetails.amenities.flooring !== '') {
+            amenitiesObj.flooring = propertyDetails.amenities.flooring;
+          }
+          if (propertyDetails.amenities.bathroom !== undefined && propertyDetails.amenities.bathroom !== null && propertyDetails.amenities.bathroom !== '') {
+            amenitiesObj.bathroom = propertyDetails.amenities.bathroom;
+          }
+          if (propertyDetails.amenities.meetingHall !== undefined && propertyDetails.amenities.meetingHall !== null) {
+            amenitiesObj.meetingHall = propertyDetails.amenities.meetingHall;
+          }
+          if (propertyDetails.amenities.club !== undefined && propertyDetails.amenities.club !== null) {
+            amenitiesObj.club = propertyDetails.amenities.club;
+          }
+          if (propertyDetails.amenities.amphitheater !== undefined && propertyDetails.amenities.amphitheater !== null) {
+            amenitiesObj.amphitheater = propertyDetails.amenities.amphitheater;
+          }
+          if (propertyDetails.amenities.security !== undefined && propertyDetails.amenities.security !== null) {
+            amenitiesObj.security = propertyDetails.amenities.security;
+          }
+          if (propertyDetails.amenities.balcony !== undefined && propertyDetails.amenities.balcony !== null) {
+            amenitiesObj.balcony = propertyDetails.amenities.balcony;
+          }
+          if (propertyDetails.amenities.hood !== undefined && propertyDetails.amenities.hood !== null) {
+            amenitiesObj.hood = propertyDetails.amenities.hood;
+          }
+          if (propertyDetails.amenities.janitorial !== undefined && propertyDetails.amenities.janitorial !== null) {
+            amenitiesObj.janitorial = propertyDetails.amenities.janitorial;
+          }
+          if (propertyDetails.amenities.lobby !== undefined && propertyDetails.amenities.lobby !== null) {
+            amenitiesObj.lobby = propertyDetails.amenities.lobby;
+          }
+          if (propertyDetails.amenities.terrace !== undefined && propertyDetails.amenities.terrace !== null) {
+            amenitiesObj.terrace = propertyDetails.amenities.terrace;
+          }
+          if (propertyDetails.amenities.videoIntercom !== undefined && propertyDetails.amenities.videoIntercom !== null) {
+            amenitiesObj.videoIntercom = propertyDetails.amenities.videoIntercom;
+          }
+          if (propertyDetails.amenities.remoteParkingGate !== undefined && propertyDetails.amenities.remoteParkingGate !== null) {
+            amenitiesObj.remoteParkingGate = propertyDetails.amenities.remoteParkingGate;
+          }
+          if (propertyDetails.amenities.tableGas !== undefined && propertyDetails.amenities.tableGas !== null) {
+            amenitiesObj.tableGas = propertyDetails.amenities.tableGas;
+          }
+          if (propertyDetails.amenities.centralAntenna !== undefined && propertyDetails.amenities.centralAntenna !== null) {
+            amenitiesObj.centralAntenna = propertyDetails.amenities.centralAntenna;
+          }
+          return Object.keys(amenitiesObj).length > 0 ? amenitiesObj : undefined;
+        })() : undefined,
       };
       const result = await updateProperty(currentContractId, propertyData);
       
@@ -1799,6 +1842,7 @@ export default function CreateContractPage() {
   const getPaymentTypeLabel = (type: PaymentType): string => {
     const labels: Record<PaymentType, string> = {
       [PaymentType.MORTGAGE]: 'رهن',
+      [PaymentType.RENTAL_PAYMENT]: 'پرداخت اجاره',
       [PaymentType.DOWN_PAYMENT]: 'پیش‌پرداخت',
       [PaymentType.BILL_OF_SALE]: 'قبض رسید',
     };
@@ -3580,6 +3624,7 @@ export default function CreateContractPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-600">جریمه تاخیر در پرداخت قرض الحسنه (ریال)</label>
+          <p className="mb-2 text-xs text-gray-500">در پایان مهلت قرارداد موجر باید پرداخت کند</p>
           <input
             type="text"
             value={terms.dailyDelayPenalty !== '' ? formatNumber(parseFormattedNumber(terms.dailyDelayPenalty)) : ''}
@@ -3701,7 +3746,7 @@ export default function CreateContractPage() {
         <h3 className="text-lg font-semibold text-gray-800 mb-4">ماده 6 - شرایط قرارداد</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="mb-1 block text-sm font-semibold text-gray-600">مهلت پرداخت</label>
+            <label className="mb-1 block text-sm font-semibold text-gray-600">مهلت پرداخت اجاره بها در روز</label>
             <select
               value={terms.rentPaymentDeadline}
               onChange={(e) => setTerms({ ...terms, rentPaymentDeadline: e.target.value })}
@@ -3759,7 +3804,7 @@ export default function CreateContractPage() {
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-gray-900">مرحله 5: نهایی‌سازی قرارداد</h2>
       <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-        قبل از نهایی‌سازی، لطفا اطلاعات قرارداد را بررسی کنید. پس از نهایی‌سازی، قرارداد قابل ویرایش نخواهد بود.
+        قبل از نهایی‌سازی، لطفا اطلاعات قرارداد را بررسی کنید. 
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
@@ -3912,6 +3957,7 @@ export default function CreateContractPage() {
         })()}
 
         {contractType === ContractType.RENTAL && (
+          <>
           <div className="mb-6">
             <h4 className="text-sm font-semibold text-gray-700 mb-2">رهن</h4>
             {paymentEntries.filter(e => e.paymentType === PaymentType.MORTGAGE).length === 0 ? (
@@ -3963,7 +4009,106 @@ export default function CreateContractPage() {
                 </div>
               </div>
             )}
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={() => {
+                  setCurrentPayment({
+                    paymentType: PaymentType.MORTGAGE,
+                    paymentMethod: PaymentMethod.CASH,
+                    amount: 0,
+                    order: paymentEntries.length,
+                  });
+                  setEditingPaymentIndex(null);
+                  setShowPaymentModal(true);
+                }}
+                className="inline-flex items-center gap-2 rounded-2xl border border-primary-200 bg-primary-50 px-4 py-2 text-sm font-semibold text-primary-700 hover:bg-primary-100"
+              >
+                <FiPlus />
+                افزودن رهن
+              </button>
+            </div>
           </div>
+
+          {/* Rental Payment Entries Section */}
+          <div className="mb-6">
+            <h4 className="text-sm font-semibold text-gray-700 mb-2">پرداخت‌های اجاره (چک‌های اجاره)</h4>
+            {paymentEntries.filter(e => e.paymentType === PaymentType.RENTAL_PAYMENT).length === 0 ? (
+              <p className="text-sm text-gray-500">هیچ پرداخت اجاره‌ای ثبت نشده است</p>
+            ) : (
+              <div className="space-y-2">
+                {paymentEntries
+                  .filter(e => e.paymentType === PaymentType.RENTAL_PAYMENT)
+                  .map((entry, index) => {
+                    const originalIndex = paymentEntries.findIndex(e => e === entry);
+                    return (
+                      <div key={index} className="flex items-center justify-between border border-gray-200 rounded-lg p-3">
+                        <div className="flex-1">
+                          <div className="text-sm font-semibold">{getPaymentMethodLabel(entry.paymentMethod)}</div>
+                          <div className="text-sm text-gray-600">
+                            مبلغ: {entry.amount.toLocaleString('fa-IR')} ریال
+                            {entry.checkNumber && ` | شماره چک: ${entry.checkNumber}`}
+                            {entry.accountNumber && ` | شماره حساب: ${entry.accountNumber}`}
+                            {entry.cardNumber && ` | شماره کارت: ${entry.cardNumber}`}
+                            {entry.shabaNumber && ` | شماره شبا: ${entry.shabaNumber}`}
+                            {entry.bankName && ` | بانک: ${entry.bankName}`}
+                            {entry.branchName && ` | شعبه: ${entry.branchName}`}
+                            {entry.description && ` | توضیحات: ${entry.description}`}
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEditPayment(originalIndex)}
+                            className="text-primary-600 hover:text-primary-700 text-sm"
+                          >
+                            ویرایش
+                          </button>
+                          <button
+                            onClick={() => handleDeletePayment(originalIndex)}
+                            className="text-red-600 hover:text-red-700 text-sm"
+                          >
+                            حذف
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                <div className="text-sm font-semibold text-gray-700 mt-2">
+                  مجموع پرداخت‌های اجاره: {getPaymentTotal(PaymentType.RENTAL_PAYMENT).toLocaleString('fa-IR')} ریال
+                  {draftData.rentalAmount && (
+                    <span className="text-gray-500">
+                      {' '}(مبلغ اجاره ماهانه: {parseFloat(draftData.rentalAmount).toLocaleString('fa-IR')} ریال)
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={() => {
+                  setCurrentPayment({
+                    paymentType: PaymentType.RENTAL_PAYMENT,
+                    paymentMethod: PaymentMethod.CHECK,
+                    amount: draftData.rentalAmount ? parseFloat(draftData.rentalAmount) : 0,
+                    order: paymentEntries.length,
+                  });
+                  setEditingPaymentIndex(null);
+                  setShowPaymentModal(true);
+                }}
+                className="inline-flex items-center gap-2 rounded-2xl border border-primary-200 bg-primary-50 px-4 py-2 text-sm font-semibold text-primary-700 hover:bg-primary-100"
+              >
+                <FiPlus />
+                افزودن چک اجاره
+              </button>
+            </div>
+          </div>
+
+          {/* Total Payments for Rental */}
+          <div className="border-t border-gray-200 pt-4">
+            <div className="text-sm font-semibold text-gray-700">
+              مجموع کل پرداخت‌ها: {getAllPaymentsTotal().toLocaleString('fa-IR')} ریال
+            </div>
+          </div>
+          </>
         )}
 
         {contractType === ContractType.PURCHASE && (
@@ -4100,7 +4245,10 @@ export default function CreateContractPage() {
                   className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
                 >
                   {contractType === ContractType.RENTAL ? (
-                    <option value={PaymentType.MORTGAGE}>رهن</option>
+                    <>
+                      <option value={PaymentType.MORTGAGE}>رهن</option>
+                      <option value={PaymentType.RENTAL_PAYMENT}>پرداخت اجاره</option>
+                    </>
                   ) : (
                     <>
                       <option value={PaymentType.DOWN_PAYMENT}>پیش‌پرداخت</option>

@@ -177,7 +177,7 @@ export default function ContractsPage() {
   const getStatusLabel = (status: ContractStatus): string => {
     const labels: Record<ContractStatus, string> = {
       [ContractStatus.DRAFT]: 'پیش‌نویس',
-      [ContractStatus.SIGNED]: 'امضا شده',
+      [ContractStatus.SIGNED]: 'ثبت شده',
       [ContractStatus.EXPIRED]: 'منقضی شده',
       [ContractStatus.TERMINATED]: 'فسخ شده',
     };
@@ -307,7 +307,7 @@ export default function ContractsPage() {
                     >
                       <option value="">همه</option>
                       <option value={ContractStatus.DRAFT}>پیش‌نویس</option>
-                      <option value={ContractStatus.SIGNED}>امضا شده</option>
+                      <option value={ContractStatus.SIGNED}>ثبت شده</option>
                       <option value={ContractStatus.EXPIRED}>منقضی شده</option>
                       <option value={ContractStatus.TERMINATED}>فسخ شده</option>
                     </select>
@@ -477,24 +477,20 @@ export default function ContractsPage() {
                               >
                                 <FiEye />
                               </button>
-                              {contract.status === ContractStatus.DRAFT && (
-                                <>
-                                  <button
-                                    onClick={() => router.push(`/dashboard/contracts/${contract.id}/edit`)}
-                                    className="rounded-full border border-gray-200 p-2 text-gray-600 hover:border-primary-200 hover:text-primary-600"
-                                    title="ویرایش"
-                                  >
-                                    <FiEdit2 />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteContract(contract.id)}
-                                    className="rounded-full border border-red-200 p-2 text-red-600 hover:border-red-300 hover:bg-red-50"
-                                    title="حذف"
-                                  >
-                                    <FiTrash2 />
-                                  </button>
-                                </>
-                              )}
+                              <button
+                                onClick={() => router.push(`/dashboard/contracts/${contract.id}/edit`)}
+                                className="rounded-full border border-gray-200 p-2 text-gray-600 hover:border-primary-200 hover:text-primary-600"
+                                title="ویرایش"
+                              >
+                                <FiEdit2 />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteContract(contract.id)}
+                                className="rounded-full border border-red-200 p-2 text-red-600 hover:border-red-300 hover:bg-red-50"
+                                title="حذف"
+                              >
+                                <FiTrash2 />
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -549,24 +545,20 @@ export default function ContractsPage() {
                             >
                               <FiEye />
                             </button>
-                            {contract.status === ContractStatus.DRAFT && (
-                              <>
-                                <button
-                                  onClick={() => router.push(`/dashboard/contracts/${contract.id}/edit`)}
-                                  className="rounded-full border border-gray-200 p-2 text-gray-600 hover:border-primary-200 hover:text-primary-600"
-                                  title="ویرایش"
-                                >
-                                  <FiEdit2 />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteContract(contract.id)}
-                                  className="rounded-full border border-red-200 p-2 text-red-600 hover:border-red-300 hover:bg-red-50"
-                                  title="حذف"
-                                >
-                                  <FiTrash2 />
-                                </button>
-                              </>
-                            )}
+                            <button
+                              onClick={() => router.push(`/dashboard/contracts/${contract.id}/edit`)}
+                              className="rounded-full border border-gray-200 p-2 text-gray-600 hover:border-primary-200 hover:text-primary-600"
+                              title="ویرایش"
+                            >
+                              <FiEdit2 />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteContract(contract.id)}
+                              className="rounded-full border border-red-200 p-2 text-red-600 hover:border-red-300 hover:bg-red-50"
+                              title="حذف"
+                            >
+                              <FiTrash2 />
+                            </button>
                           </div>
                         </td>
                       </tr>

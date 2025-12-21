@@ -120,7 +120,7 @@ export const contractsApi = {
     return response.data;
   },
 
-  // Delete contract (only DRAFT contracts)
+  // Delete contract
   deleteContract: async (id: string): Promise<void> => {
     await apiClient.delete(`/contracts/${id}`);
   },

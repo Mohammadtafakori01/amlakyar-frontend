@@ -42,7 +42,7 @@ const PersianDatePicker: React.FC<PersianDatePickerProps> = ({
       
       if (!isNaN(year) && !isNaN(month) && !isNaN(day) && year > 0 && month > 0 && month <= 12 && day > 0 && day <= 31) {
         try {
-          return new DateObject({ calendar: persian, year, month: month - 1, day }); // month is 0-indexed
+          return new DateObject({ calendar: persian, year, month, day }); // month is 1-indexed for Persian calendar
         } catch (error) {
           console.error('Error creating DateObject:', error);
           return undefined;

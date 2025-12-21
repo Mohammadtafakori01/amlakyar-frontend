@@ -43,7 +43,7 @@ export default function ContractDetailPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]); // Only depend on id to avoid loops; fetchContractById and selectedContract are intentionally excluded
-
+ 
   const getContractTypeLabel = (type: ContractType): string => {
     return type === ContractType.RENTAL ? 'اجاره‌نامه' : 'مبایعه‌نامه';
   };
@@ -51,7 +51,7 @@ export default function ContractDetailPage() {
   const getStatusLabel = (status: ContractStatus): string => {
     const labels: Record<ContractStatus, string> = {
       [ContractStatus.DRAFT]: 'پیش‌نویس',
-      [ContractStatus.SIGNED]: 'امضا شده',
+      [ContractStatus.SIGNED]: 'ثبت شده',
       [ContractStatus.EXPIRED]: 'منقضی شده',
       [ContractStatus.TERMINATED]: 'فسخ شده',
     };
@@ -105,6 +105,7 @@ export default function ContractDetailPage() {
     );
   }
 
+
   if (error || !selectedContract) {
     return (
       <PrivateRoute>
@@ -147,15 +148,13 @@ export default function ContractDetailPage() {
                   <FiDownload />
                   {isDownloading ? 'در حال دانلود...' : 'دانلود PDF'}
                 </button>
-                {contract.status === ContractStatus.DRAFT && (
-                  <button
-                    onClick={() => router.push(`/dashboard/contracts/${contract.id}/edit`)}
-                    className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:border-primary-200 hover:text-primary-600"
-                  >
-                    <FiEdit2 />
-                    ویرایش
-                  </button>
-                )}
+                <button
+                  onClick={() => router.push(`/dashboard/contracts/${contract.id}/edit`)}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:border-primary-200 hover:text-primary-600"
+                >
+                  <FiEdit2 />
+                  ویرایش
+                </button>
                 <button
                   onClick={() => router.push('/dashboard/contracts')}
                   className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:border-gray-300 hover:bg-gray-50"
@@ -195,6 +194,24 @@ export default function ContractDetailPage() {
                     <label className="text-sm font-semibold text-gray-600">تاریخ پایان</label>
                     <p className="mt-1 text-sm text-gray-800">{contract.endDate ? formatToPersianDate(contract.endDate) : '-'}</p>
                   </div>
+                  {contract.registrationArea && (
+                    <div>
+                      <label className="text-sm font-semibold text-gray-600">حوزه ثبتی</label>
+                      <p className="mt-1 text-sm text-gray-800">{contract.registrationArea}</p>
+                    </div>
+                  )}
+                  {contract.witness1Name && (
+                    <div>
+                      <label className="text-sm font-semibold text-gray-600">شاهد اول</label>
+                      <p className="mt-1 text-sm text-gray-800">{contract.witness1Name}</p>
+                    </div>
+                  )}
+                  {contract.witness2Name && (
+                    <div>
+                      <label className="text-sm font-semibold text-gray-600">شاهد دوم</label>
+                      <p className="mt-1 text-sm text-gray-800">{contract.witness2Name}</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -230,6 +247,78 @@ export default function ContractDetailPage() {
                   )}
                 </div>
               </div>
+
+              {/* Estate Information */}
+              {contract.estate && (
+                <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                  <h2 className="mb-4 text-xl font-semibold text-gray-900">اطلاعات املاک</h2>
+                  <div className="space-y-4">
+                    {contract.estate.establishmentName && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">نام موسسه</label>
+                        <p className="mt-1 text-sm text-gray-800">{contract.estate.establishmentName}</p>
+                      </div>
+                    )}
+                    {contract.estate.guildId && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">شماره نظام صنفی</label>
+                        <p className="mt-1 text-sm text-gray-800">{contract.estate.guildId}</p>
+                      </div>
+                    )}
+                    {contract.estate.fixedPhone && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">تلفن ثابت</label>
+                        <p className="mt-1 text-sm text-gray-800">{contract.estate.fixedPhone}</p>
+                      </div>
+                    )}
+                    {contract.estate.address && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">آدرس</label>
+                        <p className="mt-1 text-sm text-gray-800">{contract.estate.address}</p>
+                      </div>
+                    )}
+                    {contract.estate.status && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">وضعیت</label>
+                        <p className="mt-1 text-sm text-gray-800">{contract.estate.status}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Created By Information */}
+              {contract.createdBy && (
+                <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                  <h2 className="mb-4 text-xl font-semibold text-gray-900">ایجاد کننده</h2>
+                  <div className="space-y-4">
+                    {contract.createdBy.firstName && contract.createdBy.lastName && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">نام و نام خانوادگی</label>
+                        <p className="mt-1 text-sm text-gray-800">{contract.createdBy.firstName} {contract.createdBy.lastName}</p>
+                      </div>
+                    )}
+                    {contract.createdBy.phoneNumber && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">شماره تماس</label>
+                        <p className="mt-1 text-sm text-gray-800">{contract.createdBy.phoneNumber}</p>
+                      </div>
+                    )}
+                    {contract.createdBy.nationalId && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">کد ملی</label>
+                        <p className="mt-1 text-sm text-gray-800">{contract.createdBy.nationalId}</p>
+                      </div>
+                    )}
+                    {contract.createdBy.role && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">نقش</label>
+                        <p className="mt-1 text-sm text-gray-800">{contract.createdBy.role}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Parties */}
               {Array.isArray(contract.parties) && contract.parties.length > 0 && (
@@ -425,7 +514,7 @@ export default function ContractDetailPage() {
               {contract.propertyDetails && (
                 <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm lg:col-span-2">
                   <h2 className="mb-4 text-xl font-semibold text-gray-900">جزئیات ملک</h2>
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {contract.propertyDetails.propertyType && (
                       <div>
                         <label className="text-sm font-semibold text-gray-600">نوع ملک</label>
@@ -439,9 +528,15 @@ export default function ContractDetailPage() {
                       </div>
                     )}
                     {contract.propertyDetails.address && (
-                      <div className="md:col-span-2">
+                      <div className="md:col-span-2 lg:col-span-3">
                         <label className="text-sm font-semibold text-gray-600">آدرس</label>
                         <p className="mt-1 text-sm text-gray-800">{contract.propertyDetails.address}</p>
+                      </div>
+                    )}
+                    {contract.propertyDetails.postalCode && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">کد پستی</label>
+                        <p className="mt-1 text-sm text-gray-800">{contract.propertyDetails.postalCode}</p>
                       </div>
                     )}
                     {contract.propertyDetails.area && (
@@ -452,6 +547,185 @@ export default function ContractDetailPage() {
                         </p>
                       </div>
                     )}
+                    {contract.propertyDetails.registrationNumber && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">شماره ثبت</label>
+                        <p className="mt-1 text-sm text-gray-800">{contract.propertyDetails.registrationNumber}</p>
+                      </div>
+                    )}
+                    {contract.propertyDetails.subRegistrationNumber && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">شماره ثبت فرعی</label>
+                        <p className="mt-1 text-sm text-gray-800">{contract.propertyDetails.subRegistrationNumber}</p>
+                      </div>
+                    )}
+                    {contract.propertyDetails.mainRegistrationNumber && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">شماره ثبت اصلی</label>
+                        <p className="mt-1 text-sm text-gray-800">{contract.propertyDetails.mainRegistrationNumber}</p>
+                      </div>
+                    )}
+                    {contract.propertyDetails.section && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">بخش</label>
+                        <p className="mt-1 text-sm text-gray-800">{contract.propertyDetails.section}</p>
+                      </div>
+                    )}
+                    {contract.propertyDetails.ownershipDocumentType && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">نوع سند مالکیت</label>
+                        <p className="mt-1 text-sm text-gray-800">{contract.propertyDetails.ownershipDocumentType}</p>
+                      </div>
+                    )}
+                    {contract.propertyDetails.ownershipDocumentSerial && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">سریال سند مالکیت</label>
+                        <p className="mt-1 text-sm text-gray-800">{contract.propertyDetails.ownershipDocumentSerial}</p>
+                      </div>
+                    )}
+                    {contract.propertyDetails.ownershipDocumentOwner && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">مالک سند</label>
+                        <p className="mt-1 text-sm text-gray-800">{contract.propertyDetails.ownershipDocumentOwner}</p>
+                      </div>
+                    )}
+                    {contract.propertyDetails.ownershipDocumentPage && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">صفحه سند</label>
+                        <p className="mt-1 text-sm text-gray-800">{contract.propertyDetails.ownershipDocumentPage}</p>
+                      </div>
+                    )}
+                    {contract.propertyDetails.ownershipDocumentBook && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">دفتر سند</label>
+                        <p className="mt-1 text-sm text-gray-800">{contract.propertyDetails.ownershipDocumentBook}</p>
+                      </div>
+                    )}
+                    {contract.propertyDetails.propertyShareType && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">نوع سهم</label>
+                        <p className="mt-1 text-sm text-gray-800">{contract.propertyDetails.propertyShareType}</p>
+                      </div>
+                    )}
+                    {contract.propertyDetails.uniqueDocumentId && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">شناسه یکتای سند</label>
+                        <p className="mt-1 text-sm text-gray-800">{contract.propertyDetails.uniqueDocumentId}</p>
+                      </div>
+                    )}
+                    {contract.propertyDetails.storageCount !== undefined && contract.propertyDetails.storageCount !== null && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">تعداد انباری</label>
+                        <p className="mt-1 text-sm text-gray-800">{contract.propertyDetails.storageCount}</p>
+                      </div>
+                    )}
+                    {contract.propertyDetails.storageNumbers && contract.propertyDetails.storageNumbers.length > 0 && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">شماره انباری‌ها</label>
+                        <p className="mt-1 text-sm text-gray-800">{contract.propertyDetails.storageNumbers.join(', ')}</p>
+                      </div>
+                    )}
+                    {contract.propertyDetails.parkingCount !== undefined && contract.propertyDetails.parkingCount !== null && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">تعداد پارکینگ</label>
+                        <p className="mt-1 text-sm text-gray-800">{contract.propertyDetails.parkingCount}</p>
+                      </div>
+                    )}
+                    {contract.propertyDetails.parkingNumbers && contract.propertyDetails.parkingNumbers.length > 0 && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">شماره پارکینگ‌ها</label>
+                        <p className="mt-1 text-sm text-gray-800">{contract.propertyDetails.parkingNumbers.join(', ')}</p>
+                      </div>
+                    )}
+                    {contract.propertyDetails.bedroomCount !== undefined && contract.propertyDetails.bedroomCount !== null && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">تعداد اتاق خواب</label>
+                        <p className="mt-1 text-sm text-gray-800">{contract.propertyDetails.bedroomCount}</p>
+                      </div>
+                    )}
+                    {contract.propertyDetails.bedroomArea && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">مساحت اتاق خواب</label>
+                        <p className="mt-1 text-sm text-gray-800">{contract.propertyDetails.bedroomArea} متر مربع</p>
+                      </div>
+                    )}
+                    {contract.propertyDetails.heatingStatus && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">وضعیت شوفاژ</label>
+                        <p className="mt-1 text-sm text-gray-800">{contract.propertyDetails.heatingStatus}</p>
+                      </div>
+                    )}
+                    {contract.propertyDetails.coolerType && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">نوع کولر</label>
+                        <p className="mt-1 text-sm text-gray-800">{contract.propertyDetails.coolerType}</p>
+                      </div>
+                    )}
+                    {contract.propertyDetails.phoneNumber && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">شماره تلفن</label>
+                        <p className="mt-1 text-sm text-gray-800">{contract.propertyDetails.phoneNumber}</p>
+                      </div>
+                    )}
+                    {contract.propertyDetails.phoneStatus && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">وضعیت تلفن</label>
+                        <p className="mt-1 text-sm text-gray-800">{contract.propertyDetails.phoneStatus}</p>
+                      </div>
+                    )}
+                    {contract.propertyDetails.utilityType && (
+                      <>
+                        {contract.propertyDetails.utilityType.electricity && (
+                          <div>
+                            <label className="text-sm font-semibold text-gray-600">برق</label>
+                            <p className="mt-1 text-sm text-gray-800">{contract.propertyDetails.utilityType.electricity}</p>
+                          </div>
+                        )}
+                        {contract.propertyDetails.utilityType.water && (
+                          <div>
+                            <label className="text-sm font-semibold text-gray-600">آب</label>
+                            <p className="mt-1 text-sm text-gray-800">{contract.propertyDetails.utilityType.water}</p>
+                          </div>
+                        )}
+                        {contract.propertyDetails.utilityType.gas && (
+                          <div>
+                            <label className="text-sm font-semibold text-gray-600">گاز</label>
+                            <p className="mt-1 text-sm text-gray-800">{contract.propertyDetails.utilityType.gas}</p>
+                          </div>
+                        )}
+                      </>
+                    )}
+                    {contract.propertyDetails.amenities && (
+                      <div className="md:col-span-2 lg:col-span-3">
+                        <label className="text-sm font-semibold text-gray-600 mb-2 block">امکانات</label>
+                        <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-4">
+                          {contract.propertyDetails.amenities.flooring && (
+                            <div className="rounded-lg bg-gray-50 p-2">
+                              <span className="text-xs font-semibold text-gray-600">کفپوش:</span>
+                              <span className="mr-1 text-xs text-gray-800">{contract.propertyDetails.amenities.flooring}</span>
+                            </div>
+                          )}
+                          {contract.propertyDetails.amenities.bathroom && (
+                            <div className="rounded-lg bg-gray-50 p-2">
+                              <span className="text-xs font-semibold text-gray-600">سرویس بهداشتی:</span>
+                              <span className="mr-1 text-xs text-gray-800">{contract.propertyDetails.amenities.bathroom}</span>
+                            </div>
+                          )}
+                          {contract.propertyDetails.amenities.hood !== undefined && (
+                            <div className="rounded-lg bg-gray-50 p-2">
+                              <span className="text-xs font-semibold text-gray-600">هود:</span>
+                              <span className="mr-1 text-xs text-gray-800">{contract.propertyDetails.amenities.hood ? 'دارد' : 'ندارد'}</span>
+                            </div>
+                          )}
+                          {contract.propertyDetails.amenities.videoIntercom !== undefined && (
+                            <div className="rounded-lg bg-gray-50 p-2">
+                              <span className="text-xs font-semibold text-gray-600">اینترکام تصویری:</span>
+                              <span className="mr-1 text-xs text-gray-800">{contract.propertyDetails.amenities.videoIntercom ? 'دارد' : 'ندارد'}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -460,17 +734,247 @@ export default function ContractDetailPage() {
               {contract.terms && (
                 <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm lg:col-span-2">
                   <h2 className="mb-4 text-xl font-semibold text-gray-900">شرایط قرارداد</h2>
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {contract.terms.usagePurpose && (
                       <div>
                         <label className="text-sm font-semibold text-gray-600">کاربری</label>
                         <p className="mt-1 text-sm text-gray-800">{contract.terms.usagePurpose}</p>
                       </div>
                     )}
+                    {contract.terms.occupantCount !== undefined && contract.terms.occupantCount !== null && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">تعداد ساکنین</label>
+                        <p className="mt-1 text-sm text-gray-800">{contract.terms.occupantCount}</p>
+                      </div>
+                    )}
+                    {contract.terms.deliveryDate && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">تاریخ تحویل</label>
+                        <p className="mt-1 text-sm text-gray-800">{formatToPersianDate(contract.terms.deliveryDate)}</p>
+                      </div>
+                    )}
+                    {contract.terms.dailyDelayPenalty && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">جریمه روزانه تأخیر</label>
+                        <p className="mt-1 text-sm text-gray-800">{formatPrice(contract.terms.dailyDelayPenalty)} ریال</p>
+                      </div>
+                    )}
+                    {contract.terms.dailyOccupancyPenalty && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">جریمه روزانه تصرف</label>
+                        <p className="mt-1 text-sm text-gray-800">{formatPrice(contract.terms.dailyOccupancyPenalty)} ریال</p>
+                      </div>
+                    )}
+                    {contract.terms.deliveryDelayPenalty && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">جریمه تأخیر تحویل</label>
+                        <p className="mt-1 text-sm text-gray-800">{formatPrice(contract.terms.deliveryDelayPenalty)} ریال</p>
+                      </div>
+                    )}
+                    {contract.terms.rentPaymentDeadline && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">مهلت پرداخت اجاره</label>
+                        <p className="mt-1 text-sm text-gray-800">{contract.terms.rentPaymentDeadline}</p>
+                      </div>
+                    )}
+                    {contract.terms.renewalConditions && (
+                      <div className="md:col-span-2 lg:col-span-3">
+                        <label className="text-sm font-semibold text-gray-600">شرایط تمدید</label>
+                        <p className="mt-1 text-sm text-gray-800 whitespace-pre-wrap">{contract.terms.renewalConditions}</p>
+                      </div>
+                    )}
                     {contract.terms.customTerms && (
-                      <div className="md:col-span-2">
+                      <div className="md:col-span-2 lg:col-span-3">
                         <label className="text-sm font-semibold text-gray-600">توضیحات</label>
                         <p className="mt-1 text-sm text-gray-800 whitespace-pre-wrap">{contract.terms.customTerms}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Payment Entries */}
+              {Array.isArray(contract.paymentEntries) && contract.paymentEntries.length > 0 && (
+                <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm lg:col-span-2">
+                  <h2 className="mb-4 text-xl font-semibold text-gray-900">روش‌های پرداخت</h2>
+                  <div className="space-y-4">
+                    {contract.paymentEntries.map((payment: any, index: number) => {
+                      const getPaymentTypeLabel = (type: string) => {
+                        const labels: Record<string, string> = {
+                          'MORTGAGE': 'رهن',
+                          'RENTAL_PAYMENT': 'پرداخت اجاره',
+                          'DOWN_PAYMENT': 'پیش‌پرداخت',
+                          'BILL_OF_SALE': 'قبض رسید',
+                        };
+                        return labels[type] || type;
+                      };
+
+                      const getPaymentMethodLabel = (method: string) => {
+                        const labels: Record<string, string> = {
+                          'CASH': 'نقد',
+                          'CHECK': 'چک',
+                          'CARD_TO_CARD': 'کارت به کارت',
+                          'SHABA': 'شبا',
+                          'ACCOUNT_TO_ACCOUNT': 'حساب به حساب',
+                        };
+                        return labels[method] || method;
+                      };
+
+                      return (
+                        <div key={payment.id || index} className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                          <div className="mb-3 flex items-center justify-between border-b border-gray-300 pb-2">
+                            <h3 className="text-base font-semibold text-gray-900">
+                              پرداخت {index + 1}
+                            </h3>
+                            <div className="flex gap-2">
+                              <span className="rounded-full bg-primary-100 px-3 py-1 text-xs font-semibold text-primary-700">
+                                {getPaymentTypeLabel(payment.paymentType)}
+                              </span>
+                              <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
+                                {getPaymentMethodLabel(payment.paymentMethod)}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+                            <div>
+                              <label className="text-xs font-semibold text-gray-600">مبلغ</label>
+                              <p className="mt-1 text-sm text-gray-800">{formatPrice(payment.amount)} ریال</p>
+                            </div>
+                            {payment.checkNumber && (
+                              <div>
+                                <label className="text-xs font-semibold text-gray-600">شماره چک</label>
+                                <p className="mt-1 text-sm text-gray-800">{payment.checkNumber}</p>
+                              </div>
+                            )}
+                            {payment.bankName && (
+                              <div>
+                                <label className="text-xs font-semibold text-gray-600">نام بانک</label>
+                                <p className="mt-1 text-sm text-gray-800">{payment.bankName}</p>
+                              </div>
+                            )}
+                            {payment.branchName && (
+                              <div>
+                                <label className="text-xs font-semibold text-gray-600">نام شعبه</label>
+                                <p className="mt-1 text-sm text-gray-800">{payment.branchName}</p>
+                              </div>
+                            )}
+                            {payment.accountNumber && (
+                              <div>
+                                <label className="text-xs font-semibold text-gray-600">شماره حساب</label>
+                                <p className="mt-1 text-sm text-gray-800">{payment.accountNumber}</p>
+                              </div>
+                            )}
+                            {payment.shabaNumber && (
+                              <div>
+                                <label className="text-xs font-semibold text-gray-600">شماره شبا</label>
+                                <p className="mt-1 text-sm text-gray-800">{payment.shabaNumber}</p>
+                              </div>
+                            )}
+                            {payment.cardNumber && (
+                              <div>
+                                <label className="text-xs font-semibold text-gray-600">شماره کارت</label>
+                                <p className="mt-1 text-sm text-gray-800">{payment.cardNumber}</p>
+                              </div>
+                            )}
+                            {payment.description && (
+                              <div className="md:col-span-2 lg:col-span-3">
+                                <label className="text-xs font-semibold text-gray-600">توضیحات</label>
+                                <p className="mt-1 text-sm text-gray-800">{payment.description}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Amenities Boolean Fields */}
+              {(contract.propertyDetails?.amenities?.meetingHall !== undefined || contract.propertyDetails?.amenities?.club !== undefined || contract.propertyDetails?.amenities?.amphitheater !== undefined || 
+                contract.propertyDetails?.amenities?.security !== undefined || contract.propertyDetails?.amenities?.balcony !== undefined || contract.propertyDetails?.amenities?.hood !== undefined || 
+                contract.propertyDetails?.amenities?.janitorial !== undefined || contract.propertyDetails?.amenities?.lobby !== undefined || contract.propertyDetails?.amenities?.terrace !== undefined || 
+                contract.propertyDetails?.amenities?.videoIntercom !== undefined || contract.propertyDetails?.amenities?.remoteParkingGate !== undefined || 
+                contract.propertyDetails?.amenities?.tableGas !== undefined || contract.propertyDetails?.amenities?.centralAntenna !== undefined) && (
+                <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm lg:col-span-2">
+                  <h2 className="mb-4 text-xl font-semibold text-gray-900">امکانات ساختمان</h2>
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+                    {contract.propertyDetails?.amenities?.meetingHall !== undefined && (
+                      <div className="flex items-center gap-2">
+                        <span className={`h-4 w-4 rounded ${contract.propertyDetails?.amenities?.meetingHall ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+                        <span className="text-sm text-gray-800">سالن اجتماعات</span>
+                      </div>
+                    )}
+                    {contract.propertyDetails?.amenities?.club !== undefined && (
+                      <div className="flex items-center gap-2">
+                        <span className={`h-4 w-4 rounded ${contract.propertyDetails?.amenities?.club ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+                        <span className="text-sm text-gray-800">باشگاه</span>
+                      </div>
+                    )}
+                    {contract.propertyDetails?.amenities?.amphitheater !== undefined && (
+                      <div className="flex items-center gap-2">
+                        <span className={`h-4 w-4 rounded ${contract.propertyDetails?.amenities?.amphitheater ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+                        <span className="text-sm text-gray-800">آمفی تئاتر</span>
+                      </div>
+                    )}
+                    {contract.propertyDetails?.amenities?.security !== undefined && (
+                      <div className="flex items-center gap-2">
+                        <span className={`h-4 w-4 rounded ${contract.propertyDetails?.amenities?.security ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+                        <span className="text-sm text-gray-800">امنیت</span>
+                      </div>
+                    )}
+                    {contract.propertyDetails?.amenities?.balcony !== undefined && (
+                      <div className="flex items-center gap-2">
+                        <span className={`h-4 w-4 rounded ${contract.propertyDetails?.amenities?.balcony ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+                        <span className="text-sm text-gray-800">بالکن</span>
+                      </div>
+                    )}
+                    {contract.propertyDetails?.amenities?.hood !== undefined && (
+                      <div className="flex items-center gap-2">
+                        <span className={`h-4 w-4 rounded ${contract.propertyDetails?.amenities?.hood ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+                        <span className="text-sm text-gray-800">هود</span>
+                      </div>
+                    )}
+                    {contract.propertyDetails?.amenities?.janitorial !== undefined && (
+                      <div className="flex items-center gap-2">
+                        <span className={`h-4 w-4 rounded ${contract.propertyDetails?.amenities?.janitorial ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+                        <span className="text-sm text-gray-800">سرایدار</span>
+                      </div>
+                    )}    
+                    {contract.propertyDetails?.amenities?.lobby !== undefined && (
+                      <div className="flex items-center gap-2">
+                        <span className={`h-4 w-4 rounded ${contract.propertyDetails?.amenities?.lobby ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+                        <span className="text-sm text-gray-800">لابی</span>
+                      </div>
+                    )}
+                    {contract.propertyDetails?.amenities?.terrace !== undefined && (
+                      <div className="flex items-center gap-2">
+                        <span className={`h-4 w-4 rounded ${contract.propertyDetails?.amenities?.terrace ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+                        <span className="text-sm text-gray-800">تراس</span>
+                      </div>
+                    )}
+                    {contract.propertyDetails?.amenities?.videoIntercom !== undefined && (
+                      <div className="flex items-center gap-2">
+                        <span className={`h-4 w-4 rounded ${contract.propertyDetails?.amenities?.videoIntercom ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+                        <span className="text-sm text-gray-800">آیفون تصویری</span>
+                      </div>
+                    )}
+                    {contract.propertyDetails?.amenities?.remoteParkingGate !== undefined && (
+                      <div className="flex items-center gap-2">
+                        <span className={`h-4 w-4 rounded ${contract.propertyDetails?.amenities?.remoteParkingGate ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+                        <span className="text-sm text-gray-800">گیت پارکینگ ریموت</span>
+                      </div>
+                    )}
+                    {contract.propertyDetails?.amenities?.tableGas !== undefined && (
+                      <div className="flex items-center gap-2">
+                        <span className={`h-4 w-4 rounded ${contract.propertyDetails?.amenities?.tableGas ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+                        <span className="text-sm text-gray-800">گاز رومیزی</span>
+                      </div>
+                    )}
+                    {contract.propertyDetails?.amenities?.centralAntenna !== undefined && (
+                      <div className="flex items-center gap-2">
+                        <span className={`h-4 w-4 rounded ${contract.propertyDetails?.amenities?.centralAntenna ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+                        <span className="text-sm text-gray-800">آنتن مرکزی</span>
                       </div>
                     )}
                   </div>

@@ -42,6 +42,7 @@ export enum RelationshipType {
 // Payment Enums
 export enum PaymentType {
   MORTGAGE = 'MORTGAGE',           // رهن (برای اجاره‌نامه)
+  RENTAL_PAYMENT = 'RENTAL_PAYMENT', // پرداخت اجاره (چک‌های اجاره)
   DOWN_PAYMENT = 'DOWN_PAYMENT',   // پیش‌پرداخت (برای مبایعه‌نامه)
   BILL_OF_SALE = 'BILL_OF_SALE',   // قبض رسید (برای مبایعه‌نامه)
 }
@@ -252,7 +253,42 @@ export interface Contract {
     id: string;
     establishmentName: string;
     guildId?: string;
+    fixedPhone?: string;
+    address?: string;
+    status?: string;
+    rejectionReason?: string | null;
+    createdAt?: string;
+    updatedAt?: string;
   };
+  createdBy?: {                             // اطلاعات ایجاد کننده
+    id: string;
+    phoneNumber: string;
+    firstName: string;
+    lastName: string;
+    nationalId: string;
+    role: string;
+    isActive?: boolean;
+    isApproved?: boolean;
+    parentId?: string | null;
+    estateId?: string | null;
+    createdAt?: string;
+    updatedAt?: string;
+  };
+  createdById?: string;
+  // Boolean amenities fields (stored at contract level)
+  meetingHall?: boolean;
+  club?: boolean;
+  amphitheater?: boolean;
+  security?: boolean;
+  balcony?: boolean;
+  hood?: boolean;
+  janitorial?: boolean;
+  lobby?: boolean;
+  terrace?: boolean;
+  videoIntercom?: boolean;
+  remoteParkingGate?: boolean;
+  tableGas?: boolean;
+  centralAntenna?: boolean;
   createdAt: string;
   updatedAt: string;
 }
