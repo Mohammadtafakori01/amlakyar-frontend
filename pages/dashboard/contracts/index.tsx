@@ -8,12 +8,13 @@ import RoleGuard from '../../../src/shared/components/guards/RoleGuard';
 import { useContracts } from '../../../src/domains/contracts/hooks/useContracts';
 import { useAuth } from '../../../src/domains/auth/hooks/useAuth';
 import { UserRole } from '../../../src/shared/types';
-import { ContractType, ContractStatus, ContractFilters } from '../../../src/domains/contracts/types';
+import { ContractType, ContractStatus, ContractFilters, ArchiveContractsDto } from '../../../src/domains/contracts/types';
 import Loading from '../../../src/shared/components/common/Loading';
 import ErrorDisplay from '../../../src/shared/components/common/ErrorDisplay';
 import { AppDispatch } from '../../../src/app/store';
 import { fetchContracts as fetchContractsThunk, fetchArchive as fetchArchiveThunk } from '../../../src/domains/contracts/store/contractsSlice';
-import { formatToPersianDate } from '../../../src/shared/utils/dateUtils';
+import { formatToPersianDate, formatToGregorianDate } from '../../../src/shared/utils/dateUtils';
+import PersianDatePicker from '../../../src/shared/components/common/PersianDatePicker';
 
 export default function ContractsPage() {
   const router = useRouter();
@@ -44,9 +45,20 @@ export default function ContractsPage() {
   const [searchInput, setSearchInput] = useState('');
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
   const [activeTab, setActiveTab] = useState<'contracts' | 'archive'>('contracts');
-  const [archiveYear, setArchiveYear] = useState<number>(new Date().getFullYear() - 621);
+  const [archiveFilters, setArchiveFilters] = useState<ArchiveContractsDto>({
+    contractDate: '',
+    contractNumber: '',
+    name: '',
+    lastname: '',
+    page: 1,
+    limit: 10,
+  });
   const [archiveContracts, setArchiveContracts] = useState<any[]>([]);
+  const [archivePagination, setArchivePagination] = useState<any>(null);
   const [isLoadingArchive, setIsLoadingArchive] = useState(false);
+  const [archiveCurrentPage, setArchiveCurrentPage] = useState(1);
+  const [archivePageSize, setArchivePageSize] = useState(10);
+  const archiveHasSearched = useRef(false);
 
   const [localFilters, setLocalFilters] = useState<ContractFilters>({
     type: filters?.type,
@@ -144,31 +156,77 @@ export default function ContractsPage() {
     }
   };
 
-  const handleArchiveYearChange = async (year: number) => {
-    setArchiveYear(year);
+  const handleArchiveSearch = async (resetPage: boolean = false) => {
+    // Validate that at least one filter is provided
+    if (!archiveFilters.contractDate && !archiveFilters.contractNumber && !archiveFilters.name && !archiveFilters.lastname) {
+      setSnackbar({ open: true, message: 'لطفاً حداقل یکی از فیلترها را وارد کنید', severity: 'error' });
+      return;
+    }
+
+    const page = resetPage ? 1 : archiveCurrentPage;
+    if (resetPage) {
+      setArchiveCurrentPage(1);
+    }
+
+    archiveHasSearched.current = true;
     setIsLoadingArchive(true);
     try {
-      const result = await fetchArchive(year);
+      // Convert Persian date to Gregorian format for API
+      const gregorianDate = archiveFilters.contractDate ? formatToGregorianDate(archiveFilters.contractDate) : undefined;
+      
+      const result = await fetchArchive({
+        contractDate: gregorianDate || undefined,
+        contractNumber: archiveFilters.contractNumber || undefined,
+        name: archiveFilters.name || undefined,
+        lastname: archiveFilters.lastname || undefined,
+        page,
+        limit: archivePageSize,
+      });
+      
+      // Check if the action was fulfilled
       if (fetchArchiveThunk.fulfilled.match(result)) {
-        setArchiveContracts(result.payload.contracts);
+        // The payload is the PaginatedResponse: { data: Contract[], meta: PaginationMeta }
+        // Based on the Redux slice, result.payload should be the response object
+        const response = result.payload as { data?: any[]; meta?: any };
+        
+        // Extract data and meta from the response
+        const contracts = response?.data && Array.isArray(response.data) ? response.data : [];
+        const pagination = response?.meta || null;
+        
+        setArchiveContracts(contracts);
+        setArchivePagination(pagination);
       } else {
+        // Rejected or other state
         setArchiveContracts([]);
+        setArchivePagination(null);
       }
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || err.message || 'خطا در بارگذاری بایگانی';
       setSnackbar({ open: true, message: errorMessage, severity: 'error' });
       setArchiveContracts([]);
+      setArchivePagination(null);
     } finally {
       setIsLoadingArchive(false);
     }
   };
 
+  const handleArchivePageChange = (newPage: number) => {
+    setArchiveCurrentPage(newPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleArchivePageSizeChange = (newSize: number) => {
+    setArchivePageSize(newSize);
+    setArchiveCurrentPage(1);
+  };
+
   useEffect(() => {
-    if (activeTab === 'archive' && archiveContracts.length === 0 && !isLoadingArchive) {
-      handleArchiveYearChange(archiveYear);
+    // Trigger search when page or pageSize changes (only if we have active filters and have already searched)
+    if (archiveHasSearched.current && (archiveFilters.contractDate || archiveFilters.contractNumber || archiveFilters.name || archiveFilters.lastname)) {
+      handleArchiveSearch(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  }, [archiveCurrentPage, archivePageSize]);
 
   const getContractTypeLabel = (type: ContractType): string => {
     return type === ContractType.RENTAL ? 'اجاره‌نامه' : 'مبایعه‌نامه';
@@ -345,7 +403,13 @@ export default function ContractsPage() {
             {/* Tabs */}
             <div className="flex gap-2 border-b border-gray-200">
               <button
-                onClick={() => setActiveTab('contracts')}
+                onClick={() => {
+                  setActiveTab('contracts');
+                  archiveHasSearched.current = false;
+                  // Reload contracts when switching back from archive tab
+                  setCurrentPage(1);
+                  dispatch(fetchContractsThunk({ ...filters, page: 1, limit: pageSize }));
+                }}
                 className={`px-4 py-2 font-semibold transition-colors ${
                   activeTab === 'contracts'
                     ? 'border-b-2 border-primary-600 text-primary-600'
@@ -355,7 +419,10 @@ export default function ContractsPage() {
                 قراردادها
               </button>
               <button
-                onClick={() => setActiveTab('archive')}
+                onClick={() => {
+                  setActiveTab('archive');
+                  archiveHasSearched.current = false;
+                }}
                 className={`px-4 py-2 font-semibold transition-colors ${
                   activeTab === 'archive'
                     ? 'border-b-2 border-primary-600 text-primary-600'
@@ -371,69 +438,189 @@ export default function ContractsPage() {
 
             {activeTab === 'archive' ? (
               <div className="space-y-4">
-                <div className="flex items-center gap-4">
-                  <label className="text-sm font-semibold text-gray-700">سال:</label>
-                  <input
-                    type="number"
-                    value={archiveYear}
-                    onChange={(e) => handleArchiveYearChange(parseInt(e.target.value) || archiveYear)}
-                    className="rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 w-32"
-                  />
-                  <button
-                    onClick={() => handleArchiveYearChange(archiveYear)}
-                    className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:border-primary-200 hover:text-primary-600"
-                  >
-                    <FiSearch /> جستجو
-                  </button>
+                <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    <div>
+                      <label className="mb-1 block text-sm font-semibold text-gray-600">تاریخ قرارداد</label>
+                      <PersianDatePicker
+                        value={archiveFilters.contractDate || ''}
+                        onChange={(value) => setArchiveFilters({ ...archiveFilters, contractDate: value })}
+                        placeholder="انتخاب تاریخ"
+                        className="w-full"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm font-semibold text-gray-600">شماره قرارداد</label>
+                      <input
+                        type="text"
+                        value={archiveFilters.contractNumber || ''}
+                        onChange={(e) => setArchiveFilters({ ...archiveFilters, contractNumber: e.target.value })}
+                        className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                        placeholder="مثال: R-EST-2024-001"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm font-semibold text-gray-600">نام</label>
+                      <input
+                        type="text"
+                        value={archiveFilters.name || ''}
+                        onChange={(e) => setArchiveFilters({ ...archiveFilters, name: e.target.value })}
+                        className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                        placeholder="نام یا نام شرکت"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm font-semibold text-gray-600">نام خانوادگی</label>
+                      <input
+                        type="text"
+                        value={archiveFilters.lastname || ''}
+                        onChange={(e) => setArchiveFilters({ ...archiveFilters, lastname: e.target.value })}
+                        className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                        placeholder="نام خانوادگی"
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <button
+                        onClick={() => handleArchiveSearch(true)}
+                        disabled={isLoadingArchive}
+                        className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <FiSearch /> جستجو
+                      </button>
+                    </div>
+                  </div>
+                  <div className="mt-3 text-xs text-gray-500">
+                    توجه: حداقل یکی از فیلترها باید وارد شود
+                  </div>
                 </div>
 
                 {isLoadingArchive ? (
                   <Loading />
                 ) : !Array.isArray(archiveContracts) || archiveContracts.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-8 text-sm text-gray-500">
-                    قراردادی در بایگانی سال {archiveYear} یافت نشد.
+                    قراردادی در بایگانی یافت نشد.
                   </div>
                 ) : (
-                  <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm">
-                    <table className="min-w-full text-right text-sm text-gray-800">
-                      <thead>
-                        <tr className="bg-gray-50 text-xs font-semibold uppercase text-gray-500">
-                          <th className="px-4 py-3">شماره قرارداد</th>
-                          <th className="px-4 py-3">نام املاک</th>
-                          <th className="px-4 py-3">نوع</th>
-                          <th className="px-4 py-3">وضعیت</th>
-                          <th className="px-4 py-3">تاریخ قرارداد</th>
-                          <th className="px-4 py-3">عملیات</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(Array.isArray(archiveContracts) ? archiveContracts : []).map((contract) => (
-                          <tr key={contract.id} className="border-t border-gray-100 hover:bg-gray-50">
-                            <td className="px-4 py-3 font-semibold">{contract.contractNumber}</td>
-                            <td className="px-4 py-3">{contract.estate?.establishmentName || '—'}</td>
-                            <td className="px-4 py-3">{getContractTypeLabel(contract.type)}</td>
-                            <td className="px-4 py-3">
-                              <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${getStatusColor(contract.status)}`}>
-                                {getStatusLabel(contract.status)}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3">{formatToPersianDate(contract.contractDate)}</td>
-                            <td className="px-4 py-3">
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={() => router.push(`/dashboard/contracts/${contract.id}`)}
-                                  className="rounded-full border border-gray-200 p-2 text-gray-600 hover:border-primary-200 hover:text-primary-600"
-                                  title="مشاهده جزئیات"
-                                >
-                                  <FiEye className="w-4 h-4" />
-                                </button>
-                              </div>
-                            </td>
+                  <>
+                    <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm">
+                      <table className="min-w-full text-right text-sm text-gray-800">
+                        <thead>
+                          <tr className="bg-gray-50 text-xs font-semibold uppercase text-gray-500">
+                            <th className="px-4 py-3">شماره قرارداد</th>
+                            <th className="px-4 py-3">نام املاک</th>
+                            <th className="px-4 py-3">شناسه یکتای املاک</th>
+                            <th className="px-4 py-3">نوع</th>
+                            <th className="px-4 py-3">وضعیت</th>
+                            <th className="px-4 py-3">تاریخ قرارداد</th>
+                            <th className="px-4 py-3">عملیات</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {(Array.isArray(archiveContracts) ? archiveContracts : []).map((contract) => (
+                            <tr key={contract.id} className="border-t border-gray-100 hover:bg-gray-50">
+                              <td className="px-4 py-3 font-semibold">{contract.contractNumber}</td>
+                              <td className="px-4 py-3">{contract.estate?.establishmentName || '—'}</td>
+                              <td className="px-4 py-3 text-xs text-gray-500">{(contract.estate as any)?.uniqueId || contract.estate?.guildId || contract.estate?.id || '—'}</td>
+                              <td className="px-4 py-3">{getContractTypeLabel(contract.type)}</td>
+                              <td className="px-4 py-3">
+                                <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${getStatusColor(contract.status)}`}>
+                                  {getStatusLabel(contract.status)}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3">{formatToPersianDate(contract.contractDate)}</td>
+                              <td className="px-4 py-3">
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => router.push(`/dashboard/contracts/${contract.id}`)}
+                                    className="rounded-full border border-gray-200 p-2 text-gray-600 hover:border-primary-200 hover:text-primary-600"
+                                    title="مشاهده جزئیات"
+                                  >
+                                    <FiEye className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {archivePagination && (
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <span>
+                            نمایش {((archivePagination.page - 1) * archivePagination.limit) + 1} تا {Math.min(archivePagination.page * archivePagination.limit, archivePagination.total)} از {archivePagination.total} قرارداد
+                          </span>
+                          <select
+                            value={archivePageSize}
+                            onChange={(e) => handleArchivePageSizeChange(Number(e.target.value))}
+                            className="rounded-xl border border-gray-200 px-3 py-1 text-sm text-gray-700 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                          >
+                            <option value={10}>10</option>
+                            <option value={20}>20</option>
+                            <option value={50}>50</option>
+                            <option value={100}>100</option>
+                          </select>
+                          <span className="text-xs text-gray-500">در هر صفحه</span>
+                        </div>
+                        {archivePagination.totalPages > 1 && (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleArchivePageChange(archiveCurrentPage - 1)}
+                              disabled={!archivePagination.hasPrevious || isLoadingArchive}
+                              className={`flex items-center gap-1 rounded-xl border px-4 py-2 text-sm font-semibold transition ${
+                                !archivePagination.hasPrevious || isLoadingArchive
+                                  ? 'cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400'
+                                  : 'border-gray-200 bg-white text-gray-700 hover:border-primary-200 hover:text-primary-600'
+                              }`}
+                            >
+                              <FiChevronRight className="text-lg" />
+                              قبلی
+                            </button>
+                            <div className="flex items-center gap-1">
+                              {Array.from({ length: Math.min(5, archivePagination.totalPages) }, (_, i) => {
+                                let pageNum;
+                                if (archivePagination.totalPages <= 5) {
+                                  pageNum = i + 1;
+                                } else if (archiveCurrentPage <= 3) {
+                                  pageNum = i + 1;
+                                } else if (archiveCurrentPage >= archivePagination.totalPages - 2) {
+                                  pageNum = archivePagination.totalPages - 4 + i;
+                                } else {
+                                  pageNum = archiveCurrentPage - 2 + i;
+                                }
+                                return (
+                                  <button
+                                    key={pageNum}
+                                    onClick={() => handleArchivePageChange(pageNum)}
+                                    disabled={isLoadingArchive}
+                                    className={`min-w-[40px] rounded-xl border px-3 py-2 text-sm font-semibold transition ${
+                                      archiveCurrentPage === pageNum
+                                        ? 'border-primary-500 bg-primary-600 text-white'
+                                        : 'border-gray-200 bg-white text-gray-700 hover:border-primary-200 hover:text-primary-600'
+                                    } ${isLoadingArchive ? 'cursor-not-allowed opacity-50' : ''}`}
+                                  >
+                                    {pageNum}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <button
+                              onClick={() => handleArchivePageChange(archiveCurrentPage + 1)}
+                              disabled={!archivePagination.hasNext || isLoadingArchive}
+                              className={`flex items-center gap-1 rounded-xl border px-4 py-2 text-sm font-semibold transition ${
+                                !archivePagination.hasNext || isLoadingArchive
+                                  ? 'cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400'
+                                  : 'border-gray-200 bg-white text-gray-700 hover:border-primary-200 hover:text-primary-600'
+                              }`}
+                            >
+                              بعدی
+                              <FiChevronLeft className="text-lg" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             ) : (isLoading || isSearching) ? (
@@ -450,6 +637,7 @@ export default function ContractsPage() {
                       <tr className="bg-gray-50 text-xs font-semibold uppercase text-gray-500">
                         <th className="px-4 py-3">شماره قرارداد</th>
                         <th className="px-4 py-3">نام املاک</th>
+                        <th className="px-4 py-3">شناسه یکتای املاک</th>
                         <th className="px-4 py-3">نوع</th>
                         <th className="px-4 py-3">وضعیت</th>
                         <th className="px-4 py-3">تاریخ قرارداد</th>
@@ -461,6 +649,7 @@ export default function ContractsPage() {
                         <tr key={contract.id} className="border-t border-gray-100 hover:bg-gray-50">
                           <td className="px-4 py-3 font-semibold">{contract.contractNumber}</td>
                           <td className="px-4 py-3">{(contract as any).estate?.establishmentName || '—'}</td>
+                          <td className="px-4 py-3 text-xs text-gray-500">{((contract as any).estate as any)?.uniqueId || (contract as any).estate?.guildId || (contract as any).estate?.id || '—'}</td>
                           <td className="px-4 py-3">{getContractTypeLabel(contract.type)}</td>
                           <td className="px-4 py-3">
                             <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${getStatusColor(contract.status)}`}>
@@ -518,6 +707,7 @@ export default function ContractsPage() {
                     <tr className="bg-gray-50 text-xs font-semibold uppercase text-gray-500">
                       <th className="px-4 py-3">شماره قرارداد</th>
                       <th className="px-4 py-3">نام املاک</th>
+                      <th className="px-4 py-3">شناسه یکتای املاک</th>
                       <th className="px-4 py-3">نوع</th>
                       <th className="px-4 py-3">وضعیت</th>
                       <th className="px-4 py-3">تاریخ قرارداد</th>
@@ -529,6 +719,7 @@ export default function ContractsPage() {
                       <tr key={contract.id} className="border-t border-gray-100 hover:bg-gray-50">
                         <td className="px-4 py-3 font-semibold">{contract.contractNumber}</td>
                         <td className="px-4 py-3">{(contract as any).estate?.establishmentName || '—'}</td>
+                        <td className="px-4 py-3 text-xs text-gray-500">{((contract as any).estate as any)?.uniqueId || (contract as any).estate?.guildId || (contract as any).estate?.id || '—'}</td>
                         <td className="px-4 py-3">{getContractTypeLabel(contract.type)}</td>
                         <td className="px-4 py-3">
                           <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${getStatusColor(contract.status)}`}>

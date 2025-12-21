@@ -54,3 +54,44 @@ export const formatPersianDateWithMonth = (date: string): string => {
   return m.format('jD jMMMM jYYYY');
 };
 
+/**
+ * Calculate the number of months between two dates
+ * @param startDate - Start date in Persian format (jYYYY/jMM/jDD) or Gregorian format (YYYY-MM-DD)
+ * @param endDate - End date in Persian format (jYYYY/jMM/jDD) or Gregorian format (YYYY-MM-DD)
+ * @returns Number of months between the two dates (rounded up)
+ */
+export const calculateMonthsDifference = (startDate: string, endDate: string): number => {
+  if (!startDate || !endDate) return 0;
+  
+  let startMoment: moment.Moment;
+  let endMoment: moment.Moment;
+  
+  // Check if dates are in Persian format (contains '/')
+  if (startDate.includes('/')) {
+    startMoment = moment(startDate, 'jYYYY/jMM/jDD', true);
+  } else {
+    startMoment = moment(startDate, 'YYYY-MM-DD', true);
+  }
+  
+  if (endDate.includes('/')) {
+    endMoment = moment(endDate, 'jYYYY/jMM/jDD', true);
+  } else {
+    endMoment = moment(endDate, 'YYYY-MM-DD', true);
+  }
+  
+  if (!startMoment.isValid() || !endMoment.isValid()) {
+    return 0;
+  }
+  
+  // Calculate difference in months
+  const monthsDiff = endMoment.diff(startMoment, 'months', true);
+  
+  // If end date is before or equal to start date, return 0
+  if (monthsDiff <= 0) {
+    return 0;
+  }
+  
+  // Round up to include partial months (e.g., 1.1 months becomes 2 months)
+  return Math.ceil(monthsDiff);
+};
+

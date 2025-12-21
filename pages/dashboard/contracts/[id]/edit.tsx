@@ -27,7 +27,7 @@ import ErrorDisplay from '../../../../src/shared/components/common/ErrorDisplay'
 import PersianDatePicker from '../../../../src/shared/components/common/PersianDatePicker';
 import { getChangedFields } from '../../../../src/shared/utils/objectUtils';
 import { formatNumber, parseFormattedNumber } from '../../../../src/shared/utils/numberUtils';
-import { formatToPersianDate, formatToGregorianDate } from '../../../../src/shared/utils/dateUtils';
+import { formatToPersianDate, formatToGregorianDate, calculateMonthsDifference } from '../../../../src/shared/utils/dateUtils';
 import { FiPlus, FiEdit2, FiTrash2, FiX } from 'react-icons/fi';
 
 type Step = 1 | 2 | 3 | 4 | 5;
@@ -361,11 +361,11 @@ export default function EditContractPage() {
   const getPaymentTotal = (type: PaymentType): number => {
     return paymentEntries
       .filter(entry => entry.paymentType === type)
-      .reduce((sum, entry) => sum + entry.amount, 0);
+      .reduce((sum, entry) => sum + (Number(entry.amount) || 0), 0);
   };
 
   const getAllPaymentsTotal = (): number => {
-    return paymentEntries.reduce((sum, entry) => sum + entry.amount, 0);
+    return paymentEntries.reduce((sum, entry) => sum + (Number(entry.amount) || 0), 0);
   };
 
   // بررسی اعتبارسنجی مجموع پرداختی‌ها
@@ -4186,6 +4186,15 @@ export default function EditContractPage() {
                     </span>
                   )}
                 </div>
+                {/* بخش ۴-۲: متن قرض الحسنه */}
+                {getPaymentTotal(PaymentType.MORTGAGE) > 0 && (
+                  <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="text-sm text-gray-700 leading-relaxed space-y-2">
+                      <p>مبلغ {getPaymentTotal(PaymentType.MORTGAGE).toLocaleString('fa-IR')} ریال به عنوان قرض الحسنه تعیین گردید.</p>
+                      <p>از طرف مستاجر / مستاجرین بعنوان قرض الحسنه پرداخت شد.</p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
             <div className="flex gap-2 mt-2">
@@ -4254,9 +4263,20 @@ export default function EditContractPage() {
                 <div className="text-sm font-semibold text-gray-700 mt-2">
                   مجموع پرداخت‌های اجاره: {getPaymentTotal(PaymentType.RENTAL_PAYMENT).toLocaleString('fa-IR')} ریال
                   {draftData.rentalAmount && (
-                    <span className="text-gray-500">
-                      {' '}(مبلغ اجاره ماهانه: {parseFloat(draftData.rentalAmount).toLocaleString('fa-IR')} ریال)
-                    </span>
+                    <>
+                      <span className="text-gray-500">
+                        {' '}(مبلغ اجاره ماهانه: {parseFloat(draftData.rentalAmount).toLocaleString('fa-IR')} ریال)
+                      </span>
+                      {draftData.startDate && draftData.endDate && (() => {
+                        const monthsCount = calculateMonthsDifference(draftData.startDate, draftData.endDate);
+                        const totalRent = monthsCount > 0 ? parseFloat(draftData.rentalAmount) * monthsCount : 0;
+                        return (
+                          <span className="text-gray-500">
+                            {' '}| کل اجاره ({monthsCount} ماه): {totalRent.toLocaleString('fa-IR')} ریال
+                          </span>
+                        );
+                      })()}
+                    </>
                   )}
                 </div>
               </div>

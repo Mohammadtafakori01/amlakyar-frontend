@@ -428,6 +428,16 @@ export interface ContractFilters {
   limit?: number;
 }
 
+// Archive Filters
+export interface ArchiveContractsDto {
+  contractDate?: string;  // Date string in YYYY-MM-DD format
+  contractNumber?: string;
+  name?: string;  // Searches in firstName or companyName
+  lastname?: string;  // Searches in lastName
+  page?: number;
+  limit?: number;
+}
+
 export interface ContractsState {
   contracts: Contract[];
   selectedContract: Contract | null;

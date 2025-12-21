@@ -54,7 +54,7 @@ export default function Dashboard() {
       [UserRole.CUSTOMER]: 'مشتری',
       [UserRole.CONSULTANT]: 'مشاور',
       [UserRole.SECRETARY]: 'منشی',
-      [UserRole.SUPERVISOR]: 'ناظر',
+      [UserRole.SUPERVISOR]: 'سرپرست',
       [UserRole.ADMIN]: 'مدیر',
       [UserRole.MASTER]: 'مستر',
     };
@@ -66,7 +66,7 @@ export default function Dashboard() {
       [UserRole.CUSTOMER]: 'به پنل مشتری خوش آمدید',
       [UserRole.CONSULTANT]: 'به پنل مشاور خوش آمدید',
       [UserRole.SECRETARY]: 'به پنل منشی خوش آمدید',
-      [UserRole.SUPERVISOR]: 'به پنل ناظر خوش آمدید',
+      [UserRole.SUPERVISOR]: 'به پنل سرپرست خوش آمدید',
       [UserRole.ADMIN]: 'به پنل مدیر املاک خوش آمدید',
       [UserRole.MASTER]: 'به پنل مستر سیستم خوش آمدید',
     };

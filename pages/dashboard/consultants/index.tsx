@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FiPlus } from 'react-icons/fi';
+import { FiPlus, FiEye, FiEyeOff } from 'react-icons/fi';
 import DashboardLayout from '../../../src/shared/components/Layout/DashboardLayout';
 import PrivateRoute from '../../../src/shared/components/guards/PrivateRoute';
 import RoleGuard from '../../../src/shared/components/guards/RoleGuard';
@@ -9,7 +9,7 @@ import { useDispatch } from 'react-redux';
 import { registerConsultant, getConsultants } from '../../../src/domains/auth/store/authSlice';
 import { UserRole } from '../../../src/shared/types';
 import Loading from '../../../src/shared/components/common/Loading';
-import { validatePhoneNumber, validateNationalId } from '../../../src/shared/utils/validation';
+import { validatePhoneNumber, validateNationalId, validatePassword } from '../../../src/shared/utils/validation';
 
 export default function ConsultantsPage() {
   const dispatch = useDispatch<AppDispatch>();
@@ -18,12 +18,14 @@ export default function ConsultantsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
+  const [showPassword, setShowPassword] = useState(false);
   
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     nationalId: '',
     phoneNumber: '',
+    password: '',
   });
 
   useEffect(() => {
@@ -68,7 +70,9 @@ export default function ConsultantsPage() {
       lastName: '',
       nationalId: '',
       phoneNumber: '',
+      password: '',
     });
+    setShowPassword(false);
     setOpenDialog(true);
   };
 
@@ -77,7 +81,7 @@ export default function ConsultantsPage() {
   };
 
   const handleSubmit = async () => {
-    if (!validatePhoneNumber(formData.phoneNumber) || !validateNationalId(formData.nationalId)) {
+    if (!validatePhoneNumber(formData.phoneNumber) || !validateNationalId(formData.nationalId) || !validatePassword(formData.password)) {
       setSnackbar({ open: true, message: 'لطفا اطلاعات را به درستی وارد کنید', severity: 'error' });
       return;
     }
@@ -191,6 +195,26 @@ export default function ConsultantsPage() {
                         maxLength={11}
                         placeholder="09123456789"
                       />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-gray-600">رمز عبور</label>
+                      <div className="relative">
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          className="w-full rounded-2xl border border-gray-200 px-4 py-2 pr-12 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                          value={formData.password}
+                          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                          placeholder="حداقل 6 کاراکتر"
+                        />
+                        <button
+                          type="button"
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                          onClick={() => setShowPassword(!showPassword)}
+                          aria-label="toggle password visibility"
+                        >
+                          {showPassword ? <FiEyeOff className="text-lg" /> : <FiEye className="text-lg" />}
+                        </button>
+                      </div>
                     </div>
                   </div>
                   <div className="mt-6 flex flex-col gap-2 sm:flex-row">

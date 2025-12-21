@@ -32,6 +32,7 @@ import {
   UpdateContractRequest,
   UpdateContractStatusRequest,
   ContractFilters,
+  ArchiveContractsDto,
 } from '../types';
 
 export const useContracts = () => {
@@ -49,7 +50,7 @@ export const useContracts = () => {
     finalizeContract: (contractId: string) => dispatch(finalizeContract(contractId)),
     createContractFull: (data: CreateContractFullRequest) => dispatch(createContractFull(data)),
     fetchContracts: (filters?: ContractFilters) => dispatch(fetchContracts(filters)),
-    fetchArchive: (year: number) => dispatch(fetchArchive(year)),
+    fetchArchive: (filters: ArchiveContractsDto) => dispatch(fetchArchive(filters)),
     searchContracts: (query: string) => dispatch(searchContracts(query)),
     fetchContractById: (id: string) => dispatch(fetchContractById(id)),
     updateContract: (id: string, data: UpdateContractRequest) => dispatch(updateContract({ id, data })),

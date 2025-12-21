@@ -13,6 +13,7 @@ import {
   UpdateContractRequest,
   UpdateContractStatusRequest,
   ContractFilters,
+  ArchiveContractsDto,
 } from '../types';
 
 const initialState: ContractsState = {
@@ -165,10 +166,10 @@ export const fetchContracts = createAsyncThunk(
 
 export const fetchArchive = createAsyncThunk(
   'contracts/fetchArchive',
-  async (year: number, { rejectWithValue }) => {
+  async (filters: ArchiveContractsDto, { rejectWithValue }) => {
     try {
-      const contracts = await contractsApi.getArchive(year);
-      return { contracts, year };
+      const response = await contractsApi.getArchive(filters);
+      return response;
     } catch (error: any) {
       const message = error.response?.data?.message;
       const errorMsg = Array.isArray(message) ? message.join(', ') : (message || 'خطا در دریافت بایگانی');
@@ -487,9 +488,10 @@ const contractsSlice = createSlice({
       })
       .addCase(fetchArchive.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.contracts = Array.isArray(action.payload.contracts) 
-          ? action.payload.contracts.map(normalizeContract) 
+        state.contracts = Array.isArray(action.payload.data) 
+          ? action.payload.data.map(normalizeContract) 
           : [];
+        state.pagination = action.payload.meta;
         state.error = null;
       })
       .addCase(fetchArchive.rejected, (state, action) => {

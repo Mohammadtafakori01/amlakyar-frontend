@@ -11,6 +11,7 @@ import {
   UpdateContractRequest,
   UpdateContractStatusRequest,
   ContractFilters,
+  ArchiveContractsDto,
 } from '../types';
 import { PaginatedResponse as SharedPaginatedResponse } from '../../../shared/types';
 
@@ -79,16 +80,27 @@ export const contractsApi = {
     return response.data;
   },
 
-  // Get archive by year
-  getArchive: async (year: number): Promise<Contract[]> => {
-    const response = await apiClient.get<Contract[]>(`/contracts/archive?year=${year}`);
+  // Get archive by contractDate, contractNumber, name, and/or lastname
+  getArchive: async (filters: ArchiveContractsDto): Promise<SharedPaginatedResponse<Contract>> => {
+    const params = new URLSearchParams();
+    if (filters.contractDate) params.append('contractDate', filters.contractDate);
+    if (filters.contractNumber) params.append('contractNumber', filters.contractNumber);
+    if (filters.name) params.append('name', filters.name);
+    if (filters.lastname) params.append('lastname', filters.lastname);
+    if (filters.page) params.append('page', filters.page.toString());
+    if (filters.limit) params.append('limit', filters.limit.toString());
+
+    const queryString = params.toString();
+    const url = queryString ? `/contracts/archive?${queryString}` : '/contracts/archive';
+    const response = await apiClient.get<SharedPaginatedResponse<Contract>>(url);
     return response.data;
   },
 
   // Search contracts
   searchContracts: async (query: string): Promise<Contract[]> => {
-    const response = await apiClient.get<Contract[]>(`/contracts/search?q=${encodeURIComponent(query)}`);
-    return response.data;
+    const response = await apiClient.get<SharedPaginatedResponse<Contract>>(`/contracts/search?q=${encodeURIComponent(query)}`);
+    // Extract the data array from the paginated response
+    return Array.isArray(response.data?.data) ? response.data.data : [];
   },
 
   // Get contract by ID

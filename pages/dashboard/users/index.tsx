@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { useDispatch } from 'react-redux';
-import { FiPlus, FiEdit2, FiTrash2, FiFilter, FiChevronRight, FiChevronLeft, FiSearch, FiX, FiLogIn } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiFilter, FiChevronRight, FiChevronLeft, FiSearch, FiX, FiLogIn, FiEye, FiEyeOff } from 'react-icons/fi';
 import DashboardLayout from '../../../src/shared/components/Layout/DashboardLayout';
 import PrivateRoute from '../../../src/shared/components/guards/PrivateRoute';
 import RoleGuard from '../../../src/shared/components/guards/RoleGuard';
@@ -99,6 +99,7 @@ export default function UsersPage() {
   const hasFetched = useRef(false);
   const [searchInput, setSearchInput] = useState('');
   const [searchType, setSearchType] = useState<'name' | 'phone' | 'nationalId'>('name');
+  const [showPassword, setShowPassword] = useState(false);
   
   const [formData, setFormData] = useState<CreateUserRequest & { isActive?: boolean; isApproved?: boolean }>({
     phoneNumber: '',
@@ -285,6 +286,7 @@ export default function UsersPage() {
   const handleCloseDialog = () => {
     setOpenDialog(false);
     setSelectedUser(null);
+    setShowPassword(false);
   };
 
   const handleSubmit = async () => {
@@ -424,7 +426,7 @@ export default function UsersPage() {
       [UserRole.CUSTOMER]: 'مشتری',
       [UserRole.CONSULTANT]: 'مشاور',
       [UserRole.SECRETARY]: 'منشی',
-      [UserRole.SUPERVISOR]: 'ناظر',
+      [UserRole.SUPERVISOR]: 'سرپرست',
       [UserRole.ADMIN]: 'مدیر',
       [UserRole.MASTER]: 'مستر',
     };
@@ -622,7 +624,7 @@ export default function UsersPage() {
             )}
             {isSupervisor && (
               <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                به عنوان ناظر فقط می‌توانید برای ملک خود مشاور جدید ایجاد کنید.
+                به عنوان سرپرست فقط می‌توانید برای ملک خود مشاور جدید ایجاد کنید.
               </div>
             )}
 
@@ -1054,13 +1056,23 @@ export default function UsersPage() {
                     </div>
                     <div>
                       <label className="mb-1 block text-sm font-medium text-gray-600">رمز عبور</label>
-                      <input
-                        type="password"
-                        className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                        value={formData.password}
-                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        placeholder={isEdit ? 'در صورت خالی بودن بدون تغییر' : 'حداقل 6 کاراکتر'}
-                      />
+                      <div className="relative">
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          className="w-full rounded-2xl border border-gray-200 px-4 py-2 pr-12 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                          value={formData.password}
+                          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                          placeholder={isEdit ? 'در صورت خالی بودن بدون تغییر' : 'حداقل 6 کاراکتر'}
+                        />
+                        <button
+                          type="button"
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                          onClick={() => setShowPassword(!showPassword)}
+                          aria-label="toggle password visibility"
+                        >
+                          {showPassword ? <FiEyeOff className="text-lg" /> : <FiEye className="text-lg" />}
+                        </button>
+                      </div>
                     </div>
                     {currentUser?.role === UserRole.MASTER && (
                       <div>

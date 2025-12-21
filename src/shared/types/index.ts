@@ -148,6 +148,7 @@ export interface RegisterConsultantRequest {
   lastName: string;
   nationalId: string;
   phoneNumber: string;
+  password: string;
   estateId?: string; // Optional, but should be included to ensure consultant is linked to Supervisor's estate
 }
 

@@ -22,7 +22,7 @@ export default function ProfilePage() {
       [UserRole.CUSTOMER]: 'مشتری',
       [UserRole.CONSULTANT]: 'مشاور',
       [UserRole.SECRETARY]: 'منشی',
-      [UserRole.SUPERVISOR]: 'ناظر',
+      [UserRole.SUPERVISOR]: 'سرپرست',
       [UserRole.ADMIN]: 'مدیر',
       [UserRole.MASTER]: 'مستر',
     };

@@ -167,7 +167,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       [UserRole.CUSTOMER]: 'مشتری',
       [UserRole.CONSULTANT]: 'مشاور',
       [UserRole.SECRETARY]: 'منشی',
-      [UserRole.SUPERVISOR]: 'ناظر',
+      [UserRole.SUPERVISOR]: 'سرپرست',
       [UserRole.ADMIN]: 'مدیر',
       [UserRole.MASTER]: 'مستر',
     };
@@ -279,11 +279,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <div className="relative" ref={menuRef}>
                 <button
                   onClick={handleMenuOpen}
-                  className="flex items-center justify-center w-10 h-10 rounded-full bg-primary-600 text-white hover:bg-primary-700 transition-colors"
-                  aria-label="account menu"
-                >
-                  {user.firstName?.[0]?.toUpperCase() || 'U'}
-                </button>
+                    className="flex items-center justify-center px-4 h-10 rounded-full bg-primary-600 text-white hover:bg-primary-700 transition-colors"
+                    aria-label="account menu"
+                  >
+                      {(user.firstName && user.lastName) ? `${user.firstName} ${user.lastName}` : (user.firstName || 'کاربر')}
+                  </button>
                 {anchorEl && (
                   <div className="absolute left-0 top-12 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
                     <button

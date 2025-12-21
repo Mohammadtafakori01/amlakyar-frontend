@@ -360,7 +360,7 @@ export default function EstatesManagementPage() {
       [UserRole.CUSTOMER]: 'مشتری',
       [UserRole.CONSULTANT]: 'مشاور',
       [UserRole.SECRETARY]: 'منشی',
-      [UserRole.SUPERVISOR]: 'ناظر',
+      [UserRole.SUPERVISOR]: 'سرپرست',
       [UserRole.ADMIN]: 'مدیر',
       [UserRole.MASTER]: 'مستر',
     };
@@ -520,6 +520,7 @@ export default function EstatesManagementPage() {
                         <tr>
                           <th className={tableHeadClass}>نام واحد</th>
                           <th className={tableHeadClass}>شناسه صنفی</th>
+                          <th className={tableHeadClass}>شناسه یکتا</th>
                           <th className={tableHeadClass}>آدرس</th>
                           <th className={tableHeadClass}>تلفن ثابت</th>
                           <th className={tableHeadClass}>مدیر</th>
@@ -534,6 +535,7 @@ export default function EstatesManagementPage() {
                             <tr key={estate.id} className="hover:bg-gray-50">
                               <td className={tableCellClass}>{estate.establishmentName}</td>
                               <td className={tableCellClass}>{estate.guildId}</td>
+                              <td className={`${tableCellClass} text-xs text-gray-500`}>{(estate as any).uniqueId || estate.id}</td>
                               <td className={tableCellClass}>{estate.address}</td>
                               <td className={tableCellClass}>{estate.fixedPhone}</td>
                               <td className={tableCellClass}>
@@ -654,6 +656,7 @@ export default function EstatesManagementPage() {
                       <tr>
                         <th className={tableHeadClass}>نام واحد</th>
                         <th className={tableHeadClass}>شناسه صنفی</th>
+                        <th className={tableHeadClass}>شناسه یکتا</th>
                         <th className={tableHeadClass}>مدیر</th>
                         <th className={tableHeadClass}>شماره مدیر</th>
                         <th className={tableHeadClass}>عملیات</th>
@@ -664,6 +667,7 @@ export default function EstatesManagementPage() {
                         <tr key={estate.id} className="hover:bg-gray-50">
                           <td className={tableCellClass}>{estate.establishmentName}</td>
                           <td className={tableCellClass}>{estate.guildId}</td>
+                          <td className={`${tableCellClass} text-xs text-gray-500`}>{(estate as any).uniqueId || estate.id}</td>
                           <td className={tableCellClass}>
                             {estate.admin ? `${estate.admin.firstName} ${estate.admin.lastName}` : '—'}
                           </td>
@@ -719,6 +723,7 @@ export default function EstatesManagementPage() {
                       <tr>
                         <th className={tableHeadClass}>نام واحد</th>
                         <th className={tableHeadClass}>شناسه صنفی</th>
+                        <th className={tableHeadClass}>شناسه یکتا</th>
                         <th className={tableHeadClass}>مدیر</th>
                         <th className={tableHeadClass}>شماره مدیر</th>
                         <th className={tableHeadClass}>وضعیت</th>
@@ -732,6 +737,7 @@ export default function EstatesManagementPage() {
                           <tr key={estate.id} className="hover:bg-gray-50">
                             <td className={tableCellClass}>{estate.establishmentName}</td>
                             <td className={tableCellClass}>{estate.guildId}</td>
+                            <td className={`${tableCellClass} text-xs text-gray-500`}>{(estate as any).uniqueId || estate.id}</td>
                             <td className={tableCellClass}>
                               {estate.admin ? `${estate.admin.firstName} ${estate.admin.lastName}` : '—'}
                             </td>

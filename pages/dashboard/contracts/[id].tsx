@@ -212,6 +212,12 @@ export default function ContractDetailPage() {
                       <p className="mt-1 text-sm text-gray-800">{contract.witness2Name}</p>
                     </div>
                   )}
+                  <div className="md:col-span-2 lg:col-span-3">
+                    <p className="mt-2 text-sm text-gray-800 leading-relaxed">
+                      قرارداد در دفتر املاک 4848 تنظیم شده است و پرداخت حق الزحمه مشاور املاک بر عهده طرفین قرارداد<br />
+                      می باشد.
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -609,7 +615,7 @@ export default function ContractDetailPage() {
                     )}
                     {contract.propertyDetails.uniqueDocumentId && (
                       <div>
-                        <label className="text-sm font-semibold text-gray-600">شناسه یکتای سند</label>
+                        <label className="text-sm font-semibold text-gray-600">شناسه یکتا املاکی سند</label>
                         <p className="mt-1 text-sm text-gray-800">{contract.propertyDetails.uniqueDocumentId}</p>
                       </div>
                     )}
