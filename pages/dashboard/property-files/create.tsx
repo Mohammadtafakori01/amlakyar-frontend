@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/router';
-import { FiArrowRight, FiArrowLeft, FiSave, FiPlus, FiTrash2 } from 'react-icons/fi';
+import { FiArrowRight, FiArrowLeft, FiSave, FiPlus, FiTrash2, FiLayers, FiMaximize2, FiHome, FiDroplet } from 'react-icons/fi';
 import DashboardLayout from '../../../src/shared/components/Layout/DashboardLayout';
 import PrivateRoute from '../../../src/shared/components/guards/PrivateRoute';
 import { usePropertyFiles } from '../../../src/domains/property-files/hooks/usePropertyFiles';
@@ -15,6 +15,8 @@ import {
 } from '../../../src/domains/property-files/types';
 import { getAvailableZones } from '../../../src/shared/utils/rbacUtils';
 import { getCurrentDate } from '../../../src/shared/utils/dateUtils';
+import { generateUniqueCodeWithCounter } from '../../../src/shared/utils/uniqueCodeGenerator';
+import { sanitizePropertyFileData } from '../../../src/shared/utils/dataSanitizer';
 import Loading from '../../../src/shared/components/common/Loading';
 import ErrorDisplay from '../../../src/shared/components/common/ErrorDisplay';
 import PersianDatePicker from '../../../src/shared/components/common/PersianDatePicker';
@@ -39,7 +41,7 @@ const buildingTypeLabels: Record<PropertyBuildingType, string> = {
   [PropertyBuildingType.APARTMENT]: 'آپارتمان',
   [PropertyBuildingType.COMMERCIAL]: 'تجاری',
   [PropertyBuildingType.OUTSIDE]: 'بیرونی',
-  [PropertyBuildingType.OLD]: 'قدیمی',
+  [PropertyBuildingType.OLD]: 'کلنگی',
   [PropertyBuildingType.OFFICE]: 'اداری',
   [PropertyBuildingType.SHOP]: 'مغازه',
 };
@@ -57,6 +59,7 @@ export default function CreatePropertyFilePage() {
   const { user: currentUser } = useAuth();
 
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string | string[]>>({});
   const [formData, setFormData] = useState<Partial<CreatePropertyFileRequest>>({
     uniqueCode: undefined,
     zone: undefined,
@@ -102,11 +105,13 @@ export default function CreatePropertyFilePage() {
     pool: false,
     videoIntercom: false,
     remoteDoor: false,
+    hasServantRoom: false,
+    hasYard: false,
+    hasPorch: false,
   });
 
   const [currentFloor, setCurrentFloor] = useState<Partial<FloorDetails>>({
     floorNumber: 1,
-    title: '',
     area: undefined,
     bedrooms: undefined,
     phone: false,
@@ -127,6 +132,20 @@ export default function CreatePropertyFilePage() {
     return currentUser ? getAvailableZones(currentUser.role) : [];
   }, [currentUser]);
 
+  // Format number with thousand separators
+  const formatNumber = (num: number | undefined): string => {
+    if (num === undefined || num === null) return '';
+    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  };
+
+  // Parse formatted number back to number
+  const parseFormattedNumber = (str: string): number | undefined => {
+    const cleaned = str.replace(/,/g, '');
+    if (!cleaned) return undefined;
+    const num = Number(cleaned);
+    return isNaN(num) ? undefined : num;
+  };
+
   useEffect(() => {
     if (snackbar.open) {
       const timer = setTimeout(() => setSnackbar((prev) => ({ ...prev, open: false })), 4000);
@@ -140,6 +159,34 @@ export default function CreatePropertyFilePage() {
     }
   }, [availableZones]);
 
+  // Auto-calculate totalPrice when totalArea and unitPrice are provided
+  useEffect(() => {
+    if (formData.totalArea && formData.unitPrice && formData.transactionType !== PropertyTransactionType.MORTGAGE) {
+      const calculatedTotal = formData.totalArea * formData.unitPrice;
+      setFormData((prev) => ({ ...prev, totalPrice: calculatedTotal }));
+    }
+  }, [formData.totalArea, formData.unitPrice, formData.transactionType]);
+
+  // Check if currentFloor has any data (except floorNumber)
+  const hasFloorData = (): boolean => {
+    return !!(
+      (currentFloor.area !== undefined && currentFloor.area !== null && currentFloor.area !== '') ||
+      (currentFloor.bedrooms !== undefined && currentFloor.bedrooms !== null && currentFloor.bedrooms !== '') ||
+      (currentFloor.bathroom !== undefined && currentFloor.bathroom !== null && currentFloor.bathroom !== '') ||
+      (currentFloor.flooring && currentFloor.flooring.trim() !== '') ||
+      currentFloor.phone ||
+      currentFloor.kitchen ||
+      currentFloor.openKitchen ||
+      currentFloor.parking ||
+      currentFloor.storage ||
+      currentFloor.fireplace ||
+      currentFloor.cooler ||
+      currentFloor.fanCoil ||
+      currentFloor.chiller ||
+      currentFloor.package
+    );
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
@@ -149,19 +196,193 @@ export default function CreatePropertyFilePage() {
       return;
     }
 
+    // Auto-add floor if there's data in currentFloor (except floorNumber)
+    if (hasFloorData()) {
+      const floorNumber = currentFloor.floorNumber || (formData.floors?.length || 0) + 1;
+      // Create floor object directly
+      const newFloor: FloorDetails = {
+        floorNumber: Number(floorNumber),
+        area: currentFloor.area !== undefined && currentFloor.area !== null && currentFloor.area !== '' 
+          ? Number(currentFloor.area) 
+          : undefined,
+        bedrooms: currentFloor.bedrooms !== undefined && currentFloor.bedrooms !== null && currentFloor.bedrooms !== '' 
+          ? Number(currentFloor.bedrooms) 
+          : undefined,
+        bathroom: currentFloor.bathroom !== undefined && currentFloor.bathroom !== null && currentFloor.bathroom !== '' 
+          ? Number(currentFloor.bathroom) 
+          : undefined,
+        flooring: currentFloor.flooring && currentFloor.flooring.trim() !== '' 
+          ? currentFloor.flooring.trim() 
+          : undefined,
+        phone: Boolean(currentFloor.phone || false),
+        kitchen: Boolean(currentFloor.kitchen || false),
+        openKitchen: Boolean(currentFloor.openKitchen || false),
+        parking: Boolean(currentFloor.parking || false),
+        storage: Boolean(currentFloor.storage || false),
+        fireplace: Boolean(currentFloor.fireplace || false),
+        cooler: Boolean(currentFloor.cooler || false),
+        fanCoil: Boolean(currentFloor.fanCoil || false),
+        chiller: Boolean(currentFloor.chiller || false),
+        package: Boolean(currentFloor.package || false),
+      };
+      // Add floor to formData and clear currentFloor
+      const updatedFloors = [...(formData.floors || []), newFloor];
+      setFormData((prev) => ({
+        ...prev,
+        floors: updatedFloors,
+      }));
+      setCurrentFloor({
+        floorNumber: updatedFloors.length + 1,
+        area: undefined,
+        bedrooms: undefined,
+        phone: false,
+        kitchen: false,
+        openKitchen: false,
+        bathroom: undefined,
+        flooring: '',
+        parking: false,
+        storage: false,
+        fireplace: false,
+        cooler: false,
+        fanCoil: false,
+        chiller: false,
+        package: false,
+      });
+      // Show success message
+      setSnackbar({ 
+        open: true, 
+        message: `طبقه ${floorNumber} به صورت خودکار اضافه شد`, 
+        severity: 'success' 
+      });
+      // Submit with updated floors
+      submitFormData(updatedFloors);
+      return;
+    }
+
+    // If no floor data, submit normally
+    submitFormData();
+  };
+
+  const submitFormData = async (floorsOverride?: FloorDetails[]) => {
+    // Clear previous errors
+    setFieldErrors({});
+    
     try {
-      // Remove empty uniqueCode to let backend generate it automatically
+      // Generate unique code if not provided
       const submitData = { ...formData };
       if (!submitData.uniqueCode || (typeof submitData.uniqueCode === 'string' && submitData.uniqueCode.trim() === '')) {
-        delete submitData.uniqueCode;
+        submitData.uniqueCode = generateUniqueCodeWithCounter();
       }
-      await createPropertyFile(submitData as CreatePropertyFileRequest);
+      // Ensure floors is always included (even if empty array)
+      submitData.floors = floorsOverride || submitData.floors || [];
+      // Sanitize data before sending
+      const sanitizedData = sanitizePropertyFileData(submitData);
+      
+      console.log('=== SUBMITTING DATA (CREATE) ===');
+      console.log('Sanitized data:', sanitizedData);
+      
+      // Use unwrap() to throw error if rejected
+      const response = await createPropertyFile(sanitizedData as CreatePropertyFileRequest).unwrap();
+      
+      console.log('=== SUCCESS (CREATE) ===');
+      console.log('Response:', response);
+      
+      // Only show success and redirect if we get here (no error thrown)
       setSnackbar({ open: true, message: 'فایل با موفقیت ایجاد شد', severity: 'success' });
       setTimeout(() => {
         router.push('/dashboard/property-files');
       }, 1500);
     } catch (err: any) {
-      setSnackbar({ open: true, message: err.message || 'خطا در ایجاد فایل', severity: 'error' });
+      console.log('=== ERROR CAUGHT (CREATE) ===');
+      console.log('Error object:', err);
+      console.log('Error type:', typeof err);
+      console.log('Error response:', err.response);
+      console.log('Error response status:', err.response?.status);
+      console.log('Error response data:', err.response?.data);
+      
+      // Handle Redux thunk rejectWithValue - error might be the error object itself
+      const errorData = err.response?.data || err;
+      
+      // Parse validation errors - check for new structure first (errors object)
+      const errors: Record<string, string | string[]> = {};
+      
+      if (errorData?.errors) {
+        console.log('Using new errors structure');
+        // New structure: { errors: { field: [messages] } }
+        Object.keys(errorData.errors).forEach((field) => {
+          const messages = errorData.errors[field];
+          if (Array.isArray(messages) && messages.length > 0) {
+            // Handle nested fields like "floors.0.floorNumber"
+            // Store all messages as array, or single message as string
+            errors[field] = messages.length === 1 ? messages[0] : messages;
+          } else if (typeof messages === 'string') {
+            errors[field] = messages;
+          }
+        });
+      } else if (errorData?.message) {
+        console.log('Using old message structure');
+        // Old structure: { message: string | string[] }
+        const messages = Array.isArray(errorData.message) 
+          ? errorData.message 
+          : [errorData.message];
+        
+        messages.forEach((msg: string) => {
+          // Map error messages to field names
+          if (msg.includes('تلفن') || msg.toLowerCase().includes('phone')) {
+            errors.phone = msg;
+          } else if (msg.includes('مالک') || msg.toLowerCase().includes('owner')) {
+            errors.owner = msg;
+          } else if (msg.includes('منطقه') || msg.toLowerCase().includes('region')) {
+            errors.region = msg;
+          } else if (msg.includes('آدرس') || msg.toLowerCase().includes('address')) {
+            errors.address = msg;
+          } else if (msg.includes('قیمت') || msg.toLowerCase().includes('price')) {
+            if (msg.includes('کل') || msg.toLowerCase().includes('total')) {
+              errors.totalPrice = msg;
+            } else if (msg.includes('متری') || msg.toLowerCase().includes('unit')) {
+              errors.unitPrice = msg;
+            }
+          } else if (msg.includes('مساحت') || msg.toLowerCase().includes('area')) {
+            if (msg.includes('زمین') || msg.toLowerCase().includes('land')) {
+              errors.landArea = msg;
+            } else {
+              errors.totalArea = msg;
+            }
+          }
+        });
+      }
+      
+      if (Object.keys(errors).length > 0) {
+        // Set field errors
+        setFieldErrors(errors);
+        console.log('Field errors set:', errors);
+        
+        // Scroll to first error after a short delay to ensure DOM is updated
+        setTimeout(() => {
+          const firstErrorField = Object.keys(errors)[0];
+          console.log('First error field:', firstErrorField);
+          const element = document.querySelector(`[name="${firstErrorField}"]`);
+          console.log('Found element:', element);
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 100);
+        
+        // Show a general error message at the top
+        setSnackbar({ 
+          open: true, 
+          message: 'لطفاً خطاهای اعتبارسنجی را برطرف کنید', 
+          severity: 'error' 
+        });
+      } else {
+        console.log('No field errors found, showing snackbar');
+        setSnackbar({ open: true, message: err.message || 'خطا در ایجاد فایل', severity: 'error' });
+      }
+      
+      // IMPORTANT: Don't redirect on error - keep form open with data
+      console.log('=== ERROR HANDLING COMPLETE (CREATE) - NO REDIRECT ===');
+      // Return early to prevent any further execution
+      return;
     }
   };
 
@@ -170,27 +391,62 @@ export default function CreatePropertyFilePage() {
       setSnackbar({ open: true, message: 'لطفاً شماره طبقه را وارد کنید', severity: 'error' });
       return;
     }
-    setFormData((prev) => ({
-      ...prev,
-      floors: [...(prev.floors || []), currentFloor as FloorDetails],
-    }));
-    setCurrentFloor({
-      floorNumber: (formData.floors?.length || 0) + 2,
-      title: '',
-      area: undefined,
-      bedrooms: undefined,
-      phone: false,
-      kitchen: false,
-      openKitchen: false,
-      bathroom: undefined,
-      flooring: '',
-      parking: false,
-      storage: false,
-      fireplace: false,
-      cooler: false,
-      fanCoil: false,
-      chiller: false,
-      package: false,
+    // Create a clean floor object with all fields
+    const newFloor: FloorDetails = {
+      floorNumber: Number(currentFloor.floorNumber),
+      area: currentFloor.area !== undefined && currentFloor.area !== null && currentFloor.area !== '' 
+        ? Number(currentFloor.area) 
+        : undefined,
+      bedrooms: currentFloor.bedrooms !== undefined && currentFloor.bedrooms !== null && currentFloor.bedrooms !== '' 
+        ? Number(currentFloor.bedrooms) 
+        : undefined,
+      bathroom: currentFloor.bathroom !== undefined && currentFloor.bathroom !== null && currentFloor.bathroom !== '' 
+        ? Number(currentFloor.bathroom) 
+        : undefined,
+      flooring: currentFloor.flooring && currentFloor.flooring.trim() !== '' 
+        ? currentFloor.flooring.trim() 
+        : undefined,
+      phone: Boolean(currentFloor.phone || false),
+      kitchen: Boolean(currentFloor.kitchen || false),
+      openKitchen: Boolean(currentFloor.openKitchen || false),
+      parking: Boolean(currentFloor.parking || false),
+      storage: Boolean(currentFloor.storage || false),
+      fireplace: Boolean(currentFloor.fireplace || false),
+      cooler: Boolean(currentFloor.cooler || false),
+      fanCoil: Boolean(currentFloor.fanCoil || false),
+      chiller: Boolean(currentFloor.chiller || false),
+      package: Boolean(currentFloor.package || false),
+    };
+    setFormData((prev) => {
+      const newFloors = [...(prev.floors || []), newFloor];
+      // Show success message
+      setSnackbar({ 
+        open: true, 
+        message: `طبقه ${newFloor.floorNumber} با موفقیت اضافه شد`, 
+        severity: 'success' 
+      });
+      // Update currentFloor with the new length
+      setCurrentFloor({
+        floorNumber: newFloors.length + 1,
+        area: undefined,
+        bedrooms: undefined,
+        phone: false,
+        kitchen: false,
+        openKitchen: false,
+        bathroom: undefined,
+        flooring: '',
+        parking: false,
+        storage: false,
+        fireplace: false,
+        cooler: false,
+        fanCoil: false,
+        chiller: false,
+        package: false,
+      });
+      return {
+        ...prev,
+        floors: newFloors,
+      };
     });
   };
 
@@ -225,7 +481,15 @@ export default function CreatePropertyFilePage() {
             </button>
           </div>
 
-          {error && <ErrorDisplay error={error} />}
+          {error && (
+            <ErrorDisplay 
+              error={
+                typeof error === 'string' 
+                  ? error 
+                  : error?.response?.data?.message || error?.message || 'خطای نامشخص'
+              } 
+            />
+          )}
 
           <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-sm p-6 space-y-6">
             {/* Basic Information */}
@@ -269,11 +533,36 @@ export default function CreatePropertyFilePage() {
                   </label>
                   <input
                     type="text"
+                    name="owner"
                     value={formData.owner}
-                    onChange={(e) => setFormData({ ...formData, owner: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    onChange={(e) => {
+                      setFormData({ ...formData, owner: e.target.value });
+                      if (fieldErrors.owner) {
+                        setFieldErrors((prev) => {
+                          const newErrors = { ...prev };
+                          delete newErrors.owner;
+                          return newErrors;
+                        });
+                      }
+                    }}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                      fieldErrors.owner 
+                        ? 'border-red-500 focus:ring-red-500' 
+                        : 'border-gray-300 focus:ring-primary-500'
+                    }`}
                     required
                   />
+                  {fieldErrors.owner && (
+                    <div className="mt-1">
+                      {Array.isArray(fieldErrors.owner) ? (
+                        fieldErrors.owner.map((msg, idx) => (
+                          <p key={idx} className="text-sm text-red-600">{msg}</p>
+                        ))
+                      ) : (
+                        <p className="text-sm text-red-600">{fieldErrors.owner}</p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -282,22 +571,73 @@ export default function CreatePropertyFilePage() {
                   </label>
                   <input
                     type="text"
+                    name="region"
                     value={formData.region}
-                    onChange={(e) => setFormData({ ...formData, region: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    onChange={(e) => {
+                      setFormData({ ...formData, region: e.target.value });
+                      if (fieldErrors.region) {
+                        setFieldErrors((prev) => {
+                          const newErrors = { ...prev };
+                          delete newErrors.region;
+                          return newErrors;
+                        });
+                      }
+                    }}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                      fieldErrors.region 
+                        ? 'border-red-500 focus:ring-red-500' 
+                        : 'border-gray-300 focus:ring-primary-500'
+                    }`}
                     required
                   />
+                  {fieldErrors.region && (
+                    <div className="mt-1">
+                      {Array.isArray(fieldErrors.region) ? (
+                        fieldErrors.region.map((msg, idx) => (
+                          <p key={idx} className="text-sm text-red-600">{msg}</p>
+                        ))
+                      ) : (
+                        <p className="text-sm text-red-600">{fieldErrors.region}</p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">شماره تماس</label>
                   <input
                     type="tel"
+                    name="phone"
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, phone: e.target.value });
+                      // Clear error when user starts typing
+                      if (fieldErrors.phone) {
+                        setFieldErrors((prev) => {
+                          const newErrors = { ...prev };
+                          delete newErrors.phone;
+                          return newErrors;
+                        });
+                      }
+                    }}
                     placeholder="09123456789"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                      fieldErrors.phone 
+                        ? 'border-red-500 focus:ring-red-500' 
+                        : 'border-gray-300 focus:ring-primary-500'
+                    }`}
                   />
+                  {fieldErrors.phone && (
+                    <div className="mt-1">
+                      {Array.isArray(fieldErrors.phone) ? (
+                        fieldErrors.phone.map((msg, idx) => (
+                          <p key={idx} className="text-sm text-red-600">{msg}</p>
+                        ))
+                      ) : (
+                        <p className="text-sm text-red-600">{fieldErrors.phone}</p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -348,7 +688,7 @@ export default function CreatePropertyFilePage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    نوع ساختمان <span className="text-red-500">*</span>
+                    مورد آگهی <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={formData.buildingType}
@@ -356,14 +696,16 @@ export default function CreatePropertyFilePage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     required
                   >
-                    {Object.entries(buildingTypeLabels).map(([value, label]) => (
-                      <option key={value} value={value}>{label}</option>
-                    ))}
+                    {Object.entries(buildingTypeLabels)
+                      .filter(([value]) => value !== PropertyBuildingType.OUTSIDE)
+                      .map(([value, label]) => (
+                        <option key={value} value={value}>{label}</option>
+                      ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">جهت</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">جهت ساختمان</label>
                   <select
                     value={formData.direction || ''}
                     onChange={(e) => setFormData({ ...formData, direction: e.target.value as PropertyDirection || undefined })}
@@ -377,7 +719,7 @@ export default function CreatePropertyFilePage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">واحد</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">شماره واحد</label>
                   <input
                     type="text"
                     value={formData.unit}
@@ -406,46 +748,45 @@ export default function CreatePropertyFilePage() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">زیربنا کلی (متر مربع)</label>
-                  <input
-                    type="number"
-                    value={formData.totalArea || ''}
-                    onChange={(e) => setFormData({ ...formData, totalArea: e.target.value ? Number(e.target.value) : undefined })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
 
                 {formData.transactionType === PropertyTransactionType.MORTGAGE ? (
                   <>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">رهن (ریال)</label>
                       <input
-                        type="number"
-                        value={formData.mortgagePrice || ''}
-                        onChange={(e) => setFormData({ ...formData, mortgagePrice: e.target.value ? Number(e.target.value) : undefined })}
+                        type="text"
+                        value={formatNumber(formData.mortgagePrice)}
+                        onChange={(e) => {
+                          const parsed = parseFormattedNumber(e.target.value);
+                          setFormData({ ...formData, mortgagePrice: parsed });
+                        }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        placeholder="0"
                       />
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">اجاره (ریال)</label>
                       <input
-                        type="number"
-                        value={formData.totalPrice || ''}
-                        onChange={(e) => setFormData({ ...formData, totalPrice: e.target.value ? Number(e.target.value) : undefined })}
+                        type="text"
+                        value={formatNumber(formData.totalPrice)}
+                        onChange={(e) => {
+                          const parsed = parseFormattedNumber(e.target.value);
+                          setFormData({ ...formData, totalPrice: parsed });
+                        }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        placeholder="0"
                       />
                     </div>
                   </>
                 ) : (
                   <>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">قیمت کل (ریال)</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">زیربنا کلی (متر مربع)</label>
                       <input
                         type="number"
-                        value={formData.totalPrice || ''}
-                        onChange={(e) => setFormData({ ...formData, totalPrice: e.target.value ? Number(e.target.value) : undefined })}
+                        value={formData.totalArea || ''}
+                        onChange={(e) => setFormData({ ...formData, totalArea: e.target.value ? Number(e.target.value) : undefined })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       />
                     </div>
@@ -453,10 +794,24 @@ export default function CreatePropertyFilePage() {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">قیمت متری (ریال)</label>
                       <input
-                        type="number"
-                        value={formData.unitPrice || ''}
-                        onChange={(e) => setFormData({ ...formData, unitPrice: e.target.value ? Number(e.target.value) : undefined })}
+                        type="text"
+                        value={formatNumber(formData.unitPrice)}
+                        onChange={(e) => {
+                          const parsed = parseFormattedNumber(e.target.value);
+                          setFormData({ ...formData, unitPrice: parsed });
+                        }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        placeholder="0"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">قیمت کل (ریال)</label>
+                      <input
+                        type="text"
+                        value={formatNumber(formData.totalPrice)}
+                        readOnly
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed"
                       />
                     </div>
                   </>
@@ -470,61 +825,11 @@ export default function CreatePropertyFilePage() {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">مساحت زمین (متر مربع)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">مساحت زمین ساختمان (متر مربع)</label>
                   <input
                     type="number"
                     value={formData.landArea || ''}
                     onChange={(e) => setFormData({ ...formData, landArea: e.target.value ? Number(e.target.value) : undefined })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">تراکم</label>
-                  <input
-                    type="text"
-                    value={formData.density}
-                    onChange={(e) => setFormData({ ...formData, density: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">طول (متر)</label>
-                  <input
-                    type="number"
-                    value={formData.length || ''}
-                    onChange={(e) => setFormData({ ...formData, length: e.target.value ? Number(e.target.value) : undefined })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">عرض (متر)</label>
-                  <input
-                    type="number"
-                    value={formData.width || ''}
-                    onChange={(e) => setFormData({ ...formData, width: e.target.value ? Number(e.target.value) : undefined })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">اصلاحی (متر)</label>
-                  <input
-                    type="number"
-                    value={formData.renovated || ''}
-                    onChange={(e) => setFormData({ ...formData, renovated: e.target.value ? Number(e.target.value) : undefined })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">زیرزمین (متراژ)</label>
-                  <input
-                    type="number"
-                    value={formData.basement || ''}
-                    onChange={(e) => setFormData({ ...formData, basement: e.target.value ? Number(e.target.value) : undefined })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
@@ -541,42 +846,6 @@ export default function CreatePropertyFilePage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">حیاط (متر)</label>
-                  <input
-                    type="number"
-                    value={formData.yard || ''}
-                    onChange={(e) => setFormData({ ...formData, yard: e.target.value ? Number(e.target.value) : undefined })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">حیاط خلوت (متر)</label>
-                  <input
-                    type="number"
-                    value={formData.backyard || ''}
-                    onChange={(e) => setFormData({ ...formData, backyard: e.target.value ? Number(e.target.value) : undefined })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">سرویس مستخدم (متر)</label>
-                  <input
-                    type="number"
-                    value={formData.servantRoom || ''}
-                    onChange={(e) => setFormData({ ...formData, servantRoom: e.target.value ? Number(e.target.value) : undefined })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">پاسیو (متر)</label>
-                  <input
-                    type="number"
-                    value={formData.porch || ''}
-                    onChange={(e) => setFormData({ ...formData, porch: e.target.value ? Number(e.target.value) : undefined })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -623,42 +892,84 @@ export default function CreatePropertyFilePage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">نما</label>
-                  <input
-                    type="text"
-                    value={formData.facade}
-                    onChange={(e) => setFormData({ ...formData, facade: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">منبع اطلاعاتی</label>
-                  <input
-                    type="text"
-                    value={formData.informationSource}
-                    onChange={(e) => setFormData({ ...formData, informationSource: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">محل سکونت مالک</label>
-                  <input
-                    type="text"
-                    value={formData.ownerResidence}
-                    onChange={(e) => setFormData({ ...formData, ownerResidence: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
+                  <select
+                    name="facade"
+                    value={formData.facade || ''}
+                    onChange={(e) => {
+                      setFormData({ ...formData, facade: e.target.value || undefined });
+                      if (fieldErrors.facade) {
+                        setFieldErrors((prev) => {
+                          const newErrors = { ...prev };
+                          delete newErrors.facade;
+                          return newErrors;
+                        });
+                      }
+                    }}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                      fieldErrors.facade 
+                        ? 'border-red-500 focus:ring-red-500' 
+                        : 'border-gray-300 focus:ring-primary-500'
+                    }`}
+                  >
+                    <option value="">انتخاب کنید...</option>
+                    <option value="سنگی">سنگی</option>
+                    <option value="آجر">آجر</option>
+                    <option value="کامپوزیت">کامپوزیت</option>
+                    <option value="سیمانی">سیمانی</option>
+                    <option value="نما ترکیبی">نما ترکیبی</option>
+                    <option value="سایر">سایر</option>
+                  </select>
+                  {fieldErrors.facade && (
+                    <div className="mt-1">
+                      {Array.isArray(fieldErrors.facade) ? (
+                        fieldErrors.facade.map((msg, idx) => (
+                          <p key={idx} className="text-sm text-red-600">{msg}</p>
+                        ))
+                      ) : (
+                        <p className="text-sm text-red-600">{fieldErrors.facade}</p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">وضعیت سند</label>
-                  <input
-                    type="text"
-                    value={formData.documentStatus}
-                    onChange={(e) => setFormData({ ...formData, documentStatus: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
+                  <select
+                    name="documentStatus"
+                    value={formData.documentStatus || ''}
+                    onChange={(e) => {
+                      setFormData({ ...formData, documentStatus: e.target.value || undefined });
+                      if (fieldErrors.documentStatus) {
+                        setFieldErrors((prev) => {
+                          const newErrors = { ...prev };
+                          delete newErrors.documentStatus;
+                          return newErrors;
+                        });
+                      }
+                    }}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                      fieldErrors.documentStatus 
+                        ? 'border-red-500 focus:ring-red-500' 
+                        : 'border-gray-300 focus:ring-primary-500'
+                    }`}
+                  >
+                    <option value="">انتخاب کنید...</option>
+                    <option value="شخصی">شخصی</option>
+                    <option value="اوقاف">اوقاف</option>
+                    <option value="بنیاد">بنیاد</option>
+                    <option value="سایر">سایر</option>
+                  </select>
+                  {fieldErrors.documentStatus && (
+                    <div className="mt-1">
+                      {Array.isArray(fieldErrors.documentStatus) ? (
+                        fieldErrors.documentStatus.map((msg, idx) => (
+                          <p key={idx} className="text-sm text-red-600">{msg}</p>
+                        ))
+                      ) : (
+                        <p className="text-sm text-red-600">{fieldErrors.documentStatus}</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -741,6 +1052,40 @@ export default function CreatePropertyFilePage() {
                   </label>
                 </div>
               </div>
+
+              {/* Additional Features */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">امکانات اضافی</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.hasServantRoom || false}
+                      onChange={(e) => setFormData({ ...formData, hasServantRoom: e.target.checked })}
+                      className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">سرایداری</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.hasYard || false}
+                      onChange={(e) => setFormData({ ...formData, hasYard: e.target.checked })}
+                      className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">حیاط</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.hasPorch || false}
+                      onChange={(e) => setFormData({ ...formData, hasPorch: e.target.checked })}
+                      className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">پاسیو</span>
+                  </label>
+                </div>
+              </div>
             </div>
 
             {/* Floors */}
@@ -757,15 +1102,6 @@ export default function CreatePropertyFilePage() {
                     onChange={(e) => setCurrentFloor({ ...currentFloor, floorNumber: Number(e.target.value) })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">عنوان</label>
-                  <input
-                    type="text"
-                    value={currentFloor.title || ''}
-                    onChange={(e) => setCurrentFloor({ ...currentFloor, title: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 <div>
@@ -904,36 +1240,86 @@ export default function CreatePropertyFilePage() {
                 </label>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 justify-center">
                 <button
                   type="button"
                   onClick={addFloor}
-                  className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                  className="flex items-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-md hover:shadow-lg font-medium text-base"
                 >
-                  <FiPlus className="w-4 h-4" />
-                  <span>افزودن طبقه</span>
+                  <FiPlus className="w-5 h-5" />
+                  <span>افزودن طبقه به لیست</span>
                 </button>
               </div>
 
               {formData.floors && formData.floors.length > 0 && (
-                <div className="space-y-2">
-                  {formData.floors.map((floor, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex-1">
-                        <span className="font-medium">طبقه {floor.floorNumber}: {floor.title || 'بدون عنوان'}</span>
-                        {floor.area && <span className="text-gray-600 mr-2"> - {floor.area} متر مربع</span>}
-                        {floor.bedrooms && <span className="text-gray-600 mr-2"> - {floor.bedrooms} خواب</span>}
-                        {floor.bathroom && <span className="text-gray-600 mr-2"> - {floor.bathroom} سرویس</span>}
+                <div className="mt-6 border-t pt-4">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <FiLayers className="w-5 h-5 text-primary-600" />
+                    <span>طبقات اضافه شده ({formData.floors.length})</span>
+                  </h3>
+                  <div className="space-y-3">
+                    {formData.floors.map((floor, index) => (
+                      <div key={index} className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-white rounded-lg border border-gray-200 hover:border-primary-300 transition-all shadow-sm">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="font-semibold text-gray-800 text-lg">طبقه {floor.floorNumber}</span>
+                            <span className="px-2 py-1 bg-primary-100 text-primary-700 rounded text-xs font-medium">
+                              #{index + 1}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-3 text-sm text-gray-600">
+                            {floor.area && (
+                              <span className="flex items-center gap-1">
+                                <FiMaximize2 className="w-4 h-4" />
+                                {floor.area} متر مربع
+                              </span>
+                            )}
+                            {floor.bedrooms && (
+                              <span className="flex items-center gap-1">
+                                <FiHome className="w-4 h-4" />
+                                {floor.bedrooms} خواب
+                              </span>
+                            )}
+                            {floor.bathroom && (
+                              <span className="flex items-center gap-1">
+                                <FiDroplet className="w-4 h-4" />
+                                {floor.bathroom} سرویس
+                              </span>
+                            )}
+                            {floor.flooring && (
+                              <span className="flex items-center gap-1">
+                                <FiLayers className="w-4 h-4" />
+                                {floor.flooring}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {floor.phone && <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">تلفن</span>}
+                            {floor.kitchen && <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">آشپزخانه</span>}
+                            {floor.openKitchen && <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs">آشپزخانه اوپن</span>}
+                            {floor.parking && <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded text-xs">پارکینگ</span>}
+                            {floor.storage && <span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs">انباری</span>}
+                            {floor.fireplace && <span className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs">شومینه</span>}
+                            {floor.cooler && <span className="px-2 py-1 bg-cyan-100 text-cyan-700 rounded text-xs">کولر</span>}
+                            {floor.fanCoil && <span className="px-2 py-1 bg-teal-100 text-teal-700 rounded text-xs">فن کوئل</span>}
+                            {floor.chiller && <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs">چیلر</span>}
+                            {floor.package && <span className="px-2 py-1 bg-pink-100 text-pink-700 rounded text-xs">پکیج</span>}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            removeFloor(index);
+                            setSnackbar({ open: true, message: `طبقه ${floor.floorNumber} حذف شد`, severity: 'success' });
+                          }}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors ml-4"
+                          title="حذف طبقه"
+                        >
+                          <FiTrash2 className="w-5 h-5" />
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => removeFloor(index)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      >
-                        <FiTrash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

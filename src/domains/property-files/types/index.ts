@@ -188,6 +188,10 @@ export interface CreatePropertyFileRequest {
   pool?: boolean;
   videoIntercom?: boolean;
   remoteDoor?: boolean;
+  // Additional features
+  hasServantRoom?: boolean;
+  hasYard?: boolean;
+  hasPorch?: boolean;
   // New fields
   tags?: string[];
   priority?: PropertyFilePriority;

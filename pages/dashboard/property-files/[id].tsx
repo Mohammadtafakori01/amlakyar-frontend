@@ -32,7 +32,7 @@ const buildingTypeLabels: Record<string, string> = {
   APARTMENT: 'آپارتمان',
   COMMERCIAL: 'تجاری',
   OUTSIDE: 'بیرونی',
-  OLD: 'قدیمی',
+  OLD: 'کلنگی',
   OFFICE: 'اداری',
   SHOP: 'مغازه',
 };
@@ -148,9 +148,26 @@ export default function PropertyFileDetailPage() {
                 <p className="text-lg">{transactionTypeLabels[selectedFile.transactionType]}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-500">نوع ساختمان</label>
+                <label className="text-sm font-medium text-gray-500">مورد آگهی</label>
                 <p className="text-lg">{buildingTypeLabels[selectedFile.buildingType]}</p>
               </div>
+              {selectedFile.direction && (
+                <div>
+                  <label className="text-sm font-medium text-gray-500">جهت ساختمان</label>
+                  <p className="text-lg">
+                    {selectedFile.direction === 'NORTH' ? 'شمالی' :
+                     selectedFile.direction === 'SOUTH' ? 'جنوبی' :
+                     selectedFile.direction === 'EAST' ? 'شرقی' :
+                     selectedFile.direction === 'WEST' ? 'غربی' : selectedFile.direction}
+                  </p>
+                </div>
+              )}
+              {selectedFile.unit && (
+                <div>
+                  <label className="text-sm font-medium text-gray-500">شماره واحد</label>
+                  <p className="text-lg">{selectedFile.unit}</p>
+                </div>
+              )}
               {selectedFile.transactionType === PropertyTransactionType.MORTGAGE ? (
                 <>
                   {selectedFile.mortgagePrice && (
@@ -200,34 +217,28 @@ export default function PropertyFileDetailPage() {
                   <p className="text-lg">{selectedFile.totalArea} متر مربع</p>
                 </div>
               )}
-              {selectedFile.renovated !== undefined && selectedFile.renovated !== null && (
+              {selectedFile.landArea && (
                 <div>
-                  <label className="text-sm font-medium text-gray-500">اصلاحی</label>
-                  <p className="text-lg">{selectedFile.renovated} متر</p>
+                  <label className="text-sm font-medium text-gray-500">مساحت زمین ساختمان</label>
+                  <p className="text-lg">{selectedFile.landArea} متر مربع</p>
                 </div>
               )}
-              {selectedFile.yard !== undefined && selectedFile.yard !== null && (
+              {selectedFile.buildingAge && (
                 <div>
-                  <label className="text-sm font-medium text-gray-500">حیاط</label>
-                  <p className="text-lg">{selectedFile.yard} متر</p>
+                  <label className="text-sm font-medium text-gray-500">سن بنا</label>
+                  <p className="text-lg">{selectedFile.buildingAge} سال</p>
                 </div>
               )}
-              {selectedFile.backyard !== undefined && selectedFile.backyard !== null && (
+              {selectedFile.facade && (
                 <div>
-                  <label className="text-sm font-medium text-gray-500">حیاط خلوت</label>
-                  <p className="text-lg">{selectedFile.backyard} متر</p>
+                  <label className="text-sm font-medium text-gray-500">نما</label>
+                  <p className="text-lg">{selectedFile.facade}</p>
                 </div>
               )}
-              {selectedFile.servantRoom !== undefined && selectedFile.servantRoom !== null && (
+              {selectedFile.documentStatus && (
                 <div>
-                  <label className="text-sm font-medium text-gray-500">سرویس مستخدم</label>
-                  <p className="text-lg">{selectedFile.servantRoom} متر</p>
-                </div>
-              )}
-              {selectedFile.porch !== undefined && selectedFile.porch !== null && (
-                <div>
-                  <label className="text-sm font-medium text-gray-500">پاسیو</label>
-                  <p className="text-lg">{selectedFile.porch} متر</p>
+                  <label className="text-sm font-medium text-gray-500">وضعیت سند</label>
+                  <p className="text-lg">{selectedFile.documentStatus}</p>
                 </div>
               )}
             </div>
@@ -248,13 +259,25 @@ export default function PropertyFileDetailPage() {
               </div>
             )}
 
+            {/* Additional Features */}
+            {((selectedFile as any).hasServantRoom || (selectedFile as any).hasYard || (selectedFile as any).hasPorch) && (
+              <div>
+                <h2 className="text-xl font-semibold mb-4">امکانات اضافی</h2>
+                <div className="flex flex-wrap gap-2">
+                  {(selectedFile as any).hasServantRoom && <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">سرایداری</span>}
+                  {(selectedFile as any).hasYard && <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">حیاط</span>}
+                  {(selectedFile as any).hasPorch && <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">پاسیو</span>}
+                </div>
+              </div>
+            )}
+
             {selectedFile.floors && selectedFile.floors.length > 0 && (
               <div>
                 <h2 className="text-xl font-semibold mb-4">اطلاعات طبقات</h2>
                 <div className="space-y-4">
                   {selectedFile.floors.map((floor, index) => (
                     <div key={index} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                      <h3 className="font-semibold text-lg mb-3">طبقه {floor.floorNumber}: {floor.title || 'بدون عنوان'}</h3>
+                      <h3 className="font-semibold text-lg mb-3">طبقه {floor.floorNumber}</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {floor.area && (
                           <div>

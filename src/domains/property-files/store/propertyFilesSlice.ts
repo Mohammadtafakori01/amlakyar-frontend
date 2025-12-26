@@ -63,9 +63,8 @@ export const createPropertyFile = createAsyncThunk(
       const file = await propertyFilesApi.createPropertyFile(data);
       return file;
     } catch (error: any) {
-      const message = error.response?.data?.message;
-      const errorMsg = Array.isArray(message) ? message.join(', ') : (message || 'خطا در ایجاد فایل ملکی');
-      return rejectWithValue(errorMsg);
+      // Preserve the full error object for field-level validation
+      return rejectWithValue(error);
     }
   }
 );
@@ -77,9 +76,8 @@ export const updatePropertyFile = createAsyncThunk(
       const file = await propertyFilesApi.updatePropertyFile(id, data);
       return file;
     } catch (error: any) {
-      const message = error.response?.data?.message;
-      const errorMsg = Array.isArray(message) ? message.join(', ') : (message || 'خطا در ویرایش فایل ملکی');
-      return rejectWithValue(errorMsg);
+      // Preserve the full error object for field-level validation
+      return rejectWithValue(error);
     }
   }
 );
@@ -294,7 +292,8 @@ const propertyFilesSlice = createSlice({
       })
       .addCase(createPropertyFile.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload as string;
+        // Keep the full error object for field-level validation
+        state.error = action.payload as any;
       });
 
     // Update property file
@@ -315,7 +314,8 @@ const propertyFilesSlice = createSlice({
       })
       .addCase(updatePropertyFile.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload as string;
+        // Keep the full error object for field-level validation
+        state.error = action.payload as any;
       });
 
     // Delete property file
