@@ -170,9 +170,9 @@ export default function CreatePropertyFilePage() {
   // Check if currentFloor has any data (except floorNumber)
   const hasFloorData = (): boolean => {
     return !!(
-      (currentFloor.area !== undefined && currentFloor.area !== null && currentFloor.area !== '') ||
-      (currentFloor.bedrooms !== undefined && currentFloor.bedrooms !== null && currentFloor.bedrooms !== '') ||
-      (currentFloor.bathroom !== undefined && currentFloor.bathroom !== null && currentFloor.bathroom !== '') ||
+      (currentFloor.area !== undefined && currentFloor.area !== null) ||
+      (currentFloor.bedrooms !== undefined && currentFloor.bedrooms !== null) ||
+      (currentFloor.bathroom !== undefined && currentFloor.bathroom !== null) ||
       (currentFloor.flooring && currentFloor.flooring.trim() !== '') ||
       currentFloor.phone ||
       currentFloor.kitchen ||
@@ -202,13 +202,13 @@ export default function CreatePropertyFilePage() {
       // Create floor object directly
       const newFloor: FloorDetails = {
         floorNumber: Number(floorNumber),
-        area: currentFloor.area !== undefined && currentFloor.area !== null && currentFloor.area !== '' 
+        area: currentFloor.area !== undefined && currentFloor.area !== null 
           ? Number(currentFloor.area) 
           : undefined,
-        bedrooms: currentFloor.bedrooms !== undefined && currentFloor.bedrooms !== null && currentFloor.bedrooms !== '' 
+        bedrooms: currentFloor.bedrooms !== undefined && currentFloor.bedrooms !== null 
           ? Number(currentFloor.bedrooms) 
           : undefined,
-        bathroom: currentFloor.bathroom !== undefined && currentFloor.bathroom !== null && currentFloor.bathroom !== '' 
+        bathroom: currentFloor.bathroom !== undefined && currentFloor.bathroom !== null 
           ? Number(currentFloor.bathroom) 
           : undefined,
         flooring: currentFloor.flooring && currentFloor.flooring.trim() !== '' 
@@ -394,13 +394,13 @@ export default function CreatePropertyFilePage() {
     // Create a clean floor object with all fields
     const newFloor: FloorDetails = {
       floorNumber: Number(currentFloor.floorNumber),
-      area: currentFloor.area !== undefined && currentFloor.area !== null && currentFloor.area !== '' 
+      area: currentFloor.area !== undefined && currentFloor.area !== null 
         ? Number(currentFloor.area) 
         : undefined,
-      bedrooms: currentFloor.bedrooms !== undefined && currentFloor.bedrooms !== null && currentFloor.bedrooms !== '' 
+      bedrooms: currentFloor.bedrooms !== undefined && currentFloor.bedrooms !== null 
         ? Number(currentFloor.bedrooms) 
         : undefined,
-      bathroom: currentFloor.bathroom !== undefined && currentFloor.bathroom !== null && currentFloor.bathroom !== '' 
+      bathroom: currentFloor.bathroom !== undefined && currentFloor.bathroom !== null 
         ? Number(currentFloor.bathroom) 
         : undefined,
       flooring: currentFloor.flooring && currentFloor.flooring.trim() !== '' 
@@ -483,11 +483,7 @@ export default function CreatePropertyFilePage() {
 
           {error && (
             <ErrorDisplay 
-              error={
-                typeof error === 'string' 
-                  ? error 
-                  : error?.response?.data?.message || error?.message || 'خطای نامشخص'
-              } 
+              error={typeof error === 'string' ? error : 'خطای نامشخص'}
             />
           )}
 

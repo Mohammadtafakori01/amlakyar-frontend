@@ -784,7 +784,7 @@ export default function EditContractPage() {
   useEffect(() => {
     if (selectedContract && selectedContract.id === contractId) {
       const hasPaymentEntries = selectedContract.paymentEntries && Array.isArray(selectedContract.paymentEntries);
-      const entriesCount = hasPaymentEntries ? selectedContract.paymentEntries.length : 0;
+      const entriesCount = hasPaymentEntries && selectedContract.paymentEntries ? selectedContract.paymentEntries.length : 0;
       const lastLoaded = paymentEntriesLoadedRef.current;
       
       // Reload payment entries if:
@@ -797,12 +797,13 @@ export default function EditContractPage() {
         
         // Load payment entries when contract is loaded
         if (hasPaymentEntries) {
-          if (entriesCount > 0) {
+          if (entriesCount > 0 && selectedContract.paymentEntries) {
             // Convert string amounts to numbers if needed and ensure paymentType is correct
             // Also handle any nested 'property' structure from backend
             const convertedPaymentEntries = selectedContract.paymentEntries.map(entry => {
               // If entry has a nested 'property' key, extract it
-              const actualEntry = entry?.property ? entry.property : entry;
+              const entryWithProperty = entry as PaymentEntry & { property?: PaymentEntry };
+              const actualEntry = entryWithProperty.property || entry;
               
               // Build flat entry object
               return {
