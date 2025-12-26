@@ -86,7 +86,24 @@ export default function ContractDetailPage() {
       setSnackbar({ open: true, message: 'فایل PDF با موفقیت دانلود شد', severity: 'success' });
     } catch (err: any) {
       console.error('Error downloading PDF:', err);
-      const errorMessage = err.response?.data?.message || err.message || 'خطا در دانلود فایل PDF';
+      let errorMessage = 'خطا در دانلود فایل PDF';
+      
+      // Handle blob error responses (when responseType is 'blob', error responses are also blobs)
+      if (err.response?.data instanceof Blob) {
+        try {
+          const errorText = await err.response.data.text();
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.message || errorMessage;
+        } catch (parseError) {
+          // If parsing fails, use default message
+          console.error('Error parsing error response:', parseError);
+        }
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
       setSnackbar({ open: true, message: errorMessage, severity: 'error' });
     } finally {
       setIsDownloading(false);

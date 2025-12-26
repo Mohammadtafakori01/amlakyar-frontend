@@ -26,7 +26,7 @@ import {
 import Loading from '../../../src/shared/components/common/Loading';
 import ErrorDisplay from '../../../src/shared/components/common/ErrorDisplay';
 import PersianDatePicker from '../../../src/shared/components/common/PersianDatePicker';
-import { formatNumber, parseFormattedNumber } from '../../../src/shared/utils/numberUtils';
+import { formatNumber, parseFormattedNumber, formatPrice } from '../../../src/shared/utils/numberUtils';
 import { formatToPersianDate, formatToGregorianDate, calculateMonthsDifference } from '../../../src/shared/utils/dateUtils';
 
 type Step = 1 | 2 | 3 | 4 | 5;
@@ -1646,12 +1646,7 @@ export default function CreateContractPage() {
         rentalAmount: contractType === ContractType.RENTAL ? (draftData.rentalAmount ? parseLatinNumber(draftData.rentalAmount) : undefined) : undefined,
         purchaseAmount: contractType === ContractType.PURCHASE ? (draftData.purchaseAmount ? parseLatinNumber(draftData.purchaseAmount) : undefined) : undefined,
         depositAmount: draftData.depositAmount ? parseLatinNumber(draftData.depositAmount) : undefined,
-        paymentEntries: paymentEntries.length > 0 ? paymentEntries.map(entry => ({
-          ...entry,
-          amount: parseLatinNumber(entry.amount),
-          shabaNumber: entry.shabaNumber ? convertToLatinNumbers(entry.shabaNumber) : undefined,
-          cardNumber: entry.cardNumber ? convertToLatinNumbers(entry.cardNumber) : undefined,
-        })) : undefined,
+        paymentEntries: paymentEntries.length > 0 ? paymentEntries.map(entry => buildFlatPaymentEntry(entry)) : undefined,
         // NEW: Administrative fields
         registrationArea: draftData.registrationArea?.trim() || undefined,
         witness1Name: draftData.witness1Name?.trim() || undefined,
@@ -1711,12 +1706,7 @@ export default function CreateContractPage() {
         rentalAmount: contractType === ContractType.RENTAL ? (draftData.rentalAmount ? parseLatinNumber(draftData.rentalAmount) : undefined) : undefined,
         purchaseAmount: contractType === ContractType.PURCHASE ? (draftData.purchaseAmount ? parseLatinNumber(draftData.purchaseAmount) : undefined) : undefined,
         depositAmount: draftData.depositAmount ? parseLatinNumber(draftData.depositAmount) : undefined,
-        paymentEntries: paymentEntries.length > 0 ? paymentEntries.map(entry => ({
-          ...entry,
-          amount: parseLatinNumber(entry.amount),
-          shabaNumber: entry.shabaNumber ? convertToLatinNumbers(entry.shabaNumber) : undefined,
-          cardNumber: entry.cardNumber ? convertToLatinNumbers(entry.cardNumber) : undefined,
-        })) : undefined,
+        paymentEntries: paymentEntries.length > 0 ? paymentEntries.map(entry => buildFlatPaymentEntry(entry)) : undefined,
         // NEW: Administrative fields
         registrationArea: draftData.registrationArea?.trim() || undefined,
         witness1Name: draftData.witness1Name?.trim() || undefined,
@@ -1955,6 +1945,87 @@ export default function CreateContractPage() {
 
   const getAllPaymentsTotal = (): number => {
     return paymentEntries.reduce((sum, entry) => sum + (Number(entry.amount) || 0), 0);
+  };
+
+  // Helper function to remove null/undefined values from payment entry
+  // Ensures flat structure without any nested 'property' key
+  const cleanPaymentEntry = (entry: PaymentEntry | any): Partial<PaymentEntry> => {
+    // If entry has a nested 'property' key, extract it (defensive coding)
+    const actualEntry = entry?.property ? entry.property : entry;
+    
+    // Build flat object with only the expected fields
+    const cleaned: any = {
+      paymentType: actualEntry.paymentType,
+      paymentMethod: actualEntry.paymentMethod,
+      amount: actualEntry.amount,
+      order: actualEntry.order,
+    };
+    
+    // Only include id if it exists
+    if (actualEntry.id) {
+      cleaned.id = actualEntry.id;
+    }
+    
+    // Only include optional fields if they have values
+    if (actualEntry.description) cleaned.description = actualEntry.description;
+    if (actualEntry.checkNumber) cleaned.checkNumber = actualEntry.checkNumber;
+    if (actualEntry.accountNumber) cleaned.accountNumber = actualEntry.accountNumber;
+    if (actualEntry.shabaNumber) cleaned.shabaNumber = actualEntry.shabaNumber;
+    if (actualEntry.cardNumber) cleaned.cardNumber = actualEntry.cardNumber;
+    if (actualEntry.bankName) cleaned.bankName = actualEntry.bankName;
+    if (actualEntry.branchName) cleaned.branchName = actualEntry.branchName;
+    
+    // Explicitly remove any 'property' key if it exists
+    delete cleaned.property;
+    
+    return cleaned;
+  };
+
+  // Helper function to build flat payment entry for API submission
+  // Only includes fields relevant to the selected paymentMethod
+  const buildFlatPaymentEntry = (entry: PaymentEntry | any): any => {
+    const cleaned = cleanPaymentEntry(entry);
+    const paymentMethod = cleaned.paymentMethod;
+    
+    // Build flat entry with required fields
+    const flatEntry: any = {
+      paymentType: cleaned.paymentType,
+      paymentMethod: cleaned.paymentMethod,
+      amount: typeof cleaned.amount === 'string' ? parseLatinNumber(cleaned.amount) : (cleaned.amount || 0),
+      order: cleaned.order ?? 0,
+    };
+    
+    // Include id if it exists (for updates)
+    if (cleaned.id) {
+      flatEntry.id = cleaned.id;
+    }
+    
+    // Include description if it exists
+    if (cleaned.description) {
+      flatEntry.description = cleaned.description;
+    }
+    
+    // Include method-specific fields based on paymentMethod
+    if (paymentMethod === PaymentMethod.CHECK) {
+      if (cleaned.checkNumber) flatEntry.checkNumber = cleaned.checkNumber;
+      if (cleaned.bankName) flatEntry.bankName = cleaned.bankName;
+      if (cleaned.branchName) flatEntry.branchName = cleaned.branchName;
+    } else if (paymentMethod === PaymentMethod.CARD_TO_CARD) {
+      if (cleaned.cardNumber) {
+        flatEntry.cardNumber = convertToLatinNumbers(cleaned.cardNumber as string);
+      }
+    } else if (paymentMethod === PaymentMethod.ACCOUNT_TO_ACCOUNT) {
+      if (cleaned.accountNumber) flatEntry.accountNumber = cleaned.accountNumber;
+      if (cleaned.bankName) flatEntry.bankName = cleaned.bankName;
+      if (cleaned.branchName) flatEntry.branchName = cleaned.branchName;
+    } else if (paymentMethod === PaymentMethod.SHABA) {
+      if (cleaned.shabaNumber) {
+        flatEntry.shabaNumber = convertToLatinNumbers(cleaned.shabaNumber as string);
+      }
+    }
+    // For CASH, no additional fields needed
+    
+    return flatEntry;
   };
 
   // بررسی اعتبارسنجی مجموع پرداختی‌ها
@@ -2244,6 +2315,14 @@ export default function CreateContractPage() {
                     maxLength={10}
                     required
                     error={fieldErrors['nationalId']}
+                  />
+                  <ValidatedInput
+                    field="idCardNumber"
+                    value={currentParty.idCardNumber || ''}
+                    onChange={(e) => setCurrentParty(prev => ({ ...prev, idCardNumber: e.target.value }))}
+                    onClearError={clearFieldErrorMemoized}
+                    label="شماره شناسنامه"
+                    error={fieldErrors['idCardNumber']}
                   />
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <ValidatedInput
@@ -3973,7 +4052,7 @@ export default function CreateContractPage() {
                         <div className="flex-1">
                           <div className="text-sm font-semibold">{getPaymentMethodLabel(entry.paymentMethod)}</div>
                           <div className="text-sm text-gray-600">
-                            مبلغ: {entry.amount.toLocaleString('fa-IR')} ریال
+                            مبلغ: {formatPrice(entry.amount)} ریال
                             {entry.checkNumber && ` | شماره چک: ${entry.checkNumber}`}
                             {entry.accountNumber && ` | شماره حساب: ${entry.accountNumber}`}
                             {entry.cardNumber && ` | شماره کارت: ${entry.cardNumber}`}

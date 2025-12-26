@@ -3,9 +3,10 @@
  * @param num - Number to format
  * @returns Formatted string with thousand separators
  */
-export const formatPrice = (price: number | undefined | null): string => {
+export const formatPrice = (price: number | string | undefined | null): string => {
   if (price === undefined || price === null) return '';
-  return new Intl.NumberFormat('fa-IR').format(price);
+  const numPrice = typeof price === 'string' ? parseFloat(price) || 0 : price;
+  return new Intl.NumberFormat('fa-IR').format(numPrice);
 };
 
 /**
