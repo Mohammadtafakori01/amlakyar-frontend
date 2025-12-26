@@ -14,6 +14,7 @@ import {
   CreatePropertyFileRequest,
 } from '../../../src/domains/property-files/types';
 import { getAvailableZones } from '../../../src/shared/utils/rbacUtils';
+import { UserRole } from '../../../src/shared/types';
 import { getCurrentDate } from '../../../src/shared/utils/dateUtils';
 import { generateUniqueCodeWithCounter } from '../../../src/shared/utils/uniqueCodeGenerator';
 import { sanitizePropertyFileData } from '../../../src/shared/utils/dataSanitizer';
@@ -129,7 +130,15 @@ export default function CreatePropertyFilePage() {
   });
 
   const availableZones = useMemo(() => {
-    return currentUser ? getAvailableZones(currentUser.role) : [];
+    if (!currentUser) return [];
+    
+    // If user is not MASTER or ADMIN, only show PERSONAL zone when creating
+    if (currentUser.role !== UserRole.MASTER && currentUser.role !== UserRole.ADMIN) {
+      return [PropertyFileZone.PERSONAL];
+    }
+    
+    // For MASTER and ADMIN, show all available zones
+    return getAvailableZones(currentUser.role);
   }, [currentUser]);
 
   // Format number with thousand separators
