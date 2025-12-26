@@ -515,6 +515,7 @@ export default function EditContractPage() {
     ownershipDocumentOwner: '',
     storageCount: '',
     storageNumbers: [] as string[],
+    storageUnits: [] as Array<{ number: string; area?: string }>,
     parkingCount: '',
     parkingNumbers: [] as string[],
     // NEW: Additional property fields
@@ -604,6 +605,17 @@ export default function EditContractPage() {
     }
   }, [id, fetchContractById]);
 
+  // Check if supervisor can edit this contract
+  useEffect(() => {
+    if (selectedContract && selectedContract.id === contractId && currentUser?.role === UserRole.SUPERVISOR) {
+      // Supervisors can only edit DRAFT contracts, not SIGNED ones
+      if (selectedContract.status === ContractStatus.SIGNED) {
+        setSnackbar({ open: true, message: 'شما اجازه ویرایش قراردادهای ثبت شده را ندارید', severity: 'error' });
+        router.push(`/dashboard/contracts/${contractId}`);
+      }
+    }
+  }, [selectedContract, contractId, currentUser, router]);
+
   // Populate form data when contract is loaded
   useEffect(() => {
     if (selectedContract && selectedContract.id === contractId) {
@@ -673,6 +685,15 @@ export default function EditContractPage() {
           ownershipDocumentOwner: pd.ownershipDocumentOwner || '',
           storageCount: pd.storageCount?.toString() || '',
           storageNumbers: pd.storageNumbers || [],
+          // تبدیل storageUnits از API یا تبدیل storageNumbers به storageUnits برای سازگاری
+          storageUnits: pd.storageUnits && pd.storageUnits.length > 0
+            ? pd.storageUnits.map((unit, idx) => ({ 
+                number: unit.number || (idx + 1).toString(), 
+                area: unit.area?.toString() || '' 
+              }))
+            : pd.storageNumbers && pd.storageNumbers.length > 0
+              ? pd.storageNumbers.map((num, idx) => ({ number: num || (idx + 1).toString(), area: '' }))
+              : [],
           parkingCount: pd.parkingCount?.toString() || '',
           parkingNumbers: pd.parkingNumbers || [],
           // NEW: Additional property fields
@@ -1782,6 +1803,20 @@ export default function EditContractPage() {
         ownershipDocumentSerial: propertyDetails.ownershipDocumentSerial ? convertToLatinNumbers(propertyDetails.ownershipDocumentSerial.trim()) || undefined : undefined,
         ownershipDocumentOwner: propertyDetails.ownershipDocumentOwner?.trim() || undefined,
         storageCount: propertyDetails.storageCount ? parseLatinInteger(propertyDetails.storageCount) : undefined,
+        // استفاده از storageUnits در صورت وجود، در غیر این صورت از storageNumbers (برای سازگاری با نسخه‌های قدیمی)
+        storageUnits: propertyDetails.storageUnits && propertyDetails.storageUnits.length > 0
+          ? propertyDetails.storageUnits
+              .filter(unit => unit.number && unit.number.trim() !== '')
+              .map(unit => {
+                const areaValue = unit.area && unit.area.trim() !== '' ? parseFloat(unit.area) : undefined;
+                return {
+                  number: convertToLatinNumbers(unit.number.trim()),
+                  area: areaValue !== undefined && !isNaN(areaValue) ? areaValue : undefined
+                };
+              })
+          : propertyDetails.storageNumbers?.length > 0 
+            ? propertyDetails.storageNumbers.map(n => ({ number: convertToLatinNumbers(n) }))
+            : undefined,
         storageNumbers: propertyDetails.storageNumbers?.length > 0 ? propertyDetails.storageNumbers.map(n => convertToLatinNumbers(n)) : undefined,
         parkingCount: propertyDetails.parkingCount ? parseLatinInteger(propertyDetails.parkingCount) : undefined,
         parkingNumbers: propertyDetails.parkingNumbers?.length > 0 ? propertyDetails.parkingNumbers.map(n => convertToLatinNumbers(n)) : undefined,
@@ -3407,10 +3442,93 @@ export default function EditContractPage() {
           <input
             type="number"
             value={propertyDetails.storageCount}
-            onChange={(e) => setPropertyDetails({ ...propertyDetails, storageCount: e.target.value })}
+            onChange={(e) => {
+              const count = parseInt(e.target.value) || 0;
+              const currentUnits = propertyDetails.storageUnits || [];
+              // اگر تعداد افزایش یافت، واحدهای جدید اضافه کن
+              if (count > currentUnits.length) {
+                const newUnits = Array.from({ length: count }, (_, i) => 
+                  i < currentUnits.length 
+                    ? currentUnits[i] 
+                    : { number: (i + 1).toString(), area: '' }
+                );
+                setPropertyDetails({ ...propertyDetails, storageCount: e.target.value, storageUnits: newUnits });
+              } 
+              // اگر تعداد کاهش یافت، واحدهای اضافی را حذف کن
+              else if (count < currentUnits.length) {
+                const newUnits = currentUnits.slice(0, count);
+                setPropertyDetails({ ...propertyDetails, storageCount: e.target.value, storageUnits: newUnits });
+              } 
+              else {
+                setPropertyDetails({ ...propertyDetails, storageCount: e.target.value });
+              }
+            }}
             className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
           />
         </div>
+        {propertyDetails.storageCount && parseInt(propertyDetails.storageCount) > 0 && (
+          <div className="md:col-span-2 lg:col-span-3">
+            <label className="mb-2 block text-sm font-semibold text-gray-600">اطلاعات انباری‌ها</label>
+            <div className="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
+              {Array.from({ length: parseInt(propertyDetails.storageCount) || 0 }).map((_, index) => (
+                <div key={index} className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-gray-600">
+                      شماره انباری {index + 1} <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={propertyDetails.storageUnits?.[index]?.number || ''}
+                      onChange={(e) => {
+                        const newUnits = [...(propertyDetails.storageUnits || [])];
+                        if (!newUnits[index]) {
+                          newUnits[index] = { number: (index + 1).toString(), area: '' };
+                        }
+                        newUnits[index].number = e.target.value;
+                        setPropertyDetails({ ...propertyDetails, storageUnits: newUnits });
+                      }}
+                      onBlur={(e) => {
+                        // اگر فیلد خالی شد، مقدار پیش‌فرض را قرار بده
+                        if (!e.target.value.trim()) {
+                          const newUnits = [...(propertyDetails.storageUnits || [])];
+                          if (!newUnits[index]) {
+                            newUnits[index] = { number: (index + 1).toString(), area: '' };
+                          } else {
+                            newUnits[index].number = (index + 1).toString();
+                          }
+                          setPropertyDetails({ ...propertyDetails, storageUnits: newUnits });
+                        }
+                      }}
+                      className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                      placeholder={`پیش‌فرض: ${index + 1}`}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-gray-600">
+                      متراژ انباری {index + 1} (متر مربع) <span className="text-gray-400 text-xs">(اختیاری)</span>
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={propertyDetails.storageUnits?.[index]?.area || ''}
+                      onChange={(e) => {
+                        const newUnits = [...(propertyDetails.storageUnits || [])];
+                        if (!newUnits[index]) {
+                          newUnits[index] = { number: '', area: '' };
+                        }
+                        newUnits[index].area = e.target.value;
+                        setPropertyDetails({ ...propertyDetails, storageUnits: newUnits });
+                      }}
+                      className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                      placeholder="مثال: 5.5"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-600">تعداد پارکینگ</label>
           <input

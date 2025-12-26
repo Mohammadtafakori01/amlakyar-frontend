@@ -145,6 +145,12 @@ export default function ContractDetailPage() {
   }
 
   const contract = selectedContract;
+  
+  // Check if supervisor can edit/delete this contract
+  // Supervisors can only edit/delete DRAFT contracts, not SIGNED ones
+  const isSupervisor = user?.role === UserRole.SUPERVISOR;
+  const isSignedContract = contract.status === ContractStatus.SIGNED;
+  const canEditContract = !isSupervisor || !isSignedContract;
 
   return (
     <PrivateRoute>
@@ -165,13 +171,15 @@ export default function ContractDetailPage() {
                   <FiDownload />
                   {isDownloading ? 'در حال دانلود...' : 'دانلود PDF'}
                 </button>
-                <button
-                  onClick={() => router.push(`/dashboard/contracts/${contract.id}/edit`)}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:border-primary-200 hover:text-primary-600"
-                >
-                  <FiEdit2 />
-                  ویرایش
-                </button>
+                {canEditContract && (
+                  <button
+                    onClick={() => router.push(`/dashboard/contracts/${contract.id}/edit`)}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:border-primary-200 hover:text-primary-600"
+                  >
+                    <FiEdit2 />
+                    ویرایش
+                  </button>
+                )}
                 <button
                   onClick={() => router.push('/dashboard/contracts')}
                   className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:border-gray-300 hover:bg-gray-50"
@@ -642,7 +650,25 @@ export default function ContractDetailPage() {
                         <p className="mt-1 text-sm text-gray-800">{contract.propertyDetails.storageCount}</p>
                       </div>
                     )}
-                    {contract.propertyDetails.storageNumbers && contract.propertyDetails.storageNumbers.length > 0 && (
+                    {contract.propertyDetails.storageUnits && contract.propertyDetails.storageUnits.length > 0 && (
+                      <div>
+                        <label className="text-sm font-semibold text-gray-600">اطلاعات انباری‌ها</label>
+                        <div className="mt-1 space-y-1">
+                          {contract.propertyDetails.storageUnits.map((unit, index) => {
+                            const area = unit.area !== undefined && unit.area !== null && !isNaN(Number(unit.area)) 
+                              ? Number(unit.area).toFixed(2).replace(/\.?0+$/, '') 
+                              : null;
+                            return (
+                              <p key={index} className="text-sm text-gray-800">
+                                {unit.number}
+                                {area && <span className="text-gray-500"> ({area} متر مربع)</span>}
+                              </p>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    {!contract.propertyDetails.storageUnits && contract.propertyDetails.storageNumbers && contract.propertyDetails.storageNumbers.length > 0 && (
                       <div>
                         <label className="text-sm font-semibold text-gray-600">شماره انباری‌ها</label>
                         <p className="mt-1 text-sm text-gray-800">{contract.propertyDetails.storageNumbers.join(', ')}</p>

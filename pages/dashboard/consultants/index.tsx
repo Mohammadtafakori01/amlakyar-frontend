@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FiPlus, FiEye, FiEyeOff } from 'react-icons/fi';
+import { FiPlus, FiEye, FiEyeOff, FiEdit2, FiTrash2 } from 'react-icons/fi';
 import DashboardLayout from '../../../src/shared/components/Layout/DashboardLayout';
 import PrivateRoute from '../../../src/shared/components/guards/PrivateRoute';
 import RoleGuard from '../../../src/shared/components/guards/RoleGuard';
@@ -7,6 +7,7 @@ import { useAuth } from '../../../src/domains/auth/hooks/useAuth';
 import { AppDispatch } from '../../../src/app/store';
 import { useDispatch } from 'react-redux';
 import { registerConsultant, getConsultants } from '../../../src/domains/auth/store/authSlice';
+import { useUsers } from '../../../src/domains/users/hooks/useUsers';
 import { UserRole } from '../../../src/shared/types';
 import Loading from '../../../src/shared/components/common/Loading';
 import { validatePhoneNumber, validateNationalId, validatePassword } from '../../../src/shared/utils/validation';
@@ -14,9 +15,13 @@ import { validatePhoneNumber, validateNationalId, validatePassword } from '../..
 export default function ConsultantsPage() {
   const dispatch = useDispatch<AppDispatch>();
   const { user } = useAuth();
+  const { updateUser, deleteUser } = useUsers();
   const [consultants, setConsultants] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState(false);
+  const [selectedConsultant, setSelectedConsultant] = useState<any | null>(null);
+  const [isEdit, setIsEdit] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
   const [showPassword, setShowPassword] = useState(false);
   
@@ -64,44 +69,117 @@ export default function ConsultantsPage() {
     }
   };
 
-  const handleOpenDialog = () => {
-    setFormData({
-      firstName: '',
-      lastName: '',
-      nationalId: '',
-      phoneNumber: '',
-      password: '',
-    });
+  const handleOpenDialog = (consultant?: any) => {
+    if (consultant) {
+      setIsEdit(true);
+      setSelectedConsultant(consultant);
+      setFormData({
+        firstName: consultant.firstName || '',
+        lastName: consultant.lastName || '',
+        nationalId: consultant.nationalId || '',
+        phoneNumber: consultant.phoneNumber || '',
+        password: '',
+      });
+    } else {
+      setIsEdit(false);
+      setSelectedConsultant(null);
+      setFormData({
+        firstName: '',
+        lastName: '',
+        nationalId: '',
+        phoneNumber: '',
+        password: '',
+      });
+    }
     setShowPassword(false);
     setOpenDialog(true);
   };
 
   const handleCloseDialog = () => {
     setOpenDialog(false);
+    setIsEdit(false);
+    setSelectedConsultant(null);
+  };
+
+  const handleOpenDeleteDialog = (consultant: any) => {
+    setSelectedConsultant(consultant);
+    setDeleteDialog(true);
+  };
+
+  const handleCloseDeleteDialog = () => {
+    setDeleteDialog(false);
+    setSelectedConsultant(null);
   };
 
   const handleSubmit = async () => {
-    if (!validatePhoneNumber(formData.phoneNumber) || !validateNationalId(formData.nationalId) || !validatePassword(formData.password)) {
+    if (!validatePhoneNumber(formData.phoneNumber) || !validateNationalId(formData.nationalId)) {
+      setSnackbar({ open: true, message: 'لطفا اطلاعات را به درستی وارد کنید', severity: 'error' });
+      return;
+    }
+
+    // Password is required for create, optional for update
+    if (!isEdit && !validatePassword(formData.password)) {
       setSnackbar({ open: true, message: 'لطفا اطلاعات را به درستی وارد کنید', severity: 'error' });
       return;
     }
 
     try {
-      // Include estateId from current user (Supervisor) to ensure consultant is linked to their estate
-      const requestData = {
-        ...formData,
-        ...(user?.estateId && { estateId: user.estateId }),
-      };
-      const result = await dispatch(registerConsultant(requestData));
-      if (registerConsultant.fulfilled.match(result)) {
-        setSnackbar({ open: true, message: 'مشاور با موفقیت ثبت شد', severity: 'success' });
+      if (isEdit && selectedConsultant) {
+        // Update consultant
+        const updateData: any = {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          nationalId: formData.nationalId,
+          phoneNumber: formData.phoneNumber,
+        };
+        
+        // Only include password if it's provided
+        if (formData.password && formData.password.trim() !== '') {
+          if (!validatePassword(formData.password)) {
+            setSnackbar({ open: true, message: 'رمز عبور باید حداقل 6 کاراکتر باشد', severity: 'error' });
+            return;
+          }
+          updateData.password = formData.password;
+        }
+
+        await updateUser(selectedConsultant.id, updateData);
+        setSnackbar({ open: true, message: 'مشاور با موفقیت به‌روزرسانی شد', severity: 'success' });
         handleCloseDialog();
         loadConsultants();
       } else {
-        setSnackbar({ open: true, message: result.payload as string || 'خطا در ثبت مشاور', severity: 'error' });
+        // Create consultant
+        const requestData = {
+          ...formData,
+          ...(user?.estateId && { estateId: user.estateId }),
+        };
+        const result = await dispatch(registerConsultant(requestData));
+        if (registerConsultant.fulfilled.match(result)) {
+          setSnackbar({ open: true, message: 'مشاور با موفقیت ثبت شد', severity: 'success' });
+          handleCloseDialog();
+          loadConsultants();
+        } else {
+          setSnackbar({ open: true, message: result.payload as string || 'خطا در ثبت مشاور', severity: 'error' });
+        }
       }
-    } catch (error: any) {
-      setSnackbar({ open: true, message: error.message || 'خطا در ثبت مشاور', severity: 'error' });
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || err.message || (isEdit ? 'خطا در به‌روزرسانی مشاور' : 'خطا در ثبت مشاور');
+      const message = Array.isArray(errorMessage) ? errorMessage.join(', ') : errorMessage;
+      setSnackbar({ open: true, message, severity: 'error' });
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedConsultant) return;
+
+    try {
+      await deleteUser(selectedConsultant.id);
+      setSnackbar({ open: true, message: 'مشاور با موفقیت حذف شد', severity: 'success' });
+      handleCloseDeleteDialog();
+      loadConsultants();
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || err.message || 'خطا در حذف مشاور';
+      const message = Array.isArray(errorMessage) ? errorMessage.join(', ') : errorMessage;
+      setSnackbar({ open: true, message, severity: 'error' });
     }
   };
 
@@ -135,6 +213,7 @@ export default function ConsultantsPage() {
                       <th className="px-4 py-3">نام</th>
                       <th className="px-4 py-3">شماره موبایل</th>
                       <th className="px-4 py-3">کد ملی</th>
+                      <th className="px-4 py-3">عملیات</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -143,6 +222,24 @@ export default function ConsultantsPage() {
                         <td className="px-4 py-3">{consultant.firstName} {consultant.lastName}</td>
                         <td className="px-4 py-3">{consultant.phoneNumber}</td>
                         <td className="px-4 py-3">{consultant.nationalId}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => handleOpenDialog(consultant)}
+                              className="flex items-center justify-center rounded-lg p-2 text-primary-600 hover:bg-primary-50 transition"
+                              title="ویرایش"
+                            >
+                              <FiEdit2 className="text-lg" />
+                            </button>
+                            <button
+                              onClick={() => handleOpenDeleteDialog(consultant)}
+                              className="flex items-center justify-center rounded-lg p-2 text-red-600 hover:bg-red-50 transition"
+                              title="حذف"
+                            >
+                              <FiTrash2 className="text-lg" />
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -153,7 +250,7 @@ export default function ConsultantsPage() {
             {openDialog && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
                 <div className="w-full max-w-lg rounded-2xl bg-white p-6 text-right shadow-2xl">
-                  <h3 className="text-xl font-semibold text-gray-900">ثبت مشاور جدید</h3>
+                  <h3 className="text-xl font-semibold text-gray-900">{isEdit ? 'ویرایش مشاور' : 'ثبت مشاور جدید'}</h3>
                   <div className="mt-4 space-y-4">
                     <div>
                       <label className="mb-1 block text-sm font-medium text-gray-600">نام</label>
@@ -197,14 +294,16 @@ export default function ConsultantsPage() {
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-sm font-medium text-gray-600">رمز عبور</label>
+                      <label className="mb-1 block text-sm font-medium text-gray-600">
+                        رمز عبور {isEdit && <span className="text-gray-400 text-xs">(اختیاری - در صورت تغییر)</span>}
+                      </label>
                       <div className="relative">
                         <input
                           type={showPassword ? 'text' : 'password'}
                           className="w-full rounded-2xl border border-gray-200 px-4 py-2 pr-12 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
                           value={formData.password}
                           onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                          placeholder="حداقل 6 کاراکتر"
+                          placeholder={isEdit ? 'در صورت تغییر رمز عبور وارد کنید' : 'حداقل 6 کاراکتر'}
                         />
                         <button
                           type="button"
@@ -228,7 +327,34 @@ export default function ConsultantsPage() {
                       onClick={handleSubmit}
                       className="flex-1 rounded-2xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-700"
                     >
-                      ثبت
+                      {isEdit ? 'ذخیره تغییرات' : 'ثبت'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {deleteDialog && selectedConsultant && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+                <div className="w-full max-w-md rounded-2xl bg-white p-6 text-right shadow-2xl">
+                  <h3 className="text-xl font-semibold text-gray-900">حذف مشاور</h3>
+                  <p className="mt-4 text-sm text-gray-600">
+                    آیا از حذف مشاور <strong>{selectedConsultant.firstName} {selectedConsultant.lastName}</strong> اطمینان دارید؟
+                    <br />
+                    <span className="text-red-600">این عملیات غیرقابل بازگشت است.</span>
+                  </p>
+                  <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+                    <button
+                      onClick={handleCloseDeleteDialog}
+                      className="flex-1 rounded-2xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 transition hover:border-gray-300 hover:bg-gray-50"
+                    >
+                      انصراف
+                    </button>
+                    <button
+                      onClick={handleDelete}
+                      className="flex-1 rounded-2xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
+                    >
+                      حذف
                     </button>
                   </div>
                 </div>

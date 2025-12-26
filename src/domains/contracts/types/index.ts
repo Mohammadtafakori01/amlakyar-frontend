@@ -138,6 +138,11 @@ export interface PropertyUtilityType {
   gas?: string;          // اختصاصی/اشتراکی
 }
 
+export interface StorageUnit {
+  number: string;  // شماره انباری (الزامی)
+  area?: number;   // متراژ انباری به متر مربع (اختیاری)
+}
+
 export interface PropertyDetails {
   propertyType?: string;
   usageType?: string;
@@ -153,7 +158,8 @@ export interface PropertyDetails {
   ownershipDocumentSerial?: string;
   ownershipDocumentOwner?: string;
   storageCount?: number;
-  storageNumbers?: string[];
+  storageNumbers?: string[];  // Deprecated: استفاده از storageUnits توصیه می‌شود
+  storageUnits?: StorageUnit[];  // جدید: لیست انباری‌ها با امکان ثبت متراژ
   parkingCount?: number;
   parkingNumbers?: string[];
   amenities?: PropertyAmenities;
