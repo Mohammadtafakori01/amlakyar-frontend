@@ -87,7 +87,18 @@ export const updateProperty = createAsyncThunk(
       const contract = await contractsApi.updateProperty(contractId, data);
       return contract;
     } catch (error: any) {
-      const message = error.response?.data?.message;
+      const statusCode = error.response?.status;
+      const errorData = error.response?.data;
+      // For validation errors (400), pass the full error object so the component can parse field-specific errors
+      if (statusCode === 400) {
+        return rejectWithValue({ 
+          message: errorData?.message || 'خطاهای اعتبارسنجی',
+          statusCode: 400,
+          errors: errorData?.errors,
+          errorData: errorData
+        });
+      }
+      const message = errorData?.message;
       const errorMsg = Array.isArray(message) ? message.join(', ') : (message || 'خطا در ثبت جزئیات ملک');
       return rejectWithValue(errorMsg);
     }
@@ -356,7 +367,15 @@ const contractsSlice = createSlice({
       })
       .addCase(updateProperty.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload as string;
+        // For validation errors (400), don't set a general error message
+        // The component will handle validation errors separately
+        const payload = action.payload as any;
+        if (payload?.statusCode === 400) {
+          // Don't set error for validation errors - let component handle them
+          state.error = null;
+        } else {
+          state.error = typeof payload === 'string' ? payload : (payload?.message || 'خطا در ثبت جزئیات ملک');
+        }
       });
 
     // Update Terms

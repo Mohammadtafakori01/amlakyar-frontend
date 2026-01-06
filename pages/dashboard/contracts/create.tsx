@@ -726,129 +726,145 @@ export default function CreateContractPage() {
     
     if (!errorPayload) return errors;
     
-    // Check if it's a 400 error with validation messages
-    if (errorPayload.statusCode === 400 && errorPayload.message) {
-      const messages = Array.isArray(errorPayload.message) ? errorPayload.message : [errorPayload.message];
-      
-      // Map backend field names to frontend field names
-      const fieldMapping: Record<string, string> = {
-        'propertyType': 'propertyType',
-        'usageType': 'usageType',
-        'address': 'address',
-        'postalCode': 'postalCode',
-        'registrationNumber': 'registrationNumber',
-        'section': 'section',
-        'area': 'area',
-        'areaUnit': 'areaUnit',
-        'ownershipDocumentType': 'ownershipDocumentType',
-        'ownershipDocumentSerial': 'ownershipDocumentSerial',
-        'ownershipDocumentOwner': 'ownershipDocumentOwner',
-        'storageCount': 'storageCount',
-        'storageNumbers': 'storageNumbers',
-        'parkingCount': 'parkingCount',
-        'parkingNumbers': 'parkingNumbers',
-        'bedroomCount': 'bedroomCount',
-        'utilityType': 'utilityType',
-        'heatingStatus': 'heatingStatus',
-        'coolerType': 'coolerType',
-        'phoneNumber': 'phoneNumber',
-        'phoneStatus': 'phoneStatus',
-        'ownershipDocumentPage': 'ownershipDocumentPage',
-        'ownershipDocumentBook': 'ownershipDocumentBook',
-        'uniqueDocumentId': 'uniqueDocumentId',
-        'propertyShareType': 'propertyShareType',
-        'amenities': 'amenities',
-        'amenities.flooring': 'amenities.flooring',
-        'amenities.bathroom': 'amenities.bathroom',
-        'amenities.meetingHall': 'amenities.meetingHall',
-        'amenities.club': 'amenities.club',
-        'amenities.amphitheater': 'amenities.amphitheater',
-        'amenities.security': 'amenities.security',
-        'amenities.balcony': 'amenities.balcony',
-        'amenities.hood': 'amenities.hood',
-        'amenities.janitorial': 'amenities.janitorial',
-        'amenities.lobby': 'amenities.lobby',
-        'amenities.terrace': 'amenities.terrace',
-        'amenities.videoIntercom': 'amenities.videoIntercom',
-        'amenities.remoteParkingGate': 'amenities.remoteParkingGate',
-        'amenities.tableGas': 'amenities.tableGas',
-        'amenities.centralAntenna': 'amenities.centralAntenna',
-      };
-      
-      // Parse each error message
-      messages.forEach((msg: string) => {
-        // Try to extract field name from error message
-        // Format: "fieldName must be..." or "fieldName must not be..."
-        // First, try to match the field name at the beginning of the message
-        const fieldMatch = msg.match(/^([a-zA-Z][a-zA-Z0-9]*)\s+must/);
-        let matchedField = null;
-        
-        if (fieldMatch) {
-          const fieldName = fieldMatch[1];
-          // Check if this field is in our mapping
-          if (fieldMapping[fieldName]) {
-            matchedField = fieldMapping[fieldName];
+    // Map backend field names to frontend field names
+    const fieldMapping: Record<string, string> = {
+      'propertyType': 'propertyType',
+      'usageType': 'usageType',
+      'address': 'address',
+      'postalCode': 'postalCode',
+      'registrationNumber': 'registrationNumber',
+      'section': 'section',
+      'area': 'area',
+      'areaUnit': 'areaUnit',
+      'ownershipDocumentType': 'ownershipDocumentType',
+      'ownershipDocumentSerial': 'ownershipDocumentSerial',
+      'ownershipDocumentOwner': 'ownershipDocumentOwner',
+      'storageCount': 'storageCount',
+      'storageNumbers': 'storageNumbers',
+      'storageUnits': 'storageUnits',
+      'parkingCount': 'parkingCount',
+      'parkingNumbers': 'parkingNumbers',
+      'bedroomCount': 'bedroomCount',
+      'utilityType': 'utilityType',
+      'heatingStatus': 'heatingStatus',
+      'coolerType': 'coolerType',
+      'phoneNumber': 'phoneNumber',
+      'phoneStatus': 'phoneStatus',
+      'ownershipDocumentPage': 'ownershipDocumentPage',
+      'ownershipDocumentBook': 'ownershipDocumentBook',
+      'uniqueDocumentId': 'uniqueDocumentId',
+      'propertyShareType': 'propertyShareType',
+      'amenities': 'amenities',
+      'amenities.flooring': 'amenities.flooring',
+      'amenities.bathroom': 'amenities.bathroom',
+      'amenities.meetingHall': 'amenities.meetingHall',
+      'amenities.club': 'amenities.club',
+      'amenities.amphitheater': 'amenities.amphitheater',
+      'amenities.security': 'amenities.security',
+      'amenities.balcony': 'amenities.balcony',
+      'amenities.hood': 'amenities.hood',
+      'amenities.janitorial': 'amenities.janitorial',
+      'amenities.lobby': 'amenities.lobby',
+      'amenities.terrace': 'amenities.terrace',
+      'amenities.videoIntercom': 'amenities.videoIntercom',
+      'amenities.remoteParkingGate': 'amenities.remoteParkingGate',
+      'amenities.tableGas': 'amenities.tableGas',
+      'amenities.centralAntenna': 'amenities.centralAntenna',
+    };
+    
+    // Check if it's a 400 error with validation errors object
+    if (errorPayload.statusCode === 400) {
+      // First, check for errors object (new format)
+      if (errorPayload.errors && typeof errorPayload.errors === 'object') {
+        Object.entries(errorPayload.errors).forEach(([fieldName, fieldErrors]) => {
+          const frontendField = fieldMapping[fieldName] || fieldName;
+          const errorMessages = Array.isArray(fieldErrors) ? fieldErrors : [fieldErrors];
+          // Use the first error message for this field
+          if (errorMessages.length > 0 && !errors[frontendField]) {
+            errors[frontendField] = errorMessages[0] as string;
           }
-        }
+        });
+      }
+      
+      // Also check for message field (old format, for backward compatibility)
+      if (errorPayload.message && Object.keys(errors).length === 0) {
+        const messages = Array.isArray(errorPayload.message) ? errorPayload.message : [errorPayload.message];
         
-        // If not found at the beginning, try to find it anywhere in the message
-        if (!matchedField) {
-          for (const [backendField, frontendField] of Object.entries(fieldMapping)) {
-            // Use word boundary to avoid partial matches
-            const regex = new RegExp(`\\b${backendField}\\b`);
-            if (regex.test(msg)) {
-              matchedField = frontendField;
-              break;
+        // Parse each error message
+        messages.forEach((msg: string) => {
+          // Try to extract field name from error message
+          // Format: "fieldName must be..." or "fieldName must not be..."
+          // First, try to match the field name at the beginning of the message
+          const fieldMatch = msg.match(/^([a-zA-Z][a-zA-Z0-9]*)\s+must/);
+          let matchedField = null;
+          
+          if (fieldMatch) {
+            const fieldName = fieldMatch[1];
+            // Check if this field is in our mapping
+            if (fieldMapping[fieldName]) {
+              matchedField = fieldMapping[fieldName];
             }
           }
-        }
-        
-        if (matchedField && !errors[matchedField]) {
-          // Translate common error messages to Persian
-          let translatedMsg = msg;
-          if (msg.includes('must not be empty')) {
-            translatedMsg = 'این فیلد الزامی است';
-          } else if (msg.includes('must be a string')) {
-            if (matchedField === 'registrationNumber') {
-              translatedMsg = 'شماره پلاک ثبتی باید یک رشته باشد';
-            } else {
-              translatedMsg = 'این فیلد باید متن باشد';
-            }
-          } else if (msg.includes('must be a number')) {
-            translatedMsg = 'این فیلد باید عدد باشد';
-          } else if (msg.includes('must not be less than')) {
-            translatedMsg = 'مقدار باید بزرگتر از صفر باشد';
-          } else if (msg.includes('must be longer than or equal to')) {
-            // Extract the number from the message
-            const match = msg.match(/must be longer than or equal to (\d+) characters?/);
-            if (match) {
-              if (matchedField === 'postalCode') {
-                translatedMsg = `کد پستی باید حداقل ${match[1]} کاراکتر باشد`;
-              } else {
-                translatedMsg = `این فیلد باید حداقل ${match[1]} کاراکتر باشد`;
+          
+          // If not found at the beginning, try to find it anywhere in the message
+          if (!matchedField) {
+            for (const [backendField, frontendField] of Object.entries(fieldMapping)) {
+              // Use word boundary to avoid partial matches
+              const regex = new RegExp(`\\b${backendField}\\b`);
+              if (regex.test(msg)) {
+                matchedField = frontendField;
+                break;
               }
-            } else {
-              translatedMsg = 'تعداد کاراکترها کافی نیست';
             }
-          } else if (msg.includes('must be shorter than or equal to')) {
-            const match = msg.match(/must be shorter than or equal to (\d+) characters?/);
-            if (match) {
-              translatedMsg = `این فیلد باید حداکثر ${match[1]} کاراکتر باشد`;
-            } else {
-              translatedMsg = 'تعداد کاراکترها بیش از حد است';
-            }
-          } else if (msg.includes('must be a valid ISO 8601 date string')) {
-            translatedMsg = 'تاریخ نامعتبر است';
-          } else if (msg.includes('must be an array')) {
-            translatedMsg = 'این فیلد باید آرایه باشد';
-          } else if (msg.includes('must be an object')) {
-            translatedMsg = 'این فیلد باید آبجکت باشد';
-          } else if (msg.includes('must be a boolean value')) {
-            translatedMsg = 'این فیلد باید boolean باشد';
           }
-          errors[matchedField] = translatedMsg;
-        }
-      });
+          
+          if (matchedField && !errors[matchedField]) {
+            // Translate common error messages to Persian
+            let translatedMsg = msg;
+            if (msg.includes('must not be empty')) {
+              translatedMsg = 'این فیلد الزامی است';
+            } else if (msg.includes('must be a string')) {
+              if (matchedField === 'registrationNumber') {
+                translatedMsg = 'شماره پلاک ثبتی باید یک رشته باشد';
+              } else {
+                translatedMsg = 'این فیلد باید متن باشد';
+              }
+            } else if (msg.includes('must be a number')) {
+              translatedMsg = 'این فیلد باید عدد باشد';
+            } else if (msg.includes('must not be less than')) {
+              translatedMsg = 'مقدار باید بزرگتر از صفر باشد';
+            } else if (msg.includes('must be longer than or equal to')) {
+              // Extract the number from the message
+              const match = msg.match(/must be longer than or equal to (\d+) characters?/);
+              if (match) {
+                if (matchedField === 'postalCode') {
+                  translatedMsg = `کد پستی باید حداقل ${match[1]} کاراکتر باشد`;
+                } else {
+                  translatedMsg = `این فیلد باید حداقل ${match[1]} کاراکتر باشد`;
+                }
+              } else {
+                translatedMsg = 'تعداد کاراکترها کافی نیست';
+              }
+            } else if (msg.includes('must be shorter than or equal to')) {
+              const match = msg.match(/must be shorter than or equal to (\d+) characters?/);
+              if (match) {
+                translatedMsg = `این فیلد باید حداکثر ${match[1]} کاراکتر باشد`;
+              } else {
+                translatedMsg = 'تعداد کاراکترها بیش از حد است';
+              }
+            } else if (msg.includes('must be a valid ISO 8601 date string')) {
+              translatedMsg = 'تاریخ نامعتبر است';
+            } else if (msg.includes('must be an array')) {
+              translatedMsg = 'این فیلد باید آرایه باشد';
+            } else if (msg.includes('must be an object') || msg.includes('باید یک شیء باشد')) {
+              translatedMsg = 'هر واحد انباری باید یک شیء باشد';
+            } else if (msg.includes('must be a boolean value')) {
+              translatedMsg = 'این فیلد باید boolean باشد';
+            }
+            errors[matchedField] = translatedMsg;
+          }
+        });
+      }
     }
     
     return errors;
@@ -1479,13 +1495,16 @@ export default function CreateContractPage() {
         const errorPayload = (result as any).payload;
         console.error('Step 3 submission rejected:', errorPayload);
         
+        // Use errorData if available (from the new error format), otherwise use errorPayload directly
+        const errorData = errorPayload?.errorData || errorPayload;
+        
         // Parse validation errors
-        const validationErrors = parseStep3ValidationErrors(errorPayload);
+        const validationErrors = parseStep3ValidationErrors(errorData);
         if (Object.keys(validationErrors).length > 0) {
           setStep3FieldErrors(validationErrors);
           setSnackbar({ open: true, message: 'لطفا خطاهای فرم را برطرف کنید', severity: 'error' });
         } else {
-          const errorMessage = getErrorMessage(errorPayload || {}, 'خطا در ثبت جزئیات ملک');
+          const errorMessage = getErrorMessage(errorData || {}, 'خطا در ثبت جزئیات ملک');
           setSnackbar({ open: true, message: errorMessage, severity: 'error' });
         }
         // Don't proceed to next step on error
@@ -1520,7 +1539,8 @@ export default function CreateContractPage() {
       console.error('Error in step 3:', err);
       
       // Try to parse validation errors from the error object
-      const errorPayload = err?.response?.data || err?.payload || err;
+      // Check for errorData first (from the new error format), then fall back to response.data or payload
+      const errorPayload = err?.errorData || err?.response?.data || err?.payload || err;
       const validationErrors = parseStep3ValidationErrors(errorPayload);
       
       if (Object.keys(validationErrors).length > 0) {
