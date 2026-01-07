@@ -18,7 +18,7 @@ const initialState: ContactsState = {
 // Async thunks
 export const fetchContacts = createAsyncThunk(
   'contacts/fetchContacts',
-  async (searchParams?: SearchContactsDto, { rejectWithValue }) => {
+  async (searchParams: SearchContactsDto | undefined, { rejectWithValue }) => {
     try {
       const contacts = await contactsApi.getContacts(searchParams);
       return contacts;

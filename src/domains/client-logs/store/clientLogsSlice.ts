@@ -47,7 +47,7 @@ export const fetchClientLogById = createAsyncThunk(
 
 export const fetchPublicClientLogs = createAsyncThunk(
   'clientLogs/fetchPublicClientLogs',
-  async (filters?: PublicClientLogsFilters, { rejectWithValue }) => {
+  async (filters: PublicClientLogsFilters | undefined, { rejectWithValue }) => {
     try {
       const response = await clientLogsApi.getPublicClientLogs(filters);
       return response;
