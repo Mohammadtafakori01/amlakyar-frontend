@@ -1287,7 +1287,7 @@ export default function CreatePropertyFilePage() {
                 </label>
               </div>
 
-              <div className="flex gap-2 justify-center">
+              <div className=" hidden  gap-2 justify-center">
                 <button
                   type="button"
                   onClick={addFloor}
