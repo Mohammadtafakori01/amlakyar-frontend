@@ -42,7 +42,6 @@ export enum RelationshipType {
 // Payment Enums
 export enum PaymentType {
   MORTGAGE = 'MORTGAGE',           // رهن (برای اجاره‌نامه)
-  RENTAL_PAYMENT = 'RENTAL_PAYMENT', // پرداخت اجاره (چک‌های اجاره)
   DOWN_PAYMENT = 'DOWN_PAYMENT',   // پیش‌پرداخت (برای مبایعه‌نامه)
   BILL_OF_SALE = 'BILL_OF_SALE',   // قبض رسید (برای مبایعه‌نامه)
 }
@@ -117,30 +116,18 @@ export interface ContractParty {
 export interface PropertyAmenities {
   flooring?: string;
   bathroom?: string;
+  water?: string;
   meetingHall?: boolean;
   club?: boolean;
-  amphitheater?: boolean;
-  security?: boolean;
-  balcony?: boolean;
-  hood?: boolean;
-  janitorial?: boolean;
-  lobby?: boolean;
-  terrace?: boolean;
-  videoIntercom?: boolean;
-  remoteParkingGate?: boolean;
-  tableGas?: boolean;
-  centralAntenna?: boolean;
+  waterCommons?: boolean;
+  hotWaterSystem?: string;
+  ventilationSystem?: string;
 }
 
 export interface PropertyUtilityType {
   electricity?: string;  // اختصاصی/اشتراکی
   water?: string;        // اختصاصی/اشتراکی
   gas?: string;          // اختصاصی/اشتراکی
-}
-
-export interface StorageUnit {
-  number: string;  // شماره انباری (الزامی)
-  area?: number;   // متراژ انباری به متر مربع (اختیاری)
 }
 
 export interface PropertyDetails {
@@ -158,8 +145,7 @@ export interface PropertyDetails {
   ownershipDocumentSerial?: string;
   ownershipDocumentOwner?: string;
   storageCount?: number;
-  storageNumbers?: string[];  // Deprecated: استفاده از storageUnits توصیه می‌شود
-  storageUnits?: StorageUnit[];  // جدید: لیست انباری‌ها با امکان ثبت متراژ
+  storageNumbers?: string[];
   parkingCount?: number;
   parkingNumbers?: string[];
   amenities?: PropertyAmenities;
@@ -173,7 +159,6 @@ export interface PropertyDetails {
   phoneStatus?: string;                    // وضعیت تلفن (دایر/غیر دایر)
   ownershipDocumentPage?: string;           // صفحه سند
   ownershipDocumentBook?: string;           // دفتر سند
-  uniqueDocumentId?: string;                // شناسه یکتای سند (برای تک برگ)
   propertyShareType?: string;               // نوع سهم (دانگ/دستگاه/یک باب)
 }
 
@@ -255,46 +240,6 @@ export interface Contract {
   propertyDetails?: PropertyDetails;
   terms?: ContractTerms;
   paymentEntries?: PaymentEntry[];          // روش‌های پرداخت
-  estate?: {                                // اطلاعات املاک (در صورت وجود)
-    id: string;
-    establishmentName: string;
-    guildId?: string;
-    fixedPhone?: string;
-    address?: string;
-    status?: string;
-    rejectionReason?: string | null;
-    createdAt?: string;
-    updatedAt?: string;
-  };
-  createdBy?: {                             // اطلاعات ایجاد کننده
-    id: string;
-    phoneNumber: string;
-    firstName: string;
-    lastName: string;
-    nationalId: string;
-    role: string;
-    isActive?: boolean;
-    isApproved?: boolean;
-    parentId?: string | null;
-    estateId?: string | null;
-    createdAt?: string;
-    updatedAt?: string;
-  };
-  createdById?: string;
-  // Boolean amenities fields (stored at contract level)
-  meetingHall?: boolean;
-  club?: boolean;
-  amphitheater?: boolean;
-  security?: boolean;
-  balcony?: boolean;
-  hood?: boolean;
-  janitorial?: boolean;
-  lobby?: boolean;
-  terrace?: boolean;
-  videoIntercom?: boolean;
-  remoteParkingGate?: boolean;
-  tableGas?: boolean;
-  centralAntenna?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -302,7 +247,6 @@ export interface Contract {
 // Request Types
 export interface CreateContractStep1Request {
   type: ContractType;
-  estateId?: string;
 }
 
 export interface AddPartyRequest {
@@ -371,7 +315,6 @@ export interface SaveDraftRequest {
 
 export interface CreateContractFullRequest {
   type: ContractType;
-  estateId?: string;
   contractDate?: string;
   startDate?: string;        // برای RENTAL
   endDate?: string;          // برای RENTAL
@@ -430,16 +373,6 @@ export interface ContractFilters {
   status?: ContractStatus;
   year?: number;
   search?: string;
-  page?: number;
-  limit?: number;
-}
-
-// Archive Filters
-export interface ArchiveContractsDto {
-  contractDate?: string;  // Date string in YYYY-MM-DD format
-  contractNumber?: string;
-  name?: string;  // Searches in firstName or companyName
-  lastname?: string;  // Searches in lastName
   page?: number;
   limit?: number;
 }

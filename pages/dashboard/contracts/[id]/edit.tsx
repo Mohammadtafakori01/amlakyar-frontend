@@ -26,7 +26,7 @@ import Loading from '../../../../src/shared/components/common/Loading';
 import ErrorDisplay from '../../../../src/shared/components/common/ErrorDisplay';
 import PersianDatePicker from '../../../../src/shared/components/common/PersianDatePicker';
 import { getChangedFields } from '../../../../src/shared/utils/objectUtils';
-import { formatNumber, parseFormattedNumber, formatPrice } from '../../../../src/shared/utils/numberUtils';
+import { formatNumber, parseFormattedNumber } from '../../../../src/shared/utils/numberUtils';
 import { formatToPersianDate, formatToGregorianDate, calculateMonthsDifference } from '../../../../src/shared/utils/dateUtils';
 import { FiPlus, FiEdit2, FiTrash2, FiX } from 'react-icons/fi';
 
@@ -368,87 +368,6 @@ export default function EditContractPage() {
     return paymentEntries.reduce((sum, entry) => sum + (Number(entry.amount) || 0), 0);
   };
 
-  // Helper function to remove null/undefined values from payment entry
-  // Ensures flat structure without any nested 'property' key
-  const cleanPaymentEntry = (entry: PaymentEntry | any): Partial<PaymentEntry> => {
-    // If entry has a nested 'property' key, extract it (defensive coding)
-    const actualEntry = entry?.property ? entry.property : entry;
-    
-    // Build flat object with only the expected fields
-    const cleaned: any = {
-      paymentType: actualEntry.paymentType,
-      paymentMethod: actualEntry.paymentMethod,
-      amount: actualEntry.amount,
-      order: actualEntry.order,
-    };
-    
-    // Only include id if it exists
-    if (actualEntry.id) {
-      cleaned.id = actualEntry.id;
-    }
-    
-    // Only include optional fields if they have values
-    if (actualEntry.description) cleaned.description = actualEntry.description;
-    if (actualEntry.checkNumber) cleaned.checkNumber = actualEntry.checkNumber;
-    if (actualEntry.accountNumber) cleaned.accountNumber = actualEntry.accountNumber;
-    if (actualEntry.shabaNumber) cleaned.shabaNumber = actualEntry.shabaNumber;
-    if (actualEntry.cardNumber) cleaned.cardNumber = actualEntry.cardNumber;
-    if (actualEntry.bankName) cleaned.bankName = actualEntry.bankName;
-    if (actualEntry.branchName) cleaned.branchName = actualEntry.branchName;
-    
-    // Explicitly remove any 'property' key if it exists
-    delete cleaned.property;
-    
-    return cleaned;
-  };
-
-  // Helper function to build flat payment entry for API submission
-  // Only includes fields relevant to the selected paymentMethod
-  const buildFlatPaymentEntry = (entry: PaymentEntry | any): any => {
-    const cleaned = cleanPaymentEntry(entry);
-    const paymentMethod = cleaned.paymentMethod;
-    
-    // Build flat entry with required fields
-    const flatEntry: any = {
-      paymentType: cleaned.paymentType,
-      paymentMethod: cleaned.paymentMethod,
-      amount: typeof cleaned.amount === 'string' ? parseLatinNumber(cleaned.amount) : (cleaned.amount || 0),
-      order: cleaned.order ?? 0,
-    };
-    
-    // Include id if it exists (for updates)
-    if (cleaned.id) {
-      flatEntry.id = cleaned.id;
-    }
-    
-    // Include description if it exists
-    if (cleaned.description) {
-      flatEntry.description = cleaned.description;
-    }
-    
-    // Include method-specific fields based on paymentMethod
-    if (paymentMethod === PaymentMethod.CHECK) {
-      if (cleaned.checkNumber) flatEntry.checkNumber = cleaned.checkNumber;
-      if (cleaned.bankName) flatEntry.bankName = cleaned.bankName;
-      if (cleaned.branchName) flatEntry.branchName = cleaned.branchName;
-    } else if (paymentMethod === PaymentMethod.CARD_TO_CARD) {
-      if (cleaned.cardNumber) {
-        flatEntry.cardNumber = convertToLatinNumbers(cleaned.cardNumber as string);
-      }
-    } else if (paymentMethod === PaymentMethod.ACCOUNT_TO_ACCOUNT) {
-      if (cleaned.accountNumber) flatEntry.accountNumber = cleaned.accountNumber;
-      if (cleaned.bankName) flatEntry.bankName = cleaned.bankName;
-      if (cleaned.branchName) flatEntry.branchName = cleaned.branchName;
-    } else if (paymentMethod === PaymentMethod.SHABA) {
-      if (cleaned.shabaNumber) {
-        flatEntry.shabaNumber = convertToLatinNumbers(cleaned.shabaNumber as string);
-      }
-    }
-    // For CASH, no additional fields needed
-    
-    return flatEntry;
-  };
-
   // بررسی اعتبارسنجی مجموع پرداختی‌ها
   const validatePayments = (): { isValid: boolean; errorMessage?: string } => {
     if (contractType === ContractType.RENTAL) {
@@ -515,7 +434,6 @@ export default function EditContractPage() {
     ownershipDocumentOwner: '',
     storageCount: '',
     storageNumbers: [] as string[],
-    storageUnits: [] as Array<{ number: string; area?: string }>,
     parkingCount: '',
     parkingNumbers: [] as string[],
     // NEW: Additional property fields
@@ -605,17 +523,6 @@ export default function EditContractPage() {
     }
   }, [id, fetchContractById]);
 
-  // Check if supervisor can edit this contract
-  useEffect(() => {
-    if (selectedContract && selectedContract.id === contractId && currentUser?.role === UserRole.SUPERVISOR) {
-      // Supervisors can only edit DRAFT contracts, not SIGNED ones
-      if (selectedContract.status === ContractStatus.SIGNED) {
-        setSnackbar({ open: true, message: 'شما اجازه ویرایش قراردادهای ثبت شده را ندارید', severity: 'error' });
-        router.push(`/dashboard/contracts/${contractId}`);
-      }
-    }
-  }, [selectedContract, contractId, currentUser, router]);
-
   // Populate form data when contract is loaded
   useEffect(() => {
     if (selectedContract && selectedContract.id === contractId) {
@@ -685,15 +592,6 @@ export default function EditContractPage() {
           ownershipDocumentOwner: pd.ownershipDocumentOwner || '',
           storageCount: pd.storageCount?.toString() || '',
           storageNumbers: pd.storageNumbers || [],
-          // تبدیل storageUnits از API یا تبدیل storageNumbers به storageUnits برای سازگاری
-          storageUnits: pd.storageUnits && pd.storageUnits.length > 0
-            ? pd.storageUnits.map((unit, idx) => ({ 
-                number: unit.number || (idx + 1).toString(), 
-                area: unit.area?.toString() || '' 
-              }))
-            : pd.storageNumbers && pd.storageNumbers.length > 0
-              ? pd.storageNumbers.map((num, idx) => ({ number: num || (idx + 1).toString(), area: '' }))
-              : [],
           parkingCount: pd.parkingCount?.toString() || '',
           parkingNumbers: pd.parkingNumbers || [],
           // NEW: Additional property fields
@@ -774,63 +672,13 @@ export default function EditContractPage() {
       setDraftData(loadedDraftData);
       setOriginalDraftData(loadedDraftData);
 
-    }
-  }, [selectedContract, contractId]);
-
-  // Separate useEffect specifically for payment entries to ensure they're always loaded
-  // Use a ref to track the last contract ID and payment entries we loaded
-  const paymentEntriesLoadedRef = useRef<{ contractId: string | null; entriesCount: number }>({ contractId: null, entriesCount: 0 });
-  
-  useEffect(() => {
-    if (selectedContract && selectedContract.id === contractId) {
-      const hasPaymentEntries = selectedContract.paymentEntries && Array.isArray(selectedContract.paymentEntries);
-      const entriesCount = hasPaymentEntries && selectedContract.paymentEntries ? selectedContract.paymentEntries.length : 0;
-      const lastLoaded = paymentEntriesLoadedRef.current;
-      
-      // Reload payment entries if:
-      // 1. Different contract
-      // 2. Same contract but payment entries count changed
-      if (lastLoaded.contractId !== selectedContract.id || 
-          (hasPaymentEntries && lastLoaded.entriesCount !== entriesCount)) {
-        
-        paymentEntriesLoadedRef.current = { contractId: selectedContract.id, entriesCount };
-        
-        // Load payment entries when contract is loaded
-        if (hasPaymentEntries) {
-          if (entriesCount > 0 && selectedContract.paymentEntries) {
-            // Convert string amounts to numbers if needed and ensure paymentType is correct
-            // Also handle any nested 'property' structure from backend
-            const convertedPaymentEntries = selectedContract.paymentEntries.map(entry => {
-              // If entry has a nested 'property' key, extract it
-              const entryWithProperty = entry as PaymentEntry & { property?: PaymentEntry };
-              const actualEntry = entryWithProperty.property || entry;
-              
-              // Build flat entry object
-              return {
-                id: actualEntry.id,
-                paymentType: actualEntry.paymentType as PaymentType,
-                paymentMethod: actualEntry.paymentMethod,
-                amount: typeof actualEntry.amount === 'string' ? parseFloat(actualEntry.amount) || 0 : (typeof actualEntry.amount === 'number' ? actualEntry.amount : 0),
-                order: actualEntry.order,
-                description: actualEntry.description,
-                checkNumber: actualEntry.checkNumber,
-                accountNumber: actualEntry.accountNumber,
-                shabaNumber: actualEntry.shabaNumber,
-                cardNumber: actualEntry.cardNumber,
-                bankName: actualEntry.bankName,
-                branchName: actualEntry.branchName,
-              };
-            });
-            setPaymentEntries(convertedPaymentEntries);
-            setOriginalPaymentEntries(convertedPaymentEntries.map(e => ({ ...e })));
-          } else {
-            // Empty array - no payment entries
-            setPaymentEntries([]);
-            setOriginalPaymentEntries([]);
-          }
-        }
-        // If paymentEntries is undefined/null, don't clear existing entries
-        // This handles cases where contract is refetched but paymentEntries aren't in response
+      // Load payment entries
+      if (selectedContract.paymentEntries && selectedContract.paymentEntries.length > 0) {
+        setPaymentEntries(selectedContract.paymentEntries);
+        setOriginalPaymentEntries([...selectedContract.paymentEntries]);
+      } else {
+        setPaymentEntries([]);
+        setOriginalPaymentEntries([]);
       }
     }
   }, [selectedContract, contractId]);
@@ -971,145 +819,129 @@ export default function EditContractPage() {
     
     if (!errorPayload) return errors;
     
-    // Map backend field names to frontend field names
-    const fieldMapping: Record<string, string> = {
-      'propertyType': 'propertyType',
-      'usageType': 'usageType',
-      'address': 'address',
-      'postalCode': 'postalCode',
-      'registrationNumber': 'registrationNumber',
-      'section': 'section',
-      'area': 'area',
-      'areaUnit': 'areaUnit',
-      'ownershipDocumentType': 'ownershipDocumentType',
-      'ownershipDocumentSerial': 'ownershipDocumentSerial',
-      'ownershipDocumentOwner': 'ownershipDocumentOwner',
-      'storageCount': 'storageCount',
-      'storageNumbers': 'storageNumbers',
-      'storageUnits': 'storageUnits',
-      'parkingCount': 'parkingCount',
-      'parkingNumbers': 'parkingNumbers',
-      'bedroomCount': 'bedroomCount',
-      'utilityType': 'utilityType',
-      'heatingStatus': 'heatingStatus',
-      'coolerType': 'coolerType',
-      'phoneNumber': 'phoneNumber',
-      'phoneStatus': 'phoneStatus',
-      'ownershipDocumentPage': 'ownershipDocumentPage',
-      'ownershipDocumentBook': 'ownershipDocumentBook',
-      'uniqueDocumentId': 'uniqueDocumentId',
-      'propertyShareType': 'propertyShareType',
-      'amenities': 'amenities',
-      'amenities.flooring': 'amenities.flooring',
-      'amenities.bathroom': 'amenities.bathroom',
-      'amenities.meetingHall': 'amenities.meetingHall',
-      'amenities.club': 'amenities.club',
-      'amenities.amphitheater': 'amenities.amphitheater',
-      'amenities.security': 'amenities.security',
-      'amenities.balcony': 'amenities.balcony',
-      'amenities.hood': 'amenities.hood',
-      'amenities.janitorial': 'amenities.janitorial',
-      'amenities.lobby': 'amenities.lobby',
-      'amenities.terrace': 'amenities.terrace',
-      'amenities.videoIntercom': 'amenities.videoIntercom',
-      'amenities.remoteParkingGate': 'amenities.remoteParkingGate',
-      'amenities.tableGas': 'amenities.tableGas',
-      'amenities.centralAntenna': 'amenities.centralAntenna',
-    };
-    
-    // Check if it's a 400 error with validation errors object
-    if (errorPayload.statusCode === 400) {
-      // First, check for errors object (new format)
-      if (errorPayload.errors && typeof errorPayload.errors === 'object') {
-        Object.entries(errorPayload.errors).forEach(([fieldName, fieldErrors]) => {
-          const frontendField = fieldMapping[fieldName] || fieldName;
-          const errorMessages = Array.isArray(fieldErrors) ? fieldErrors : [fieldErrors];
-          // Use the first error message for this field
-          if (errorMessages.length > 0 && !errors[frontendField]) {
-            errors[frontendField] = errorMessages[0] as string;
-          }
-        });
-      }
+    // Check if it's a 400 error with validation messages
+    if (errorPayload.statusCode === 400 && errorPayload.message) {
+      const messages = Array.isArray(errorPayload.message) ? errorPayload.message : [errorPayload.message];
       
-      // Also check for message field (old format, for backward compatibility)
-      if (errorPayload.message && Object.keys(errors).length === 0) {
-        const messages = Array.isArray(errorPayload.message) ? errorPayload.message : [errorPayload.message];
+      // Map backend field names to frontend field names
+      const fieldMapping: Record<string, string> = {
+        'propertyType': 'propertyType',
+        'usageType': 'usageType',
+        'address': 'address',
+        'postalCode': 'postalCode',
+        'registrationNumber': 'registrationNumber',
+        'section': 'section',
+        'area': 'area',
+        'areaUnit': 'areaUnit',
+        'ownershipDocumentType': 'ownershipDocumentType',
+        'ownershipDocumentSerial': 'ownershipDocumentSerial',
+        'ownershipDocumentOwner': 'ownershipDocumentOwner',
+        'storageCount': 'storageCount',
+        'storageNumbers': 'storageNumbers',
+        'parkingCount': 'parkingCount',
+        'parkingNumbers': 'parkingNumbers',
+        'bedroomCount': 'bedroomCount',
+        'utilityType': 'utilityType',
+        'heatingStatus': 'heatingStatus',
+        'coolerType': 'coolerType',
+        'phoneNumber': 'phoneNumber',
+        'phoneStatus': 'phoneStatus',
+        'ownershipDocumentPage': 'ownershipDocumentPage',
+        'ownershipDocumentBook': 'ownershipDocumentBook',
+        'uniqueDocumentId': 'uniqueDocumentId',
+        'propertyShareType': 'propertyShareType',
+        'amenities': 'amenities',
+        'amenities.flooring': 'amenities.flooring',
+        'amenities.bathroom': 'amenities.bathroom',
+        'amenities.meetingHall': 'amenities.meetingHall',
+        'amenities.club': 'amenities.club',
+        'amenities.amphitheater': 'amenities.amphitheater',
+        'amenities.security': 'amenities.security',
+        'amenities.balcony': 'amenities.balcony',
+        'amenities.hood': 'amenities.hood',
+        'amenities.janitorial': 'amenities.janitorial',
+        'amenities.lobby': 'amenities.lobby',
+        'amenities.terrace': 'amenities.terrace',
+        'amenities.videoIntercom': 'amenities.videoIntercom',
+        'amenities.remoteParkingGate': 'amenities.remoteParkingGate',
+        'amenities.tableGas': 'amenities.tableGas',
+        'amenities.centralAntenna': 'amenities.centralAntenna',
+      };
+      
+      // Parse each error message
+      messages.forEach((msg: string) => {
+        // Try to extract field name from error message
+        // Format: "fieldName must be..." or "fieldName must not be..."
+        // First, try to match the field name at the beginning of the message
+        const fieldMatch = msg.match(/^([a-zA-Z][a-zA-Z0-9]*)\s+must/);
+        let matchedField = null;
         
-        // Parse each error message
-        messages.forEach((msg: string) => {
-          // Try to extract field name from error message
-          // Format: "fieldName must be..." or "fieldName must not be..."
-          // First, try to match the field name at the beginning of the message
-          const fieldMatch = msg.match(/^([a-zA-Z][a-zA-Z0-9]*)\s+must/);
-          let matchedField = null;
-          
-          if (fieldMatch) {
-            const fieldName = fieldMatch[1];
-            // Check if this field is in our mapping
-            if (fieldMapping[fieldName]) {
-              matchedField = fieldMapping[fieldName];
+        if (fieldMatch) {
+          const fieldName = fieldMatch[1];
+          // Check if this field is in our mapping
+          if (fieldMapping[fieldName]) {
+            matchedField = fieldMapping[fieldName];
+          }
+        }
+        
+        // If not found at the beginning, try to find it anywhere in the message
+        if (!matchedField) {
+          for (const [backendField, frontendField] of Object.entries(fieldMapping)) {
+            // Use word boundary to avoid partial matches
+            const regex = new RegExp(`\\b${backendField}\\b`);
+            if (regex.test(msg)) {
+              matchedField = frontendField;
+              break;
             }
           }
-          
-          // If not found at the beginning, try to find it anywhere in the message
-          if (!matchedField) {
-            for (const [backendField, frontendField] of Object.entries(fieldMapping)) {
-              // Use word boundary to avoid partial matches
-              const regex = new RegExp(`\\b${backendField}\\b`);
-              if (regex.test(msg)) {
-                matchedField = frontendField;
-                break;
-              }
+        }
+        
+        if (matchedField && !errors[matchedField]) {
+          // Translate common error messages to Persian
+          let translatedMsg = msg;
+          if (msg.includes('must not be empty')) {
+            translatedMsg = 'این فیلد الزامی است';
+          } else if (msg.includes('must be a string')) {
+            if (matchedField === 'registrationNumber') {
+              translatedMsg = 'شماره پلاک ثبتی باید یک رشته باشد';
+            } else {
+              translatedMsg = 'این فیلد باید متن باشد';
             }
-          }
-          
-          if (matchedField && !errors[matchedField]) {
-            // Translate common error messages to Persian
-            let translatedMsg = msg;
-            if (msg.includes('must not be empty')) {
-              translatedMsg = 'این فیلد الزامی است';
-            } else if (msg.includes('must be a string')) {
-              if (matchedField === 'registrationNumber') {
-                translatedMsg = 'شماره پلاک ثبتی باید یک رشته باشد';
+          } else if (msg.includes('must be a number')) {
+            translatedMsg = 'این فیلد باید عدد باشد';
+          } else if (msg.includes('must not be less than')) {
+            translatedMsg = 'مقدار باید بزرگتر از صفر باشد';
+          } else if (msg.includes('must be longer than or equal to')) {
+            // Extract the number from the message
+            const match = msg.match(/must be longer than or equal to (\d+) characters?/);
+            if (match) {
+              if (matchedField === 'postalCode') {
+                translatedMsg = `کد پستی باید حداقل ${match[1]} کاراکتر باشد`;
               } else {
-                translatedMsg = 'این فیلد باید متن باشد';
+                translatedMsg = `این فیلد باید حداقل ${match[1]} کاراکتر باشد`;
               }
-            } else if (msg.includes('must be a number')) {
-              translatedMsg = 'این فیلد باید عدد باشد';
-            } else if (msg.includes('must not be less than')) {
-              translatedMsg = 'مقدار باید بزرگتر از صفر باشد';
-            } else if (msg.includes('must be longer than or equal to')) {
-              // Extract the number from the message
-              const match = msg.match(/must be longer than or equal to (\d+) characters?/);
-              if (match) {
-                if (matchedField === 'postalCode') {
-                  translatedMsg = `کد پستی باید حداقل ${match[1]} کاراکتر باشد`;
-                } else {
-                  translatedMsg = `این فیلد باید حداقل ${match[1]} کاراکتر باشد`;
-                }
-              } else {
-                translatedMsg = 'تعداد کاراکترها کافی نیست';
-              }
-            } else if (msg.includes('must be shorter than or equal to')) {
-              const match = msg.match(/must be shorter than or equal to (\d+) characters?/);
-              if (match) {
-                translatedMsg = `این فیلد باید حداکثر ${match[1]} کاراکتر باشد`;
-              } else {
-                translatedMsg = 'تعداد کاراکترها بیش از حد است';
-              }
-            } else if (msg.includes('must be a valid ISO 8601 date string')) {
-              translatedMsg = 'تاریخ نامعتبر است';
-            } else if (msg.includes('must be an array')) {
-              translatedMsg = 'این فیلد باید آرایه باشد';
-            } else if (msg.includes('must be an object') || msg.includes('باید یک شیء باشد')) {
-              translatedMsg = 'هر واحد انباری باید یک شیء باشد';
-            } else if (msg.includes('must be a boolean value')) {
-              translatedMsg = 'این فیلد باید boolean باشد';
+            } else {
+              translatedMsg = 'تعداد کاراکترها کافی نیست';
             }
-            errors[matchedField] = translatedMsg;
+          } else if (msg.includes('must be shorter than or equal to')) {
+            const match = msg.match(/must be shorter than or equal to (\d+) characters?/);
+            if (match) {
+              translatedMsg = `این فیلد باید حداکثر ${match[1]} کاراکتر باشد`;
+            } else {
+              translatedMsg = 'تعداد کاراکترها بیش از حد است';
+            }
+          } else if (msg.includes('must be a valid ISO 8601 date string')) {
+            translatedMsg = 'تاریخ نامعتبر است';
+          } else if (msg.includes('must be an array')) {
+            translatedMsg = 'این فیلد باید آرایه باشد';
+          } else if (msg.includes('must be an object')) {
+            translatedMsg = 'این فیلد باید آبجکت باشد';
+          } else if (msg.includes('must be a boolean value')) {
+            translatedMsg = 'این فیلد باید boolean باشد';
           }
-        });
-      }
+          errors[matchedField] = translatedMsg;
+        }
+      });
     }
     
     return errors;
@@ -1820,20 +1652,6 @@ export default function EditContractPage() {
         ownershipDocumentSerial: propertyDetails.ownershipDocumentSerial ? convertToLatinNumbers(propertyDetails.ownershipDocumentSerial.trim()) || undefined : undefined,
         ownershipDocumentOwner: propertyDetails.ownershipDocumentOwner?.trim() || undefined,
         storageCount: propertyDetails.storageCount ? parseLatinInteger(propertyDetails.storageCount) : undefined,
-        // استفاده از storageUnits در صورت وجود، در غیر این صورت از storageNumbers (برای سازگاری با نسخه‌های قدیمی)
-        storageUnits: propertyDetails.storageUnits && propertyDetails.storageUnits.length > 0
-          ? propertyDetails.storageUnits
-              .filter(unit => unit.number && unit.number.trim() !== '')
-              .map(unit => {
-                const areaValue = unit.area && unit.area.trim() !== '' ? parseFloat(unit.area) : undefined;
-                return {
-                  number: convertToLatinNumbers(unit.number.trim()),
-                  area: areaValue !== undefined && !isNaN(areaValue) ? areaValue : undefined
-                };
-              })
-          : propertyDetails.storageNumbers?.length > 0 
-            ? propertyDetails.storageNumbers.map(n => ({ number: convertToLatinNumbers(n) }))
-            : undefined,
         storageNumbers: propertyDetails.storageNumbers?.length > 0 ? propertyDetails.storageNumbers.map(n => convertToLatinNumbers(n)) : undefined,
         parkingCount: propertyDetails.parkingCount ? parseLatinInteger(propertyDetails.parkingCount) : undefined,
         parkingNumbers: propertyDetails.parkingNumbers?.length > 0 ? propertyDetails.parkingNumbers.map(n => convertToLatinNumbers(n)) : undefined,
@@ -1906,16 +1724,13 @@ export default function EditContractPage() {
         const errorPayload = (result as any).payload;
         console.error('Step 3 submission rejected:', errorPayload);
         
-        // Use errorData if available (from the new error format), otherwise use errorPayload directly
-        const errorData = errorPayload?.errorData || errorPayload;
-        
         // Parse validation errors
-        const validationErrors = parseStep3ValidationErrors(errorData);
+        const validationErrors = parseStep3ValidationErrors(errorPayload);
         if (Object.keys(validationErrors).length > 0) {
           setStep3FieldErrors(validationErrors);
           setSnackbar({ open: true, message: 'لطفا خطاهای فرم را برطرف کنید', severity: 'error' });
         } else {
-          const errorMessage = getErrorMessage(errorData || {}, 'خطا در به‌روزرسانی جزئیات ملک');
+          const errorMessage = getErrorMessage(errorPayload || {}, 'خطا در به‌روزرسانی جزئیات ملک');
           setSnackbar({ open: true, message: errorMessage, severity: 'error' });
         }
         // Don't proceed to next step on error
@@ -1951,8 +1766,7 @@ export default function EditContractPage() {
       console.error('Error in step 3:', err);
       
       // Try to parse validation errors from the error object
-      // Check for errorData first (from the new error format), then fall back to response.data or payload
-      const errorPayload = err?.errorData || err?.response?.data || err?.payload || err;
+      const errorPayload = err?.response?.data || err?.payload || err;
       const validationErrors = parseStep3ValidationErrors(errorPayload);
       
       if (Object.keys(validationErrors).length > 0) {
@@ -2084,7 +1898,12 @@ export default function EditContractPage() {
         rentalAmount: contractType === ContractType.RENTAL ? (draftData.rentalAmount ? parseLatinNumber(draftData.rentalAmount) : undefined) : undefined,
         purchaseAmount: contractType === ContractType.PURCHASE ? (draftData.purchaseAmount ? parseLatinNumber(draftData.purchaseAmount) : undefined) : undefined,
         depositAmount: draftData.depositAmount ? parseLatinNumber(draftData.depositAmount) : undefined,
-        paymentEntries: paymentEntries.length > 0 ? paymentEntries.map(entry => buildFlatPaymentEntry(entry)) : undefined,
+        paymentEntries: paymentEntries.length > 0 ? paymentEntries.map(entry => ({
+          ...entry,
+          amount: parseLatinNumber(entry.amount),
+          shabaNumber: entry.shabaNumber ? convertToLatinNumbers(entry.shabaNumber) : undefined,
+          cardNumber: entry.cardNumber ? convertToLatinNumbers(entry.cardNumber) : undefined,
+        })) : undefined,
         // NEW: Administrative fields
         registrationArea: draftData.registrationArea?.trim() || undefined,
         witness1Name: draftData.witness1Name?.trim() || undefined,
@@ -2110,7 +1929,7 @@ export default function EditContractPage() {
         rentalAmount: contractType === ContractType.RENTAL ? (originalDraftData.rentalAmount ? parseLatinNumber(originalDraftData.rentalAmount) : undefined) : undefined,
         purchaseAmount: contractType === ContractType.PURCHASE ? (originalDraftData.purchaseAmount ? parseLatinNumber(originalDraftData.purchaseAmount) : undefined) : undefined,
         depositAmount: originalDraftData.depositAmount ? parseLatinNumber(originalDraftData.depositAmount) : undefined,
-        paymentEntries: originalPaymentEntries.length > 0 ? originalPaymentEntries.map(entry => buildFlatPaymentEntry(entry)) : undefined,
+        paymentEntries: originalPaymentEntries.length > 0 ? originalPaymentEntries : undefined,
         registrationArea: originalDraftData.registrationArea?.trim() || undefined,
         witness1Name: originalDraftData.witness1Name?.trim() || undefined,
         witness2Name: originalDraftData.witness2Name?.trim() || undefined,
@@ -2187,7 +2006,12 @@ export default function EditContractPage() {
         rentalAmount: contractType === ContractType.RENTAL ? (draftData.rentalAmount ? parseLatinNumber(draftData.rentalAmount) : undefined) : undefined,
         purchaseAmount: contractType === ContractType.PURCHASE ? (draftData.purchaseAmount ? parseLatinNumber(draftData.purchaseAmount) : undefined) : undefined,
         depositAmount: draftData.depositAmount ? parseLatinNumber(draftData.depositAmount) : undefined,
-        paymentEntries: paymentEntries.length > 0 ? paymentEntries.map(entry => buildFlatPaymentEntry(entry)) : undefined,
+        paymentEntries: paymentEntries.length > 0 ? paymentEntries.map(entry => ({
+          ...entry,
+          amount: parseLatinNumber(entry.amount),
+          shabaNumber: entry.shabaNumber ? convertToLatinNumbers(entry.shabaNumber) : undefined,
+          cardNumber: entry.cardNumber ? convertToLatinNumbers(entry.cardNumber) : undefined,
+        })) : undefined,
         // NEW: Administrative fields
         registrationArea: draftData.registrationArea?.trim() || undefined,
         witness1Name: draftData.witness1Name?.trim() || undefined,
@@ -2213,7 +2037,7 @@ export default function EditContractPage() {
         rentalAmount: contractType === ContractType.RENTAL ? (originalDraftData.rentalAmount ? parseLatinNumber(originalDraftData.rentalAmount) : undefined) : undefined,
         purchaseAmount: contractType === ContractType.PURCHASE ? (originalDraftData.purchaseAmount ? parseLatinNumber(originalDraftData.purchaseAmount) : undefined) : undefined,
         depositAmount: originalDraftData.depositAmount ? parseLatinNumber(originalDraftData.depositAmount) : undefined,
-        paymentEntries: originalPaymentEntries.length > 0 ? originalPaymentEntries.map(entry => buildFlatPaymentEntry(entry)) : undefined,
+        paymentEntries: originalPaymentEntries.length > 0 ? originalPaymentEntries : undefined,
         registrationArea: originalDraftData.registrationArea?.trim() || undefined,
         witness1Name: originalDraftData.witness1Name?.trim() || undefined,
         witness2Name: originalDraftData.witness2Name?.trim() || undefined,
@@ -2566,14 +2390,6 @@ export default function EditContractPage() {
                     maxLength={10}
                     required
                     error={fieldErrors['nationalId']}
-                  />
-                  <ValidatedInput
-                    field="idCardNumber"
-                    value={currentParty.idCardNumber || ''}
-                    onChange={(e) => setCurrentParty(prev => ({ ...prev, idCardNumber: e.target.value }))}
-                    onClearError={clearFieldErrorMemoized}
-                    label="شماره شناسنامه"
-                    error={fieldErrors['idCardNumber']}
                   />
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <ValidatedInput
@@ -3463,107 +3279,10 @@ export default function EditContractPage() {
           <input
             type="number"
             value={propertyDetails.storageCount}
-            onChange={(e) => {
-              const count = parseInt(e.target.value) || 0;
-              const currentUnits = propertyDetails.storageUnits || [];
-              // اگر تعداد افزایش یافت، واحدهای جدید اضافه کن
-              if (count > currentUnits.length) {
-                const newUnits = Array.from({ length: count }, (_, i) => 
-                  i < currentUnits.length 
-                    ? currentUnits[i] 
-                    : { number: (i + 1).toString(), area: '' }
-                );
-                setPropertyDetails({ ...propertyDetails, storageCount: e.target.value, storageUnits: newUnits });
-              } 
-              // اگر تعداد کاهش یافت، واحدهای اضافی را حذف کن
-              else if (count < currentUnits.length) {
-                const newUnits = currentUnits.slice(0, count);
-                setPropertyDetails({ ...propertyDetails, storageCount: e.target.value, storageUnits: newUnits });
-              } 
-              else {
-                setPropertyDetails({ ...propertyDetails, storageCount: e.target.value });
-              }
-              // Clear error when user changes storage count
-              if (step3FieldErrors['storageUnits']) {
-                setStep3FieldErrors(prev => {
-                  const newErrors = { ...prev };
-                  delete newErrors['storageUnits'];
-                  return newErrors;
-                });
-              }
-            }}
+            onChange={(e) => setPropertyDetails({ ...propertyDetails, storageCount: e.target.value })}
             className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
           />
-          {step3FieldErrors['storageCount'] && (
-            <p className="mt-1 text-sm text-red-600">{step3FieldErrors['storageCount']}</p>
-          )}
         </div>
-        {propertyDetails.storageCount && parseInt(propertyDetails.storageCount) > 0 && (
-          <div className="md:col-span-2 lg:col-span-3">
-            <label className="mb-2 block text-sm font-semibold text-gray-600">اطلاعات انباری‌ها</label>
-            {step3FieldErrors['storageUnits'] && (
-              <p className="mb-2 text-sm text-red-600">{step3FieldErrors['storageUnits']}</p>
-            )}
-            <div className="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
-              {Array.from({ length: parseInt(propertyDetails.storageCount) || 0 }).map((_, index) => (
-                <div key={index} className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-600">
-                      شماره انباری {index + 1} <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={propertyDetails.storageUnits?.[index]?.number || ''}
-                      onChange={(e) => {
-                        const newUnits = [...(propertyDetails.storageUnits || [])];
-                        if (!newUnits[index]) {
-                          newUnits[index] = { number: (index + 1).toString(), area: '' };
-                        }
-                        newUnits[index].number = e.target.value;
-                        setPropertyDetails({ ...propertyDetails, storageUnits: newUnits });
-                      }}
-                      onBlur={(e) => {
-                        // اگر فیلد خالی شد، مقدار پیش‌فرض را قرار بده
-                        if (!e.target.value.trim()) {
-                          const newUnits = [...(propertyDetails.storageUnits || [])];
-                          if (!newUnits[index]) {
-                            newUnits[index] = { number: (index + 1).toString(), area: '' };
-                          } else {
-                            newUnits[index].number = (index + 1).toString();
-                          }
-                          setPropertyDetails({ ...propertyDetails, storageUnits: newUnits });
-                        }
-                      }}
-                      className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                      placeholder={`پیش‌فرض: ${index + 1}`}
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-600">
-                      متراژ انباری {index + 1} (متر مربع) <span className="text-gray-400 text-xs">(اختیاری)</span>
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={propertyDetails.storageUnits?.[index]?.area || ''}
-                      onChange={(e) => {
-                        const newUnits = [...(propertyDetails.storageUnits || [])];
-                        if (!newUnits[index]) {
-                          newUnits[index] = { number: '', area: '' };
-                        }
-                        newUnits[index].area = e.target.value;
-                        setPropertyDetails({ ...propertyDetails, storageUnits: newUnits });
-                      }}
-                      className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                      placeholder="مثال: 5.5"
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-600">تعداد پارکینگ</label>
           <input
@@ -4433,7 +4152,7 @@ export default function EditContractPage() {
                         <div className="flex-1">
                           <div className="text-sm font-semibold">{getPaymentMethodLabel(entry.paymentMethod)}</div>
                           <div className="text-sm text-gray-600">
-                            مبلغ: {formatPrice(entry.amount)} ریال
+                            مبلغ: {entry.amount.toLocaleString('fa-IR')} ریال
                             {entry.checkNumber && ` | شماره چک: ${entry.checkNumber}`}
                             {entry.accountNumber && ` | شماره حساب: ${entry.accountNumber}`}
                             {entry.cardNumber && ` | شماره کارت: ${entry.cardNumber}`}
@@ -4514,7 +4233,7 @@ export default function EditContractPage() {
                         <div className="flex-1">
                           <div className="text-sm font-semibold">{getPaymentMethodLabel(entry.paymentMethod)}</div>
                           <div className="text-sm text-gray-600">
-                            مبلغ: {formatPrice(entry.amount)} ریال
+                            مبلغ: {entry.amount.toLocaleString('fa-IR')} ریال
                             {entry.checkNumber && ` | شماره چک: ${entry.checkNumber}`}
                             {entry.accountNumber && ` | شماره حساب: ${entry.accountNumber}`}
                             {entry.cardNumber && ` | شماره کارت: ${entry.cardNumber}`}
@@ -4608,7 +4327,7 @@ export default function EditContractPage() {
                           <div className="flex-1">
                             <div className="text-sm font-semibold">{getPaymentMethodLabel(entry.paymentMethod)}</div>
                             <div className="text-sm text-gray-600">
-                              مبلغ: {formatPrice(entry.amount)} ریال
+                              مبلغ: {entry.amount.toLocaleString('fa-IR')} ریال
                               {entry.checkNumber && ` | شماره چک: ${entry.checkNumber}`}
                               {entry.accountNumber && ` | شماره حساب: ${entry.accountNumber}`}
                               {entry.cardNumber && ` | شماره کارت: ${entry.cardNumber}`}
@@ -4661,7 +4380,7 @@ export default function EditContractPage() {
                           <div className="flex-1">
                             <div className="text-sm font-semibold">{getPaymentMethodLabel(entry.paymentMethod)}</div>
                             <div className="text-sm text-gray-600">
-                              مبلغ: {formatPrice(entry.amount)} ریال
+                              مبلغ: {entry.amount.toLocaleString('fa-IR')} ریال
                               {entry.checkNumber && ` | شماره چک: ${entry.checkNumber}`}
                               {entry.accountNumber && ` | شماره حساب: ${entry.accountNumber}`}
                               {entry.cardNumber && ` | شماره کارت: ${entry.cardNumber}`}

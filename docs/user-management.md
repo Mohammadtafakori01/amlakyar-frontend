@@ -35,7 +35,7 @@ Authorization: Bearer <your-jwt-token>
 **Example Request:**
 
 ```javascript
-fetch('https://api.amlakyarr.com/api/users?role=CONSULTANT', {
+fetch('http://localhost:3002/api/users?role=CONSULTANT', {
   headers: {
     'Authorization': 'Bearer <token>'
   }
@@ -74,7 +74,7 @@ fetch('https://api.amlakyarr.com/api/users?role=CONSULTANT', {
 **Example Request:**
 
 ```javascript
-fetch('https://api.amlakyarr.com/api/users/a2b16074-2c23-48f7-9cf2-a120a640d887', {
+fetch('http://localhost:3002/api/users/a2b16074-2c23-48f7-9cf2-a120a640d887', {
   headers: {
     'Authorization': 'Bearer <token>'
   }
@@ -134,7 +134,7 @@ fetch('https://api.amlakyarr.com/api/users/a2b16074-2c23-48f7-9cf2-a120a640d887'
 **Example Request:**
 
 ```javascript
-fetch('https://api.amlakyarr.com/api/users/staff', {
+fetch('http://localhost:3002/api/users/staff', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
@@ -211,7 +211,7 @@ If you need to update these fields, please check with the backend team for separ
 **Example Request:**
 
 ```javascript
-fetch('https://api.amlakyarr.com/api/users/a2b16074-2c23-48f7-9cf2-a120a640d887', {
+fetch('http://localhost:3002/api/users/a2b16074-2c23-48f7-9cf2-a120a640d887', {
   method: 'PATCH',
   headers: {
     'Content-Type': 'application/json',
@@ -257,7 +257,7 @@ fetch('https://api.amlakyarr.com/api/users/a2b16074-2c23-48f7-9cf2-a120a640d887'
 **Example Request:**
 
 ```javascript
-fetch('https://api.amlakyarr.com/api/users/a2b16074-2c23-48f7-9cf2-a120a640d887', {
+fetch('http://localhost:3002/api/users/a2b16074-2c23-48f7-9cf2-a120a640d887', {
   method: 'DELETE',
   headers: {
     'Authorization': 'Bearer <token>'
@@ -278,7 +278,7 @@ fetch('https://api.amlakyarr.com/api/users/a2b16074-2c23-48f7-9cf2-a120a640d887'
 **Example Request:**
 
 ```javascript
-fetch('https://api.amlakyarr.com/api/users/me/profile', {
+fetch('http://localhost:3002/api/users/me/profile', {
   headers: {
     'Authorization': 'Bearer <token>'
   }

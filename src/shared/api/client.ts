@@ -5,7 +5,7 @@ import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'ax
 const API_BASE_URL = 
   process.env.NODE_ENV === 'development'
     ? '/api' // Use Next.js proxy in development
-    : (process.env.NEXT_PUBLIC_API_URL || 'https://api.amlakyarr.com');
+    : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002');
 
 // Create axios instance
 export const apiClient: AxiosInstance = axios.create({
@@ -53,7 +53,7 @@ apiClient.interceptors.response.use(
           // Use the same base URL logic for refresh token
           const refreshUrl = process.env.NODE_ENV === 'development'
             ? '/api/auth/refresh'
-            : `${process.env.NEXT_PUBLIC_API_URL || 'https://api.amlakyarr.com'}/auth/refresh`;
+            : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002'}/auth/refresh`;
           const response = await axios.post(refreshUrl, {
             refreshToken,
           });

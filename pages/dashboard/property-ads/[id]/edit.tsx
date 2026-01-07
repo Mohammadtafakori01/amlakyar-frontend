@@ -863,7 +863,7 @@ export default function EditPropertyAdPage() {
                         {selectedPropertyAd.images.map((image) => {
                           const baseUrl = process.env.NODE_ENV === 'development'
                             ? '/api'
-                            : (process.env.NEXT_PUBLIC_API_URL || 'https://api.amlakyarr.com');
+                            : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002');
                           const imageUrl = `${baseUrl}/${image.filePath}`;
                           return (
                             <div key={image.id} className="relative">
