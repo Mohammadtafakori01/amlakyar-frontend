@@ -42,6 +42,7 @@ export enum RelationshipType {
 // Payment Enums
 export enum PaymentType {
   MORTGAGE = 'MORTGAGE',           // رهن (برای اجاره‌نامه)
+  RENTAL_PAYMENT = 'RENTAL_PAYMENT', // پرداخت اجاره (برای اجاره‌نامه)
   DOWN_PAYMENT = 'DOWN_PAYMENT',   // پیش‌پرداخت (برای مبایعه‌نامه)
   BILL_OF_SALE = 'BILL_OF_SALE',   // قبض رسید (برای مبایعه‌نامه)
 }
@@ -122,12 +123,28 @@ export interface PropertyAmenities {
   waterCommons?: boolean;
   hotWaterSystem?: string;
   ventilationSystem?: string;
+  hood?: boolean;
+  videoIntercom?: boolean;
+  amphitheater?: boolean;
+  security?: boolean;
+  balcony?: boolean;
+  janitorial?: boolean;
+  lobby?: boolean;
+  terrace?: boolean;
+  remoteParkingGate?: boolean;
+  tableGas?: boolean;
+  centralAntenna?: boolean;
 }
 
 export interface PropertyUtilityType {
   electricity?: string;  // اختصاصی/اشتراکی
   water?: string;        // اختصاصی/اشتراکی
   gas?: string;          // اختصاصی/اشتراکی
+}
+
+export interface StorageUnit {
+  number?: string;
+  area?: number | string;
 }
 
 export interface PropertyDetails {
@@ -144,8 +161,10 @@ export interface PropertyDetails {
   ownershipDocumentType?: string;
   ownershipDocumentSerial?: string;
   ownershipDocumentOwner?: string;
+  uniqueDocumentId?: string;
   storageCount?: number;
   storageNumbers?: string[];
+  storageUnits?: StorageUnit[];
   parkingCount?: number;
   parkingNumbers?: string[];
   amenities?: PropertyAmenities;
@@ -240,6 +259,8 @@ export interface Contract {
   propertyDetails?: PropertyDetails;
   terms?: ContractTerms;
   paymentEntries?: PaymentEntry[];          // روش‌های پرداخت
+  estate?: import('../../../shared/types').Estate;
+  createdBy?: import('../../../shared/types').User;
   createdAt: string;
   updatedAt: string;
 }
@@ -373,6 +394,15 @@ export interface ContractFilters {
   status?: ContractStatus;
   year?: number;
   search?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface ArchiveContractsDto {
+  contractDate?: string;
+  contractNumber?: string;
+  name?: string;
+  lastname?: string;
   page?: number;
   limit?: number;
 }
