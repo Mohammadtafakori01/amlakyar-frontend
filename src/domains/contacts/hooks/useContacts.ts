@@ -14,6 +14,7 @@ import {
 import {
   CreateContactRequest,
   UpdateContactRequest,
+  SearchContactsDto,
 } from '../types';
 
 export const useContacts = () => {
@@ -21,7 +22,7 @@ export const useContacts = () => {
   const contacts = useSelector((state: RootState) => state.contacts);
 
   const fetchContactsAction = useCallback(
-    () => dispatch(fetchContacts()),
+    (searchParams?: SearchContactsDto) => dispatch(fetchContacts(searchParams)),
     [dispatch]
   );
 
