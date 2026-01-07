@@ -123,6 +123,7 @@ export interface PropertyFile {
   status?: PropertyFileStatus;
   expiryDate?: string;
   attachments?: string[];
+  images?: string[]; // Property images (up to 10)
   deletedAt?: string;
   createdBy: {
     id: string;
@@ -199,6 +200,7 @@ export interface CreatePropertyFileRequest {
   status?: PropertyFileStatus;
   expiryDate?: string;
   attachments?: string[];
+  images?: string[]; // Property images (up to 10)
 }
 
 export interface UpdatePropertyFileRequest extends Partial<CreatePropertyFileRequest> {}

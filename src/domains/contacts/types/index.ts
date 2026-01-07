@@ -4,6 +4,7 @@ export interface Contact {
   firstName: string;
   lastName: string;
   phoneNumber: string;
+  address?: string;
   isEstateContact: boolean;
   estate?: {
     id: string;
@@ -23,6 +24,7 @@ export interface CreateContactRequest {
   firstName: string;
   lastName: string;
   phoneNumber: string;
+  address?: string;
   isEstateContact?: boolean;
   estateId?: string;
 }
@@ -31,8 +33,18 @@ export interface UpdateContactRequest {
   firstName?: string;
   lastName?: string;
   phoneNumber?: string;
+  address?: string;
   isEstateContact?: boolean;
   estateId?: string;
+}
+
+// Search Types
+export interface SearchContactsDto {
+  firstName?: string;
+  lastName?: string;
+  phoneNumber?: string;
+  address?: string;
+  search?: string; // جستجوی کلی در همه فیلدها
 }
 
 // State Types

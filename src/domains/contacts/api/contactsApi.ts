@@ -3,6 +3,7 @@ import {
   Contact,
   CreateContactRequest,
   UpdateContactRequest,
+  SearchContactsDto,
 } from '../types';
 
 export const contactsApi = {
@@ -11,8 +12,17 @@ export const contactsApi = {
     return response.data;
   },
 
-  getContacts: async (): Promise<Contact[]> => {
-    const response = await apiClient.get<Contact[]>('/contacts');
+  getContacts: async (searchParams?: SearchContactsDto): Promise<Contact[]> => {
+    const params = new URLSearchParams();
+    if (searchParams?.firstName) params.append('firstName', searchParams.firstName);
+    if (searchParams?.lastName) params.append('lastName', searchParams.lastName);
+    if (searchParams?.phoneNumber) params.append('phoneNumber', searchParams.phoneNumber);
+    if (searchParams?.address) params.append('address', searchParams.address);
+    if (searchParams?.search) params.append('search', searchParams.search);
+    
+    const queryString = params.toString();
+    const url = queryString ? `/contacts?${queryString}` : '/contacts';
+    const response = await apiClient.get<Contact[]>(url);
     return response.data;
   },
 

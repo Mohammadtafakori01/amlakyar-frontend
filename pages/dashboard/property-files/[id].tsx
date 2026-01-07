@@ -11,6 +11,7 @@ import { formatToPersianDate } from '../../../src/shared/utils/dateUtils';
 import { formatPrice } from '../../../src/shared/utils/numberUtils';
 import Loading from '../../../src/shared/components/common/Loading';
 import ErrorDisplay from '../../../src/shared/components/common/ErrorDisplay';
+import ImageCarousel from '../../../src/shared/components/common/ImageCarousel';
 
 const zoneLabels: Record<string, string> = {
   OFFICE_MASTER: 'زونکن املاک',
@@ -114,6 +115,14 @@ export default function PropertyFileDetailPage() {
 
           <div className="bg-white rounded-lg shadow-sm p-6 space-y-6">
             <h1 className="text-2xl font-bold">جزئیات فایل ملکی</h1>
+
+            {/* Image Carousel */}
+            {selectedFile.images && selectedFile.images.length > 0 && (
+              <div>
+                <h2 className="text-xl font-semibold mb-4">تصاویر ملک</h2>
+                <ImageCarousel images={selectedFile.images} />
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>

@@ -99,5 +99,23 @@ export const propertyFilesApi = {
     const response = await apiClient.get<PropertyFileStatistics>('/property-files/statistics');
     return response.data;
   },
+
+  uploadImage: async (file: File): Promise<{ url: string }> => {
+    const formData = new FormData();
+    formData.append('image', file);
+    
+    const response = await apiClient.post<{ url: string }>('/property-files/upload-image', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  deleteImage: async (propertyFileId: string, imageUrl: string): Promise<void> => {
+    await apiClient.delete(`/property-files/${propertyFileId}/images`, {
+      data: { imageUrl },
+    });
+  },
 };
 

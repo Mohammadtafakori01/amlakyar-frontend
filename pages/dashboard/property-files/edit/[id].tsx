@@ -18,6 +18,7 @@ import { sanitizePropertyFileData } from '../../../../src/shared/utils/dataSanit
 import Loading from '../../../../src/shared/components/common/Loading';
 import ErrorDisplay from '../../../../src/shared/components/common/ErrorDisplay';
 import PersianDatePicker from '../../../../src/shared/components/common/PersianDatePicker';
+import ImageUpload from '../../../../src/shared/components/common/ImageUpload';
 import { canEditFile } from '../../../../src/shared/utils/rbacUtils';
 
 // Reuse labels from create page
@@ -145,6 +146,7 @@ export default function EditPropertyFilePage() {
         hasYard: (selectedFile as any).hasYard || false,
         hasPorch: (selectedFile as any).hasPorch || false,
         floors: selectedFile.floors || [],
+        images: selectedFile.images || [],
       });
       setIsFormInitialized(true);
     }
@@ -861,6 +863,17 @@ export default function EditPropertyFilePage() {
                 </>
                 )}
               </div>
+            </div>
+
+            {/* Images */}
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold border-b pb-2">تصاویر ملک</h2>
+              <ImageUpload
+                images={formData.images || []}
+                onChange={(images) => setFormData({ ...formData, images })}
+                maxImages={10}
+                disabled={isLoading}
+              />
             </div>
 
             {/* Additional Details */}

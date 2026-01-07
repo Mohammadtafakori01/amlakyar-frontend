@@ -21,6 +21,7 @@ import { sanitizePropertyFileData } from '../../../src/shared/utils/dataSanitize
 import Loading from '../../../src/shared/components/common/Loading';
 import ErrorDisplay from '../../../src/shared/components/common/ErrorDisplay';
 import PersianDatePicker from '../../../src/shared/components/common/PersianDatePicker';
+import ImageUpload from '../../../src/shared/components/common/ImageUpload';
 
 const zoneLabels: Record<PropertyFileZone, string> = {
   [PropertyFileZone.OFFICE_MASTER]: 'زونکن املاک',
@@ -110,6 +111,7 @@ export default function CreatePropertyFilePage() {
     hasServantRoom: false,
     hasYard: false,
     hasPorch: false,
+    images: [],
   });
 
   const [currentFloor, setCurrentFloor] = useState<Partial<FloorDetails>>({
@@ -835,6 +837,17 @@ export default function CreatePropertyFilePage() {
                   </>
                 )}
               </div>
+            </div>
+
+            {/* Images */}
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold border-b pb-2">تصاویر ملک</h2>
+              <ImageUpload
+                images={formData.images || []}
+                onChange={(images) => setFormData({ ...formData, images })}
+                maxImages={10}
+                disabled={isLoading}
+              />
             </div>
 
             {/* Additional Details */}

@@ -5,6 +5,7 @@ import {
   Contact,
   CreateContactRequest,
   UpdateContactRequest,
+  SearchContactsDto,
 } from '../types';
 
 const initialState: ContactsState = {
@@ -17,9 +18,9 @@ const initialState: ContactsState = {
 // Async thunks
 export const fetchContacts = createAsyncThunk(
   'contacts/fetchContacts',
-  async (_, { rejectWithValue }) => {
+  async (searchParams?: SearchContactsDto, { rejectWithValue }) => {
     try {
-      const contacts = await contactsApi.getContacts();
+      const contacts = await contactsApi.getContacts(searchParams);
       return contacts;
     } catch (error: any) {
       const message = error.response?.data?.message;
