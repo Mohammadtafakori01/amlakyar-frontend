@@ -168,7 +168,7 @@ export default function PropertyFileDetailPage() {
                   <p className="text-lg">{selectedFile.unit}</p>
                 </div>
               )}
-              {selectedFile.transactionType === PropertyTransactionType.MORTGAGE ? (
+              {(selectedFile.transactionType === PropertyTransactionType.MORTGAGE || selectedFile.transactionType === PropertyTransactionType.RENT) ? (
                 <>
                   {selectedFile.mortgagePrice && (
                     <div>
@@ -197,6 +197,12 @@ export default function PropertyFileDetailPage() {
                       <p className="text-lg">{formatPrice(selectedFile.unitPrice)} ریال</p>
                     </div>
                   )}
+                  {selectedFile.totalArea && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">زیربنا کلی</label>
+                      <p className="text-lg">{selectedFile.totalArea} متر مربع</p>
+                    </div>
+                  )}
                 </>
               )}
               {selectedFile.unitsPerFloor && (
@@ -209,12 +215,6 @@ export default function PropertyFileDetailPage() {
                 <div>
                   <label className="text-sm font-medium text-gray-500">تعداد طبقات</label>
                   <p className="text-lg">{selectedFile.totalFloors}</p>
-                </div>
-              )}
-              {selectedFile.totalArea && (
-                <div>
-                  <label className="text-sm font-medium text-gray-500">زیربنا کلی</label>
-                  <p className="text-lg">{selectedFile.totalArea} متر مربع</p>
                 </div>
               )}
               {selectedFile.landArea && (

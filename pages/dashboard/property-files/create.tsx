@@ -168,9 +168,11 @@ export default function CreatePropertyFilePage() {
     }
   }, [availableZones]);
 
-  // Auto-calculate totalPrice when totalArea and unitPrice are provided
+  // Auto-calculate totalPrice when totalArea and unitPrice are provided (only for SALE and other non-rent/mortgage types)
   useEffect(() => {
-    if (formData.totalArea && formData.unitPrice && formData.transactionType !== PropertyTransactionType.MORTGAGE) {
+    if (formData.totalArea && formData.unitPrice && 
+        formData.transactionType !== PropertyTransactionType.MORTGAGE && 
+        formData.transactionType !== PropertyTransactionType.RENT) {
       const calculatedTotal = formData.totalArea * formData.unitPrice;
       setFormData((prev) => ({ ...prev, totalPrice: calculatedTotal }));
     }
@@ -754,7 +756,7 @@ export default function CreatePropertyFilePage() {
                 </div>
 
 
-                {formData.transactionType === PropertyTransactionType.MORTGAGE ? (
+                {(formData.transactionType === PropertyTransactionType.MORTGAGE || formData.transactionType === PropertyTransactionType.RENT) ? (
                   <>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">رهن (ریال)</label>
