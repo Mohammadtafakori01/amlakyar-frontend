@@ -33,11 +33,24 @@ export interface CreateClientLogRequest {
   visitType: VisitType;
 }
 
+// Public Client Logs Filters
+export interface PublicClientLogsFilters {
+  page?: number;
+  limit?: number;
+  visitType?: VisitType;
+}
+
 // State Types
 export interface ClientLogsState {
   clientLogs: ClientLog[];
   selectedLog: ClientLog | null;
   isLoading: boolean;
   error: string | null;
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  } | null;
 }
 

@@ -4,6 +4,7 @@ import {
   ClientLogsState,
   ClientLog,
   CreateClientLogRequest,
+  PublicClientLogsFilters,
 } from '../types';
 
 const initialState: ClientLogsState = {
@@ -11,6 +12,7 @@ const initialState: ClientLogsState = {
   selectedLog: null,
   isLoading: false,
   error: null,
+  pagination: null,
 };
 
 // Async thunks
@@ -44,10 +46,10 @@ export const fetchClientLogById = createAsyncThunk(
 
 export const fetchPublicClientLogs = createAsyncThunk(
   'clientLogs/fetchPublicClientLogs',
-  async (_, { rejectWithValue }) => {
+  async (filters?: PublicClientLogsFilters, { rejectWithValue }) => {
     try {
-      const logs = await clientLogsApi.getPublicClientLogs();
-      return logs;
+      const response = await clientLogsApi.getPublicClientLogs(filters);
+      return response;
     } catch (error: any) {
       const message = error.response?.data?.message;
       const errorMsg = Array.isArray(message) ? message.join(', ') : (message || 'خطا در دریافت مراجعات عمومی');
@@ -154,7 +156,13 @@ const clientLogsSlice = createSlice({
       })
       .addCase(fetchPublicClientLogs.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.clientLogs = action.payload;
+        state.clientLogs = action.payload.data;
+        state.pagination = {
+          page: action.payload.meta.page,
+          limit: action.payload.meta.limit,
+          total: action.payload.meta.total,
+          totalPages: action.payload.meta.totalPages,
+        };
       })
       .addCase(fetchPublicClientLogs.rejected, (state, action) => {
         state.isLoading = false;

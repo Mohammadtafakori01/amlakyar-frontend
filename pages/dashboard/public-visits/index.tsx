@@ -1,11 +1,12 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { FiChevronRight, FiChevronLeft } from 'react-icons/fi';
 import DashboardLayout from '../../../src/shared/components/Layout/DashboardLayout';
 import PrivateRoute from '../../../src/shared/components/guards/PrivateRoute';
 import RoleGuard from '../../../src/shared/components/guards/RoleGuard';
 import { useClientLogs } from '../../../src/domains/client-logs/hooks/useClientLogs';
 import { useAuth } from '../../../src/domains/auth/hooks/useAuth';
 import { UserRole } from '../../../src/shared/types';
-import { VisitType } from '../../../src/domains/client-logs/types';
+import { VisitType, PublicClientLogsFilters } from '../../../src/domains/client-logs/types';
 import { formatPersianDateTime } from '../../../src/shared/utils/dateUtils';
 import Loading from '../../../src/shared/components/common/Loading';
 import ErrorDisplay from '../../../src/shared/components/common/ErrorDisplay';
@@ -20,17 +21,42 @@ export default function PublicVisitsPage() {
     clientLogs,
     isLoading,
     error,
+    pagination,
     fetchPublicClientLogs,
     clearError,
   } = useClientLogs();
   const { user: currentUser } = useAuth();
 
+  const [filters, setFilters] = useState<PublicClientLogsFilters>({
+    page: 1,
+    limit: 20,
+  });
+  const [selectedVisitType, setSelectedVisitType] = useState<VisitType | ''>('');
+
   useEffect(() => {
     if (currentUser && (currentUser.role === UserRole.CONSULTANT || currentUser.role === UserRole.SUPERVISOR)) {
-      fetchPublicClientLogs();
+      const fetchFilters: PublicClientLogsFilters = {
+        page: filters.page,
+        limit: filters.limit,
+      };
+      if (selectedVisitType) {
+        fetchFilters.visitType = selectedVisitType as VisitType;
+      }
+      fetchPublicClientLogs(fetchFilters);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser?.id, currentUser?.role]);
+  }, [currentUser?.id, currentUser?.role, filters.page, filters.limit, selectedVisitType]);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && pagination && newPage <= pagination.totalPages) {
+      setFilters({ ...filters, page: newPage });
+    }
+  };
+
+  const handleVisitTypeFilter = (visitType: VisitType | '') => {
+    setSelectedVisitType(visitType);
+    setFilters({ ...filters, page: 1 }); // Reset to first page when filter changes
+  };
 
   if (!currentUser || (currentUser.role !== UserRole.CONSULTANT && currentUser.role !== UserRole.SUPERVISOR)) {
     return (
@@ -49,6 +75,23 @@ export default function PublicVisitsPage() {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h1 className="text-2xl font-bold">مشاهده مراجعات</h1>
+            </div>
+
+            {/* Filters */}
+            <div className="bg-white rounded-lg shadow-sm p-4">
+              <div className="flex items-center gap-4">
+                <label className="text-sm font-medium text-gray-700">فیلتر بر اساس نوع مراجعه:</label>
+                <select
+                  value={selectedVisitType}
+                  onChange={(e) => handleVisitTypeFilter(e.target.value as VisitType | '')}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                  <option value="">همه</option>
+                  {Object.entries(visitTypeLabels).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {error && <ErrorDisplay error={error} />}
@@ -102,6 +145,41 @@ export default function PublicVisitsPage() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              )}
+
+              {/* Pagination */}
+              {pagination && pagination.totalPages > 1 && (
+                <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-700">
+                      صفحه {pagination.page} از {pagination.totalPages} ({pagination.total} مورد)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handlePageChange(pagination.page - 1)}
+                      disabled={pagination.page === 1}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                        pagination.page === 1
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      <FiChevronRight className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handlePageChange(pagination.page + 1)}
+                      disabled={pagination.page >= pagination.totalPages}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                        pagination.page >= pagination.totalPages
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      <FiChevronLeft className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

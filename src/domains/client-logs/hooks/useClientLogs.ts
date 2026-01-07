@@ -13,6 +13,7 @@ import {
 } from '../store/clientLogsSlice';
 import {
   CreateClientLogRequest,
+  PublicClientLogsFilters,
 } from '../types';
 
 export const useClientLogs = () => {
@@ -30,7 +31,7 @@ export const useClientLogs = () => {
   );
 
   const fetchPublicClientLogsAction = useCallback(
-    () => dispatch(fetchPublicClientLogs()),
+    (filters?: PublicClientLogsFilters) => dispatch(fetchPublicClientLogs(filters)),
     [dispatch]
   );
 
