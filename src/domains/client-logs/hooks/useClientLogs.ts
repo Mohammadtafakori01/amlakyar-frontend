@@ -4,7 +4,9 @@ import { RootState, AppDispatch } from '../../../app/store';
 import {
   fetchClientLogs,
   fetchClientLogById,
+  fetchPublicClientLogs,
   createClientLog,
+  shareClientLog,
   setSelectedLog,
   clearError,
   resetState,
@@ -27,8 +29,18 @@ export const useClientLogs = () => {
     [dispatch]
   );
 
+  const fetchPublicClientLogsAction = useCallback(
+    () => dispatch(fetchPublicClientLogs()),
+    [dispatch]
+  );
+
   const createClientLogAction = useCallback(
     (data: CreateClientLogRequest) => dispatch(createClientLog(data)),
+    [dispatch]
+  );
+
+  const shareClientLogAction = useCallback(
+    (id: string) => dispatch(shareClientLog(id)),
     [dispatch]
   );
 
@@ -51,7 +63,9 @@ export const useClientLogs = () => {
     ...clientLogs,
     fetchClientLogs: fetchClientLogsAction,
     fetchClientLogById: fetchClientLogByIdAction,
+    fetchPublicClientLogs: fetchPublicClientLogsAction,
     createClientLog: createClientLogAction,
+    shareClientLog: shareClientLogAction,
     setSelectedLog: setSelectedLogAction,
     clearError: clearErrorAction,
     resetState: resetStateAction,

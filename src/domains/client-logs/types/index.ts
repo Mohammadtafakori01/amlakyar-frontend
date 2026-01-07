@@ -11,6 +11,7 @@ export interface ClientLog {
   propertyNeed?: string;
   visitTime: string;
   visitType: VisitType;
+  isPublic?: boolean;
   estate: {
     id: string;
     establishmentName: string;

@@ -42,6 +42,34 @@ export const fetchClientLogById = createAsyncThunk(
   }
 );
 
+export const fetchPublicClientLogs = createAsyncThunk(
+  'clientLogs/fetchPublicClientLogs',
+  async (_, { rejectWithValue }) => {
+    try {
+      const logs = await clientLogsApi.getPublicClientLogs();
+      return logs;
+    } catch (error: any) {
+      const message = error.response?.data?.message;
+      const errorMsg = Array.isArray(message) ? message.join(', ') : (message || 'خطا در دریافت مراجعات عمومی');
+      return rejectWithValue(errorMsg);
+    }
+  }
+);
+
+export const shareClientLog = createAsyncThunk(
+  'clientLogs/shareClientLog',
+  async (id: string, { rejectWithValue }) => {
+    try {
+      const log = await clientLogsApi.shareClientLog(id);
+      return log;
+    } catch (error: any) {
+      const message = error.response?.data?.message;
+      const errorMsg = Array.isArray(message) ? message.join(', ') : (message || 'خطا در اشتراک‌گذاری مراجعه');
+      return rejectWithValue(errorMsg);
+    }
+  }
+);
+
 export const createClientLog = createAsyncThunk(
   'clientLogs/createClientLog',
   async (data: CreateClientLogRequest, { rejectWithValue }) => {
@@ -114,6 +142,39 @@ const clientLogsSlice = createSlice({
         state.clientLogs.unshift(action.payload);
       })
       .addCase(createClientLog.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      });
+
+    // Fetch public client logs
+    builder
+      .addCase(fetchPublicClientLogs.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchPublicClientLogs.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.clientLogs = action.payload;
+      })
+      .addCase(fetchPublicClientLogs.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      });
+
+    // Share client log
+    builder
+      .addCase(shareClientLog.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(shareClientLog.fulfilled, (state, action) => {
+        state.isLoading = false;
+        const index = state.clientLogs.findIndex(log => log.id === action.payload.id);
+        if (index !== -1) {
+          state.clientLogs[index] = action.payload;
+        }
+      })
+      .addCase(shareClientLog.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
       });

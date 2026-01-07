@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FiPlus, FiPhone, FiUser } from 'react-icons/fi';
+import { FiPlus, FiPhone, FiUser, FiShare2 } from 'react-icons/fi';
 import DashboardLayout from '../../../src/shared/components/Layout/DashboardLayout';
 import PrivateRoute from '../../../src/shared/components/guards/PrivateRoute';
 import RoleGuard from '../../../src/shared/components/guards/RoleGuard';
@@ -9,7 +9,7 @@ import { UserRole } from '../../../src/shared/types';
 import { canAccessClientLogs } from '../../../src/shared/utils/rbacUtils';
 import { VisitType, CreateClientLogRequest } from '../../../src/domains/client-logs/types';
 import { validatePhoneNumber } from '../../../src/shared/utils/validation';
-import { formatToPersianDate, formatPersianDateWithMonth } from '../../../src/shared/utils/dateUtils';
+import { formatPersianDateTime } from '../../../src/shared/utils/dateUtils';
 import Loading from '../../../src/shared/components/common/Loading';
 import ErrorDisplay from '../../../src/shared/components/common/ErrorDisplay';
 
@@ -25,11 +25,14 @@ export default function ClientLogsPage() {
     error,
     fetchClientLogs,
     createClientLog,
+    shareClientLog,
     clearError,
   } = useClientLogs();
   const { user: currentUser } = useAuth();
 
   const [showModal, setShowModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [selectedLogForShare, setSelectedLogForShare] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<CreateClientLogRequest>>({
     clientName: '',
     phoneNumber: '',
@@ -105,6 +108,31 @@ export default function ClientLogsPage() {
     }
   };
 
+  const handleOpenShareModal = (logId: string) => {
+    setSelectedLogForShare(logId);
+    setShowShareModal(true);
+  };
+
+  const handleCloseShareModal = () => {
+    setShowShareModal(false);
+    setSelectedLogForShare(null);
+  };
+
+  const handleConfirmShare = async () => {
+    if (!selectedLogForShare) return;
+    
+    try {
+      await shareClientLog(selectedLogForShare);
+      setSnackbar({ open: true, message: 'مراجعه با موفقیت به اشتراک گذاشته شد', severity: 'success' });
+      handleCloseShareModal();
+      fetchClientLogs();
+    } catch (err: any) {
+      setSnackbar({ open: true, message: err.message || 'خطا در اشتراک‌گذاری مراجعه', severity: 'error' });
+    }
+  };
+
+  const isAdmin = currentUser?.role === UserRole.ADMIN;
+
   if (!currentUser || !canAccessClientLogs(currentUser.role)) {
     return (
       <PrivateRoute>
@@ -150,6 +178,9 @@ export default function ClientLogsPage() {
                         <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">نوع مراجعه</th>
                         <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">زمان مراجعه</th>
                         <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">ثبت کننده</th>
+                        {isAdmin && (
+                          <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">عملیات</th>
+                        )}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
@@ -167,10 +198,28 @@ export default function ClientLogsPage() {
                               {visitTypeLabels[log.visitType]}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-sm">{formatPersianDateWithMonth(log.visitTime)}</td>
+                          <td className="px-4 py-3 text-sm">{formatPersianDateTime(log.visitTime)}</td>
                           <td className="px-4 py-3 text-sm">
                             {log.createdBy.firstName} {log.createdBy.lastName}
                           </td>
+                          {isAdmin && (
+                            <td className="px-4 py-3 text-sm">
+                              {!log.isPublic ? (
+                                <button
+                                  onClick={() => handleOpenShareModal(log.id)}
+                                  className="flex items-center gap-1 px-3 py-1.5 text-sm bg-primary-100 text-primary-700 rounded-lg hover:bg-primary-200 transition-colors"
+                                  title="اشتراک‌گذاری با مشاوران و سرپرستان"
+                                >
+                                  <FiShare2 className="w-4 h-4" />
+                                  <span>اشتراک‌گذاری</span>
+                                </button>
+                              ) : (
+                                <span className="px-3 py-1.5 text-sm bg-green-100 text-green-700 rounded-lg">
+                                  عمومی
+                                </span>
+                              )}
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
@@ -263,6 +312,40 @@ export default function ClientLogsPage() {
                     </button>
                   </div>
                 </form>
+              </div>
+            </div>
+          )}
+
+          {/* Share Confirmation Modal */}
+          {showShareModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
+                <div className="flex items-center justify-center mb-4">
+                  <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center">
+                    <FiShare2 className="w-8 h-8 text-primary-600" />
+                  </div>
+                </div>
+                <h2 className="text-xl font-bold text-center mb-4">اشتراک‌گذاری مراجعه</h2>
+                <p className="text-gray-600 text-center mb-6">
+                  آیا می‌خواهید این مراجعه را با مشاوران و سرپرستان به اشتراک عمومی بگذارید؟
+                </p>
+                <p className="text-sm text-gray-500 text-center mb-6">
+                  پس از اشتراک‌گذاری، این مراجعه در بخش "مشاهده مراجعات" برای مشاوران و سرپرستان قابل مشاهده خواهد بود.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleConfirmShare}
+                    className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
+                  >
+                    بله، اشتراک‌گذاری
+                  </button>
+                  <button
+                    onClick={handleCloseShareModal}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    انصراف
+                  </button>
+                </div>
               </div>
             </div>
           )}

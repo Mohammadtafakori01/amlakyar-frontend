@@ -96,6 +96,12 @@ const menuItems: MenuItem[] = [
     path: '/dashboard/client-logs',
     roles: [UserRole.ADMIN, UserRole.SECRETARY],
   },
+  {
+    text: 'مشاهده مراجعات',
+    icon: <FiClipboard className="w-5 h-5" />,
+    path: '/dashboard/public-visits',
+    roles: [UserRole.CONSULTANT, UserRole.SUPERVISOR],
+  },
 ];
 
 interface DashboardLayoutProps {

@@ -95,3 +95,19 @@ export const calculateMonthsDifference = (startDate: string, endDate: string): n
   return Math.ceil(monthsDiff);
 };
 
+/**
+ * Format datetime string (ISO format) to Persian date and time
+ * @param datetime - ISO datetime string (e.g., "2024-01-15T14:30:00.000Z")
+ * @returns Formatted Persian datetime string (e.g., "1402/10/25 - 14:30")
+ */
+export const formatPersianDateTime = (datetime: string): string => {
+  if (!datetime) return '';
+  const m = moment(datetime);
+  if (!m.isValid()) {
+    return '';
+  }
+  const date = m.format('jYYYY/jMM/jDD');
+  const time = m.format('HH:mm');
+  return `${date} - ${time}`;
+};
+
