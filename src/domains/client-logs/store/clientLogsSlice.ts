@@ -4,6 +4,7 @@ import {
   ClientLogsState,
   ClientLog,
   CreateClientLogRequest,
+  UpdateClientLogRequest,
   PublicClientLogsFilters,
 } from '../types';
 
@@ -81,6 +82,34 @@ export const createClientLog = createAsyncThunk(
     } catch (error: any) {
       const message = error.response?.data?.message;
       const errorMsg = Array.isArray(message) ? message.join(', ') : (message || 'خطا در ثبت مراجعه');
+      return rejectWithValue(errorMsg);
+    }
+  }
+);
+
+export const updateClientLog = createAsyncThunk(
+  'clientLogs/updateClientLog',
+  async ({ id, data }: { id: string; data: UpdateClientLogRequest }, { rejectWithValue }) => {
+    try {
+      const log = await clientLogsApi.updateClientLog(id, data);
+      return log;
+    } catch (error: any) {
+      const message = error.response?.data?.message;
+      const errorMsg = Array.isArray(message) ? message.join(', ') : (message || 'خطا در به‌روزرسانی مراجعه');
+      return rejectWithValue(errorMsg);
+    }
+  }
+);
+
+export const deleteClientLog = createAsyncThunk(
+  'clientLogs/deleteClientLog',
+  async (id: string, { rejectWithValue }) => {
+    try {
+      await clientLogsApi.deleteClientLog(id);
+      return id;
+    } catch (error: any) {
+      const message = error.response?.data?.message;
+      const errorMsg = Array.isArray(message) ? message.join(', ') : (message || 'خطا در حذف مراجعه');
       return rejectWithValue(errorMsg);
     }
   }
@@ -183,6 +212,45 @@ const clientLogsSlice = createSlice({
         }
       })
       .addCase(shareClientLog.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      });
+
+    // Update client log
+    builder
+      .addCase(updateClientLog.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(updateClientLog.fulfilled, (state, action) => {
+        state.isLoading = false;
+        const index = state.clientLogs.findIndex(log => log.id === action.payload.id);
+        if (index !== -1) {
+          state.clientLogs[index] = action.payload;
+        }
+        if (state.selectedLog?.id === action.payload.id) {
+          state.selectedLog = action.payload;
+        }
+      })
+      .addCase(updateClientLog.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      });
+
+    // Delete client log
+    builder
+      .addCase(deleteClientLog.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(deleteClientLog.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.clientLogs = state.clientLogs.filter(log => log.id !== action.payload);
+        if (state.selectedLog?.id === action.payload) {
+          state.selectedLog = null;
+        }
+      })
+      .addCase(deleteClientLog.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
       });

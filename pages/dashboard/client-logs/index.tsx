@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FiPlus, FiPhone, FiUser, FiShare2 } from 'react-icons/fi';
+import { FiPlus, FiPhone, FiUser, FiShare2, FiEdit2, FiTrash2 } from 'react-icons/fi';
 import DashboardLayout from '../../../src/shared/components/Layout/DashboardLayout';
 import PrivateRoute from '../../../src/shared/components/guards/PrivateRoute';
 import RoleGuard from '../../../src/shared/components/guards/RoleGuard';
@@ -7,7 +7,7 @@ import { useClientLogs } from '../../../src/domains/client-logs/hooks/useClientL
 import { useAuth } from '../../../src/domains/auth/hooks/useAuth';
 import { UserRole } from '../../../src/shared/types';
 import { canAccessClientLogs } from '../../../src/shared/utils/rbacUtils';
-import { VisitType, CreateClientLogRequest } from '../../../src/domains/client-logs/types';
+import { VisitType, CreateClientLogRequest, UpdateClientLogRequest, ClientLog } from '../../../src/domains/client-logs/types';
 import { validatePhoneNumber } from '../../../src/shared/utils/validation';
 import { formatPersianDateTime } from '../../../src/shared/utils/dateUtils';
 import Loading from '../../../src/shared/components/common/Loading';
@@ -25,6 +25,8 @@ export default function ClientLogsPage() {
     error,
     fetchClientLogs,
     createClientLog,
+    updateClientLog,
+    deleteClientLog,
     shareClientLog,
     clearError,
   } = useClientLogs();
@@ -32,7 +34,11 @@ export default function ClientLogsPage() {
 
   const [showModal, setShowModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [selectedLogForShare, setSelectedLogForShare] = useState<string | null>(null);
+  const [selectedLogForDelete, setSelectedLogForDelete] = useState<ClientLog | null>(null);
+  const [selectedLogForEdit, setSelectedLogForEdit] = useState<ClientLog | null>(null);
   const [formData, setFormData] = useState<Partial<CreateClientLogRequest>>({
     clientName: '',
     phoneNumber: '',
@@ -57,6 +63,8 @@ export default function ClientLogsPage() {
   }, [snackbar.open]);
 
   const handleOpenModal = () => {
+    setIsEditMode(false);
+    setSelectedLogForEdit(null);
     setFormData({
       clientName: '',
       phoneNumber: '',
@@ -67,8 +75,23 @@ export default function ClientLogsPage() {
     setShowModal(true);
   };
 
+  const handleOpenEditModal = (log: ClientLog) => {
+    setIsEditMode(true);
+    setSelectedLogForEdit(log);
+    setFormData({
+      clientName: log.clientName,
+      phoneNumber: log.phoneNumber,
+      propertyNeed: log.propertyNeed || '',
+      visitTime: new Date(log.visitTime).toISOString().slice(0, 16),
+      visitType: log.visitType,
+    });
+    setShowModal(true);
+  };
+
   const handleCloseModal = () => {
     setShowModal(false);
+    setIsEditMode(false);
+    setSelectedLogForEdit(null);
     setFormData({
       clientName: '',
       phoneNumber: '',
@@ -93,18 +116,53 @@ export default function ClientLogsPage() {
     }
 
     try {
-      await createClientLog({
-        clientName: formData.clientName,
-        phoneNumber: formData.phoneNumber,
-        propertyNeed: formData.propertyNeed,
-        visitTime: new Date(formData.visitTime).toISOString(),
-        visitType: formData.visitType!,
-      });
-      setSnackbar({ open: true, message: 'مراجعه با موفقیت ثبت شد', severity: 'success' });
+      if (isEditMode && selectedLogForEdit) {
+        const updateData: UpdateClientLogRequest = {
+          clientName: formData.clientName,
+          phoneNumber: formData.phoneNumber,
+          propertyNeed: formData.propertyNeed,
+          visitTime: new Date(formData.visitTime).toISOString(),
+          visitType: formData.visitType!,
+        };
+        await updateClientLog(selectedLogForEdit.id, updateData);
+        setSnackbar({ open: true, message: 'مراجعه با موفقیت به‌روزرسانی شد', severity: 'success' });
+      } else {
+        await createClientLog({
+          clientName: formData.clientName,
+          phoneNumber: formData.phoneNumber,
+          propertyNeed: formData.propertyNeed,
+          visitTime: new Date(formData.visitTime).toISOString(),
+          visitType: formData.visitType!,
+        });
+        setSnackbar({ open: true, message: 'مراجعه با موفقیت ثبت شد', severity: 'success' });
+      }
       handleCloseModal();
       fetchClientLogs();
     } catch (err: any) {
-      setSnackbar({ open: true, message: err.message || 'خطا در ثبت مراجعه', severity: 'error' });
+      setSnackbar({ open: true, message: err.message || (isEditMode ? 'خطا در به‌روزرسانی مراجعه' : 'خطا در ثبت مراجعه'), severity: 'error' });
+    }
+  };
+
+  const handleOpenDeleteModal = (log: ClientLog) => {
+    setSelectedLogForDelete(log);
+    setShowDeleteModal(true);
+  };
+
+  const handleCloseDeleteModal = () => {
+    setShowDeleteModal(false);
+    setSelectedLogForDelete(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!selectedLogForDelete) return;
+    
+    try {
+      await deleteClientLog(selectedLogForDelete.id);
+      setSnackbar({ open: true, message: 'مراجعه با موفقیت حذف شد', severity: 'success' });
+      handleCloseDeleteModal();
+      fetchClientLogs();
+    } catch (err: any) {
+      setSnackbar({ open: true, message: err.message || 'خطا در حذف مراجعه', severity: 'error' });
     }
   };
 
@@ -132,6 +190,8 @@ export default function ClientLogsPage() {
   };
 
   const isAdmin = currentUser?.role === UserRole.ADMIN;
+  const canEdit = isAdmin || currentUser?.role === UserRole.SECRETARY;
+  const canDelete = isAdmin;
 
   if (!currentUser || !canAccessClientLogs(currentUser.role)) {
     return (
@@ -178,7 +238,7 @@ export default function ClientLogsPage() {
                         <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">نوع مراجعه</th>
                         <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">زمان مراجعه</th>
                         <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">ثبت کننده</th>
-                        {isAdmin && (
+                        {(canEdit || canDelete || isAdmin) && (
                           <th className="px-4 py-3 text-right text-sm font-medium text-gray-700">عملیات</th>
                         )}
                       </tr>
@@ -202,22 +262,48 @@ export default function ClientLogsPage() {
                           <td className="px-4 py-3 text-sm">
                             {log.createdBy.firstName} {log.createdBy.lastName}
                           </td>
-                          {isAdmin && (
+                          {(canEdit || canDelete || isAdmin) && (
                             <td className="px-4 py-3 text-sm">
-                              {!log.isPublic ? (
-                                <button
-                                  onClick={() => handleOpenShareModal(log.id)}
-                                  className="flex items-center gap-1 px-3 py-1.5 text-sm bg-primary-100 text-primary-700 rounded-lg hover:bg-primary-200 transition-colors"
-                                  title="اشتراک‌گذاری با مشاوران و سرپرستان"
-                                >
-                                  <FiShare2 className="w-4 h-4" />
-                                  <span>اشتراک‌گذاری</span>
-                                </button>
-                              ) : (
-                                <span className="px-3 py-1.5 text-sm bg-green-100 text-green-700 rounded-lg">
-                                  عمومی
-                                </span>
-                              )}
+                              <div className="flex items-center gap-2">
+                                {canEdit && (
+                                  <button
+                                    onClick={() => handleOpenEditModal(log)}
+                                    className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                                    title="ویرایش مراجعه"
+                                  >
+                                    <FiEdit2 className="w-4 h-4" />
+                                    <span>ویرایش</span>
+                                  </button>
+                                )}
+                                {canDelete && (
+                                  <button
+                                    onClick={() => handleOpenDeleteModal(log)}
+                                    className="flex items-center gap-1 px-3 py-1.5 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+                                    title="حذف مراجعه"
+                                  >
+                                    <FiTrash2 className="w-4 h-4" />
+                                    <span>حذف</span>
+                                  </button>
+                                )}
+                                {isAdmin && (
+                                  <>
+                                    {!log.isPublic ? (
+                                      <button
+                                        onClick={() => handleOpenShareModal(log.id)}
+                                        className="flex items-center gap-1 px-3 py-1.5 text-sm bg-primary-100 text-primary-700 rounded-lg hover:bg-primary-200 transition-colors"
+                                        title="اشتراک‌گذاری با مشاوران و سرپرستان"
+                                      >
+                                        <FiShare2 className="w-4 h-4" />
+                                        <span>اشتراک‌گذاری</span>
+                                      </button>
+                                    ) : (
+                                      <span className="px-3 py-1.5 text-sm bg-green-100 text-green-700 rounded-lg">
+                                        عمومی
+                                      </span>
+                                    )}
+                                  </>
+                                )}
+                              </div>
                             </td>
                           )}
                         </tr>
@@ -229,11 +315,11 @@ export default function ClientLogsPage() {
             </div>
           </div>
 
-          {/* Modal */}
+          {/* Create/Edit Modal */}
           {showModal && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
               <div className="bg-white rounded-lg p-6 w-full max-w-md">
-                <h2 className="text-xl font-bold mb-4">ثبت مراجعه جدید</h2>
+                <h2 className="text-xl font-bold mb-4">{isEditMode ? 'ویرایش مراجعه' : 'ثبت مراجعه جدید'}</h2>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -301,7 +387,7 @@ export default function ClientLogsPage() {
                       type="submit"
                       className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
                     >
-                      ثبت
+                      {isEditMode ? 'ذخیره تغییرات' : 'ثبت'}
                     </button>
                     <button
                       type="button"
@@ -312,6 +398,40 @@ export default function ClientLogsPage() {
                     </button>
                   </div>
                 </form>
+              </div>
+            </div>
+          )}
+
+          {/* Delete Confirmation Modal */}
+          {showDeleteModal && selectedLogForDelete && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
+                <div className="flex items-center justify-center mb-4">
+                  <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                    <FiTrash2 className="w-8 h-8 text-red-600" />
+                  </div>
+                </div>
+                <h2 className="text-xl font-bold text-center mb-4">حذف مراجعه</h2>
+                <p className="text-gray-600 text-center mb-6">
+                  آیا از حذف مراجعه <strong>{selectedLogForDelete.clientName}</strong> مطمئن هستید؟
+                </p>
+                <p className="text-sm text-gray-500 text-center mb-6">
+                  این عمل غیرقابل بازگشت است و تمام اطلاعات این مراجعه حذف خواهد شد.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleConfirmDelete}
+                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                  >
+                    بله، حذف شود
+                  </button>
+                  <button
+                    onClick={handleCloseDeleteModal}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    انصراف
+                  </button>
+                </div>
               </div>
             </div>
           )}

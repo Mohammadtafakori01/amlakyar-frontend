@@ -2,6 +2,7 @@ import apiClient from '../../../shared/api/client';
 import {
   ClientLog,
   CreateClientLogRequest,
+  UpdateClientLogRequest,
   PublicClientLogsFilters,
 } from '../types';
 import { PaginatedResponse } from '../../../shared/types';
@@ -32,6 +33,15 @@ export const clientLogsApi = {
   getClientLogById: async (id: string): Promise<ClientLog> => {
     const response = await apiClient.get<ClientLog>(`/client-logs/${id}`);
     return response.data;
+  },
+
+  updateClientLog: async (id: string, data: UpdateClientLogRequest): Promise<ClientLog> => {
+    const response = await apiClient.patch<ClientLog>(`/client-logs/${id}`, data);
+    return response.data;
+  },
+
+  deleteClientLog: async (id: string): Promise<void> => {
+    await apiClient.delete(`/client-logs/${id}`);
   },
 
   shareClientLog: async (id: string): Promise<ClientLog> => {

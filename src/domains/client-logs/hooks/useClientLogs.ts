@@ -6,6 +6,8 @@ import {
   fetchClientLogById,
   fetchPublicClientLogs,
   createClientLog,
+  updateClientLog,
+  deleteClientLog,
   shareClientLog,
   setSelectedLog,
   clearError,
@@ -13,6 +15,7 @@ import {
 } from '../store/clientLogsSlice';
 import {
   CreateClientLogRequest,
+  UpdateClientLogRequest,
   PublicClientLogsFilters,
 } from '../types';
 
@@ -37,6 +40,16 @@ export const useClientLogs = () => {
 
   const createClientLogAction = useCallback(
     (data: CreateClientLogRequest) => dispatch(createClientLog(data)),
+    [dispatch]
+  );
+
+  const updateClientLogAction = useCallback(
+    (id: string, data: UpdateClientLogRequest) => dispatch(updateClientLog({ id, data })),
+    [dispatch]
+  );
+
+  const deleteClientLogAction = useCallback(
+    (id: string) => dispatch(deleteClientLog(id)),
     [dispatch]
   );
 
@@ -66,6 +79,8 @@ export const useClientLogs = () => {
     fetchClientLogById: fetchClientLogByIdAction,
     fetchPublicClientLogs: fetchPublicClientLogsAction,
     createClientLog: createClientLogAction,
+    updateClientLog: updateClientLogAction,
+    deleteClientLog: deleteClientLogAction,
     shareClientLog: shareClientLogAction,
     setSelectedLog: setSelectedLogAction,
     clearError: clearErrorAction,

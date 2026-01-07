@@ -33,6 +33,14 @@ export interface CreateClientLogRequest {
   visitType: VisitType;
 }
 
+export interface UpdateClientLogRequest {
+  clientName?: string;
+  phoneNumber?: string;
+  propertyNeed?: string;
+  visitTime?: string;
+  visitType?: VisitType;
+}
+
 // Public Client Logs Filters
 export interface PublicClientLogsFilters {
   page?: number;
