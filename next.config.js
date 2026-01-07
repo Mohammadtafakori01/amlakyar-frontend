@@ -65,7 +65,7 @@ const nextConfig = {
   // Proxy API requests to backend in development to avoid CORS
   async rewrites() {
     if (process.env.NODE_ENV === 'development') {
-      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.amlakyarr.com/';
       return [
         {
           source: '/api/:path*',

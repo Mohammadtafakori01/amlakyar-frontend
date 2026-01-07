@@ -4,13 +4,13 @@
 export function getApiBaseUrl(): string {
   if (typeof window === 'undefined') {
     // Server-side: use environment variable directly
-    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
+    return process.env.NEXT_PUBLIC_API_URL || 'https://api.amlakyarr.com/';
   }
   
   // Client-side: use Next.js proxy in development, or env variable in production
   return process.env.NODE_ENV === 'development'
     ? '/api'
-    : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002');
+    : (process.env.NEXT_PUBLIC_API_URL || 'https://api.amlakyarr.com/');
 }
 
 /**

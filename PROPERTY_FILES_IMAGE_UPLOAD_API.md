@@ -17,7 +17,7 @@ The frontend reads image storage URLs from environment variables:
 
 - **`NEXT_PUBLIC_API_URL`**: Base URL for the API (used as fallback for image storage)
   - Example: `https://api.example.com`
-  - Default: `http://localhost:3002`
+  - Default: `https://api.amlakyarr.com/`
 
 - **`NEXT_PUBLIC_IMAGE_STORAGE_URL`** (Optional): Dedicated URL for image storage/CDN
   - Example: `https://storage.example.com` or `https://cdn.example.com`
