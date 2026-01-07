@@ -177,7 +177,7 @@ export interface ContractTerms {
   permittedUse?: string;                    // نوع استفاده مجاز (مسکونی/تجاری/اداری)
   hasTransferRight?: boolean;               // حق انتقال به غیر (دارد/ندارد)
   lessorOwnershipConfirmed?: boolean;       // تأیید مالکیت موجر (default: true)
-  rentPaymentDeadline?: string;             // مهلت پرداخت (اول/آخر ماه)
+  rentPaymentDeadline?: string;             // تاریخ پرداخت (اول/آخر ماه)
   utilityCostsResponsibility?: string;      // مسئولیت هزینه‌های مصرفی
   maintenanceFeesResponsibility?: string;   // مسئولیت شارژ ساختمان
   majorRepairsResponsibility?: string;      // مسئولیت تعمیرات اساسی

@@ -3623,8 +3623,7 @@ export default function CreateContractPage() {
       <h2 className="text-2xl font-bold text-gray-900">مرحله 4: ثبت شرایط قرارداد</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="mb-1 block text-sm font-semibold text-gray-600">جریمه تاخیر در پرداخت قرض الحسنه (ریال)</label>
-          <p className="mb-2 text-xs text-gray-500">در پایان مهلت قرارداد موجر باید پرداخت کند</p>
+          <label className="mb-1 block text-sm font-semibold text-gray-600">جریمه روزانه تاخیر در پرداخت قرض الحسنه (ریال)</label>
           <input
             type="text"
             value={terms.dailyDelayPenalty !== '' ? formatNumber(parseFormattedNumber(terms.dailyDelayPenalty)) : ''}
@@ -3746,7 +3745,7 @@ export default function CreateContractPage() {
         <h3 className="text-lg font-semibold text-gray-800 mb-4">ماده 6 - شرایط قرارداد</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="mb-1 block text-sm font-semibold text-gray-600">مهلت پرداخت اجاره بها در روز</label>
+            <label className="mb-1 block text-sm font-semibold text-gray-600">تاریخ پرداخت اجاره بها در روز</label>
             <select
               value={terms.rentPaymentDeadline}
               onChange={(e) => setTerms({ ...terms, rentPaymentDeadline: e.target.value })}
@@ -4261,11 +4260,14 @@ export default function CreateContractPage() {
               <div>
                 <label className="mb-1 block text-sm font-semibold text-gray-600">مبلغ (ریال)</label>
                 <input
-                  type="number"
-                  value={currentPayment.amount || ''}
-                  onChange={(e) => setCurrentPayment({ ...currentPayment, amount: parseFloat(e.target.value) || 0 })}
+                  type="text"
+                  value={currentPayment.amount ? formatNumber(currentPayment.amount) : ''}
+                  onChange={(e) => {
+                    const parsed = parseFormattedNumber(e.target.value);
+                    setCurrentPayment({ ...currentPayment, amount: parsed || 0 });
+                  }}
                   className="w-full rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                  min="0"
+                  placeholder="0"
                 />
               </div>
 

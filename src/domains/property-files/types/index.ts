@@ -22,6 +22,7 @@ export enum PropertyBuildingType {
   OLD = 'OLD',
   OFFICE = 'OFFICE',
   SHOP = 'SHOP',
+  REAL_ESTATE = 'REAL_ESTATE',
 }
 
 export enum PropertyDirection {

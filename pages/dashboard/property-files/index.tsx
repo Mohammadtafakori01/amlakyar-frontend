@@ -63,6 +63,7 @@ const buildingTypeLabels: Record<PropertyBuildingType, string> = {
   [PropertyBuildingType.OLD]: 'قدیمی',
   [PropertyBuildingType.OFFICE]: 'اداری',
   [PropertyBuildingType.SHOP]: 'مغازه',
+  [PropertyBuildingType.REAL_ESTATE]: 'مستغلات',
 };
 
 export default function PropertyFilesPage() {

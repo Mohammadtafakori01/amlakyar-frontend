@@ -27,7 +27,7 @@
 17. `lessorLoanReturnObligation` (تعهد موجر به بازگشت قرض الحسنه - boolean)
 
 ### فیلدهای باقی‌مانده در ماده 6:
-- `rentPaymentDeadline` (مهلت پرداخت) - **باقی می‌ماند**
+- `rentPaymentDeadline` (تاریخ پرداخت) - **باقی می‌ماند**
 - `renewalConditions` (شرایط تمدید) - **باقی می‌ماند**
 
 ---
@@ -366,7 +366,7 @@ export interface ContractTerms {
 | `lessorOwnershipConfirmed` | boolean | حذف | تأیید مالکیت موجر |
 | `lesseeRepairRight` | boolean | حذف | حق مستاجر برای تعمیرات ضروری |
 | `propertyTransferNotification` | boolean | حذف | اطلاع‌رسانی انتقال ملک |
-| `rentPaymentDeadline` | string | باقی می‌ماند | مهلت پرداخت |
+| `rentPaymentDeadline` | string | باقی می‌ماند | تاریخ پرداخت |
 | `renewalConditions` | string (text) | باقی می‌ماند | شرایط تمدید |
 | `lessorLoanReturnObligation` | boolean | حذف | تعهد موجر به بازگشت قرض الحسنه |
 
@@ -376,7 +376,7 @@ export interface ContractTerms {
 
 پس از حذف فیلدهای بالا، فقط این 2 فیلد در بخش ماده 6 باقی می‌مانند:
 
-1. **`rentPaymentDeadline`** (مهلت پرداخت)
+1. **`rentPaymentDeadline`** (تاریخ پرداخت)
    - نوع: string
    - مقادیر مجاز: "اول"، "دوم"، "سوم"، ...، "سی ام" (30 گزینه از اول ماه تا سی ام ماه)
 

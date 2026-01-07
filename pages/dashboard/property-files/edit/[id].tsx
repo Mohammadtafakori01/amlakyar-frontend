@@ -44,6 +44,7 @@ const buildingTypeLabels: Record<PropertyBuildingType, string> = {
   [PropertyBuildingType.OLD]: 'کلنگی',
   [PropertyBuildingType.OFFICE]: 'اداری',
   [PropertyBuildingType.SHOP]: 'مغازه',
+  [PropertyBuildingType.REAL_ESTATE]: 'مستغلات',
 };
 
 const directionLabels: Record<PropertyDirection, string> = {
@@ -80,6 +81,7 @@ export default function EditPropertyFilePage() {
     chiller: false,
     package: false,
   });
+  const [flooringCustom, setFlooringCustom] = useState(false);
 
   const availableZones = useMemo(() => {
     return currentUser ? getAvailableZones(currentUser.role) : [];
@@ -148,6 +150,17 @@ export default function EditPropertyFilePage() {
     }
   }, [selectedFile, isFormInitialized]);
 
+  // Check if current flooring value is custom (not in predefined list)
+  useEffect(() => {
+    if (currentFloor.flooring && currentFloor.flooring.trim() !== '') {
+      const predefinedOptions = ['سرامیک', 'سنگ', 'لمینت یا پارکت', 'موکت'];
+      const isCustom = !predefinedOptions.includes(currentFloor.flooring);
+      setFlooringCustom(isCustom);
+    } else {
+      setFlooringCustom(false);
+    }
+  }, [currentFloor.flooring]);
+
   // Auto-calculate totalPrice when totalArea and unitPrice are provided (only for SALE and other non-rent/mortgage types)
   useEffect(() => {
     if (formData.totalArea && formData.unitPrice && 
@@ -157,6 +170,13 @@ export default function EditPropertyFilePage() {
       setFormData((prev) => ({ ...prev, totalPrice: calculatedTotal }));
     }
   }, [formData.totalArea, formData.unitPrice, formData.transactionType]);
+
+  // Auto-fill floor area with totalArea when totalArea changes (always sync)
+  useEffect(() => {
+    if (formData.totalArea !== undefined && formData.totalArea !== null) {
+      setCurrentFloor((prev) => ({ ...prev, area: formData.totalArea }));
+    }
+  }, [formData.totalArea]);
 
 
   useEffect(() => {
@@ -223,6 +243,7 @@ export default function EditPropertyFilePage() {
         chiller: false,
         package: false,
       });
+      setFlooringCustom(false);
       return {
         ...prev,
         floors: newFloors,
@@ -319,6 +340,7 @@ export default function EditPropertyFilePage() {
         chiller: false,
         package: false,
       });
+      setFlooringCustom(false);
       // Show success message
       setSnackbar({ 
         open: true, 
@@ -804,7 +826,7 @@ export default function EditPropertyFilePage() {
                 ) : (
                   <>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">زیربنا کلی (متر مربع)</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">زیر بنا (متر مربع)</label>
                       <input
                         type="number"
                         value={formData.totalArea || ''}
@@ -1153,12 +1175,59 @@ export default function EditPropertyFilePage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">کف پوش</label>
-                  <input
-                    type="text"
-                    value={currentFloor.flooring || ''}
-                    onChange={(e) => setCurrentFloor({ ...currentFloor, flooring: e.target.value })}
+                  <select
+                    value={flooringCustom ? 'CUSTOM' : (currentFloor.flooring || '')}
+                    onChange={(e) => {
+                      if (e.target.value === 'CUSTOM') {
+                        setFlooringCustom(true);
+                        setCurrentFloor({ ...currentFloor, flooring: '' });
+                      } else {
+                        setFlooringCustom(false);
+                        setCurrentFloor({ ...currentFloor, flooring: e.target.value || undefined });
+                      }
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
+                  >
+                    <option value="">انتخاب کنید...</option>
+                    <option value="سرامیک">سرامیک</option>
+                    <option value="سنگ">سنگ</option>
+                    <option value="لمینت یا پارکت">لمینت یا پارکت</option>
+                    <option value="موکت">موکت</option>
+                    <option value="CUSTOM">سایر</option>
+                  </select>
+                  {flooringCustom && (
+                    <input
+                      type="text"
+                      value={currentFloor.flooring || ''}
+                      onChange={(e) => setCurrentFloor({ ...currentFloor, flooring: e.target.value })}
+                      className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      placeholder="کف پوش را وارد کنید"
+                    />
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">نوع آشپزخانه</label>
+                  <select
+                    value={
+                      currentFloor.kitchen ? 'IRANIAN' :
+                      currentFloor.openKitchen ? 'OPEN' :
+                      ''
+                    }
+                    onChange={(e) => {
+                      if (e.target.value === 'IRANIAN') {
+                        setCurrentFloor({ ...currentFloor, kitchen: true, openKitchen: false });
+                      } else if (e.target.value === 'OPEN') {
+                        setCurrentFloor({ ...currentFloor, kitchen: false, openKitchen: true });
+                      } else {
+                        setCurrentFloor({ ...currentFloor, kitchen: false, openKitchen: false });
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  >
+                    <option value="">انتخاب کنید...</option>
+                    <option value="IRANIAN">آشپزخانه ایرانی</option>
+                    <option value="OPEN">آشپزخانه اوپن</option>
+                  </select>
                 </div>
               </div>
 
@@ -1172,24 +1241,6 @@ export default function EditPropertyFilePage() {
                     className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                   />
                   <span className="text-sm font-medium text-gray-700">تلفن</span>
-                </label>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={currentFloor.kitchen || false}
-                    onChange={(e) => setCurrentFloor({ ...currentFloor, kitchen: e.target.checked })}
-                    className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-                  />
-                  <span className="text-sm font-medium text-gray-700">آشپزخانه</span>
-                </label>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={currentFloor.openKitchen || false}
-                    onChange={(e) => setCurrentFloor({ ...currentFloor, openKitchen: e.target.checked })}
-                    className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-                  />
-                  <span className="text-sm font-medium text-gray-700">آشپزخانه اوپن</span>
                 </label>
                 <label className="flex items-center gap-2">
                   <input
@@ -1315,7 +1366,7 @@ export default function EditPropertyFilePage() {
                           </div>
                           <div className="flex flex-wrap gap-2 mt-2">
                             {floor.phone && <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">تلفن</span>}
-                            {floor.kitchen && <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">آشپزخانه</span>}
+                            {floor.kitchen && <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">آشپزخانه ایرانی</span>}
                             {floor.openKitchen && <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs">آشپزخانه اوپن</span>}
                             {floor.parking && <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded text-xs">پارکینگ</span>}
                             {floor.storage && <span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs">انباری</span>}

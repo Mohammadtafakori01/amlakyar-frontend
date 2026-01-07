@@ -35,6 +35,7 @@ const buildingTypeLabels: Record<string, string> = {
   OLD: 'کلنگی',
   OFFICE: 'اداری',
   SHOP: 'مغازه',
+  REAL_ESTATE: 'مستغلات',
 };
 
 export default function PropertyFileDetailPage() {
@@ -307,8 +308,8 @@ export default function PropertyFileDetailPage() {
                       <div className="mt-3 pt-3 border-t border-gray-200">
                         <div className="flex flex-wrap gap-2">
                           {floor.phone && <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">تلفن</span>}
-                          {floor.kitchen && <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">آشپزخانه</span>}
-                          {floor.openKitchen && <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">آشپزخانه اوپن</span>}
+                            {floor.kitchen && <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">آشپزخانه ایرانی</span>}
+                            {floor.openKitchen && <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">آشپزخانه اوپن</span>}
                           {floor.parking && <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">پارکینگ</span>}
                           {floor.storage && <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">انباری</span>}
                           {floor.fireplace && <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">شومینه</span>}

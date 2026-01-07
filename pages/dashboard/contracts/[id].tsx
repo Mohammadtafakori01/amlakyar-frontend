@@ -822,7 +822,7 @@ export default function ContractDetailPage() {
                     )}
                     {contract.terms.rentPaymentDeadline && (
                       <div>
-                        <label className="text-sm font-semibold text-gray-600">مهلت پرداخت اجاره</label>
+                        <label className="text-sm font-semibold text-gray-600">تاریخ پرداخت اجاره</label>
                         <p className="mt-1 text-sm text-gray-800">{contract.terms.rentPaymentDeadline}</p>
                       </div>
                     )}
