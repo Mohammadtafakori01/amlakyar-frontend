@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/router';
-import { FiSave, FiPlus, FiTrash2, FiLayers, FiMaximize2, FiHome, FiDroplet } from 'react-icons/fi';
+import { FiSave, FiPlus, FiTrash2, FiLayers, FiMaximize2, FiHome, FiDroplet, FiUser } from 'react-icons/fi';
 import DashboardLayout from '../../../../src/shared/components/Layout/DashboardLayout';
 import PrivateRoute from '../../../../src/shared/components/guards/PrivateRoute';
 import { usePropertyFiles } from '../../../../src/domains/property-files/hooks/usePropertyFiles';
 import { useAuth } from '../../../../src/domains/auth/hooks/useAuth';
+import { useContacts } from '../../../../src/domains/contacts/hooks/useContacts';
 import {
   PropertyFileZone,
   PropertyTransactionType,
@@ -13,8 +14,10 @@ import {
   FloorDetails,
   UpdatePropertyFileRequest,
 } from '../../../../src/domains/property-files/types';
+import { CreateContactRequest } from '../../../../src/domains/contacts/types';
 import { getAvailableZones } from '../../../../src/shared/utils/rbacUtils';
 import { sanitizePropertyFileData } from '../../../../src/shared/utils/dataSanitizer';
+import { createContactDataFromPropertyFile } from '../../../../src/shared/utils/contactUtils';
 import Loading from '../../../../src/shared/components/common/Loading';
 import ErrorDisplay from '../../../../src/shared/components/common/ErrorDisplay';
 import PersianDatePicker from '../../../../src/shared/components/common/PersianDatePicker';
@@ -60,11 +63,13 @@ export default function EditPropertyFilePage() {
   const { id } = router.query;
   const { selectedFile, fetchPropertyFileById, updatePropertyFile, isLoading, error, clearError } = usePropertyFiles();
   const { user: currentUser } = useAuth();
+  const { createContact } = useContacts();
 
   const [formData, setFormData] = useState<Partial<UpdatePropertyFileRequest>>({});
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
   const [isFormInitialized, setIsFormInitialized] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | string[]>>({});
+  const [addToContacts, setAddToContacts] = useState(false);
   const [currentFloor, setCurrentFloor] = useState<Partial<FloorDetails>>({
     floorNumber: 1,
     area: undefined,
@@ -390,8 +395,53 @@ export default function EditPropertyFilePage() {
       console.log('=== SUCCESS ===');
       console.log('Response:', response);
       
-      // Only show success and redirect if we get here (no error thrown)
-      setSnackbar({ open: true, message: 'فایل با موفقیت ویرایش شد', severity: 'success' });
+      // Add to contacts if checkbox is checked (same logic as view page button)
+      if (addToContacts && formData.owner && formData.phone && formData.zone) {
+        try {
+          const contactData = createContactDataFromPropertyFile(
+            formData.owner,
+            formData.phone,
+            formData.zone,
+            formData.address,
+            currentUser?.estateId
+          );
+
+          console.log('=== CREATING CONTACT FROM PROPERTY FILE ===');
+          console.log('Contact data:', contactData);
+          console.log('Form data:', { owner: formData.owner, phone: formData.phone, zone: formData.zone });
+
+          // Use unwrap() to throw error if rejected
+          await createContact(contactData).unwrap();
+          
+          console.log('Contact created successfully');
+          setSnackbar({ 
+            open: true, 
+            message: 'فایل ملکی ویرایش شد و مخاطب به دفترچه تلفن اضافه شد', 
+            severity: 'success' 
+          });
+        } catch (contactError: any) {
+          console.error('Error adding contact:', contactError);
+          console.error('Error details:', {
+            message: contactError?.message,
+            response: contactError?.response?.data,
+            status: contactError?.response?.status,
+            payload: contactError,
+          });
+          // Don't fail the whole operation if contact creation fails
+          const errorMessage = typeof contactError === 'string' 
+            ? contactError 
+            : contactError?.response?.data?.message || contactError?.message || 'خطا در ایجاد مخاطب';
+          setSnackbar({ 
+            open: true, 
+            message: `فایل ملکی ویرایش شد اما خطا در افزودن به دفترچه تلفن: ${errorMessage}`, 
+            severity: 'error' 
+          });
+        }
+      } else {
+        // Only show success and redirect if we get here (no error thrown)
+        setSnackbar({ open: true, message: 'فایل با موفقیت ویرایش شد', severity: 'success' });
+      }
+      
       setTimeout(() => {
         router.push(`/dashboard/property-files/${id}`);
       }, 1500);
@@ -689,6 +739,27 @@ export default function EditPropertyFilePage() {
                     </div>
                   )}
                 </div>
+
+                {/* Add to Contacts Checkbox */}
+                {formData.owner && formData.phone && (
+                  <div className="md:col-span-2 flex items-center gap-2 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <input
+                      type="checkbox"
+                      id="addToContacts"
+                      checked={addToContacts}
+                      onChange={(e) => setAddToContacts(e.target.checked)}
+                      className="w-5 h-5 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                    />
+                    <label htmlFor="addToContacts" className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
+                      <FiUser className="w-4 h-4" />
+                      <span>افزودن به دفترچه تلفن</span>
+                      {formData.zone === PropertyFileZone.OFFICE_MASTER && (
+                        <span className="text-xs text-blue-600">(مخاطب املاک)</span>
+                      )}
+                    </label>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     تاریخ <span className="text-red-500">*</span>

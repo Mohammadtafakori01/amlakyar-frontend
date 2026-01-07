@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/router';
-import { FiArrowRight, FiArrowLeft, FiSave, FiPlus, FiTrash2, FiLayers, FiMaximize2, FiHome, FiDroplet } from 'react-icons/fi';
+import { FiArrowRight, FiArrowLeft, FiSave, FiPlus, FiTrash2, FiLayers, FiMaximize2, FiHome, FiDroplet, FiUser } from 'react-icons/fi';
 import DashboardLayout from '../../../src/shared/components/Layout/DashboardLayout';
 import PrivateRoute from '../../../src/shared/components/guards/PrivateRoute';
 import { usePropertyFiles } from '../../../src/domains/property-files/hooks/usePropertyFiles';
 import { useAuth } from '../../../src/domains/auth/hooks/useAuth';
+import { useContacts } from '../../../src/domains/contacts/hooks/useContacts';
 import {
   PropertyFileZone,
   PropertyTransactionType,
@@ -13,11 +14,14 @@ import {
   FloorDetails,
   CreatePropertyFileRequest,
 } from '../../../src/domains/property-files/types';
+import { CreateContactRequest } from '../../../src/domains/contacts/types';
 import { getAvailableZones } from '../../../src/shared/utils/rbacUtils';
 import { UserRole } from '../../../src/shared/types';
 import { getCurrentDate } from '../../../src/shared/utils/dateUtils';
 import { generateUniqueCodeWithCounter } from '../../../src/shared/utils/uniqueCodeGenerator';
 import { sanitizePropertyFileData } from '../../../src/shared/utils/dataSanitizer';
+import { validatePhoneNumber } from '../../../src/shared/utils/validation';
+import { createContactDataFromPropertyFile } from '../../../src/shared/utils/contactUtils';
 import Loading from '../../../src/shared/components/common/Loading';
 import ErrorDisplay from '../../../src/shared/components/common/ErrorDisplay';
 import PersianDatePicker from '../../../src/shared/components/common/PersianDatePicker';
@@ -60,9 +64,11 @@ export default function CreatePropertyFilePage() {
   const router = useRouter();
   const { createPropertyFile, isLoading, error, clearError } = usePropertyFiles();
   const { user: currentUser } = useAuth();
+  const { createContact } = useContacts();
 
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | string[]>>({});
+  const [addToContacts, setAddToContacts] = useState(false);
   const [formData, setFormData] = useState<Partial<CreatePropertyFileRequest>>({
     uniqueCode: undefined,
     zone: undefined,
@@ -310,8 +316,53 @@ export default function CreatePropertyFilePage() {
       console.log('=== SUCCESS (CREATE) ===');
       console.log('Response:', response);
       
-      // Only show success and redirect if we get here (no error thrown)
-      setSnackbar({ open: true, message: 'فایل با موفقیت ایجاد شد', severity: 'success' });
+      // Add to contacts if checkbox is checked (same logic as view page button)
+      if (addToContacts && formData.owner && formData.phone && formData.zone) {
+        try {
+          const contactData = createContactDataFromPropertyFile(
+            formData.owner,
+            formData.phone,
+            formData.zone,
+            formData.address,
+            currentUser?.estateId
+          );
+
+          console.log('=== CREATING CONTACT FROM PROPERTY FILE ===');
+          console.log('Contact data:', contactData);
+          console.log('Form data:', { owner: formData.owner, phone: formData.phone, zone: formData.zone });
+
+          // Use unwrap() to throw error if rejected
+          await createContact(contactData).unwrap();
+          
+          console.log('Contact created successfully');
+          setSnackbar({ 
+            open: true, 
+            message: 'فایل ملکی ایجاد شد و مخاطب به دفترچه تلفن اضافه شد', 
+            severity: 'success' 
+          });
+        } catch (contactError: any) {
+          console.error('Error adding contact:', contactError);
+          console.error('Error details:', {
+            message: contactError?.message,
+            response: contactError?.response?.data,
+            status: contactError?.response?.status,
+            payload: contactError,
+          });
+          // Don't fail the whole operation if contact creation fails
+          const errorMessage = typeof contactError === 'string' 
+            ? contactError 
+            : contactError?.response?.data?.message || contactError?.message || 'خطا در ایجاد مخاطب';
+          setSnackbar({ 
+            open: true, 
+            message: `فایل ملکی ایجاد شد اما خطا در افزودن به دفترچه تلفن: ${errorMessage}`, 
+            severity: 'error' 
+          });
+        }
+      } else {
+        // Only show success and redirect if we get here (no error thrown)
+        setSnackbar({ open: true, message: 'فایل با موفقیت ایجاد شد', severity: 'success' });
+      }
+      
       setTimeout(() => {
         router.push('/dashboard/property-files');
       }, 1500);
@@ -659,6 +710,26 @@ export default function CreatePropertyFilePage() {
                     </div>
                   )}
                 </div>
+
+                {/* Add to Contacts Checkbox */}
+                {formData.owner && formData.phone && (
+                  <div className="flex items-center gap-2 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <input
+                      type="checkbox"
+                      id="addToContacts"
+                      checked={addToContacts}
+                      onChange={(e) => setAddToContacts(e.target.checked)}
+                      className="w-5 h-5 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                    />
+                    <label htmlFor="addToContacts" className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
+                      <FiUser className="w-4 h-4" />
+                      <span>افزودن به دفترچه تلفن</span>
+                      {formData.zone === PropertyFileZone.OFFICE_MASTER && (
+                        <span className="text-xs text-blue-600">(مخاطب املاک)</span>
+                      )}
+                    </label>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">

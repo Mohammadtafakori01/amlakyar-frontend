@@ -1,14 +1,16 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { FiEdit2, FiTrash2, FiArrowRight } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiArrowRight, FiUser, FiPlus } from 'react-icons/fi';
 import DashboardLayout from '../../../src/shared/components/Layout/DashboardLayout';
 import PrivateRoute from '../../../src/shared/components/guards/PrivateRoute';
 import { usePropertyFiles } from '../../../src/domains/property-files/hooks/usePropertyFiles';
 import { useAuth } from '../../../src/domains/auth/hooks/useAuth';
+import { useContacts } from '../../../src/domains/contacts/hooks/useContacts';
 import { canEditFile, canDeleteFile } from '../../../src/shared/utils/rbacUtils';
-import { PropertyTransactionType } from '../../../src/domains/property-files/types';
+import { PropertyTransactionType, PropertyFileZone } from '../../../src/domains/property-files/types';
 import { formatToPersianDate } from '../../../src/shared/utils/dateUtils';
 import { formatPrice } from '../../../src/shared/utils/numberUtils';
+import { createContactDataFromPropertyFile } from '../../../src/shared/utils/contactUtils';
 import Loading from '../../../src/shared/components/common/Loading';
 import ErrorDisplay from '../../../src/shared/components/common/ErrorDisplay';
 import ImageCarousel from '../../../src/shared/components/common/ImageCarousel';
@@ -44,6 +46,8 @@ export default function PropertyFileDetailPage() {
   const { id } = router.query;
   const { selectedFile, fetchPropertyFileById, deletePropertyFile, isLoading, error } = usePropertyFiles();
   const { user: currentUser } = useAuth();
+  const { createContact } = useContacts();
+  const [isAddingContact, setIsAddingContact] = useState(false);
 
   useEffect(() => {
     if (id && typeof id === 'string') {
@@ -61,6 +65,49 @@ export default function PropertyFileDetailPage() {
       router.push('/dashboard/property-files');
     } catch (err: any) {
       alert(err.message || 'خطا در حذف فایل');
+    }
+  };
+
+  const handleAddToContacts = async () => {
+    if (!selectedFile || !selectedFile.owner || !selectedFile.phone || !selectedFile.zone) {
+      alert('اطلاعات مالک یا شماره تماس موجود نیست');
+      return;
+    }
+
+    setIsAddingContact(true);
+    try {
+      // استفاده از همان تابع helper مشترک
+      const contactData = createContactDataFromPropertyFile(
+        selectedFile.owner,
+        selectedFile.phone,
+        selectedFile.zone,
+        selectedFile.address,
+        currentUser?.estateId
+      );
+
+      console.log('=== CREATING CONTACT FROM PROPERTY FILE (VIEW PAGE) ===');
+      console.log('Contact data:', contactData);
+      console.log('Selected file:', { owner: selectedFile.owner, phone: selectedFile.phone, zone: selectedFile.zone });
+
+      // Use unwrap() to throw error if rejected
+      await createContact(contactData).unwrap();
+      
+      console.log('Contact created successfully');
+      alert('مخاطب با موفقیت به دفترچه تلفن اضافه شد');
+    } catch (err: any) {
+      console.error('Error adding contact:', err);
+      console.error('Error details:', {
+        message: err?.message,
+        response: err?.response?.data,
+        status: err?.response?.status,
+        payload: err,
+      });
+      const errorMessage = typeof err === 'string' 
+        ? err 
+        : err?.response?.data?.message || err?.message || 'خطا در افزودن به دفترچه تلفن';
+      alert(`خطا در افزودن به دفترچه تلفن: ${errorMessage}`);
+    } finally {
+      setIsAddingContact(false);
     }
   };
 
@@ -90,6 +137,16 @@ export default function PropertyFileDetailPage() {
               <span>بازگشت به لیست</span>
             </button>
             <div className="flex gap-2">
+              {selectedFile.owner && selectedFile.phone && (
+                <button
+                  onClick={handleAddToContacts}
+                  disabled={isAddingContact}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <FiUser className="w-5 h-5" />
+                  <span>{isAddingContact ? 'در حال افزودن...' : 'افزودن به دفترچه تلفن'}</span>
+                </button>
+              )}
               {canEdit && (
                 <button
                   onClick={() => router.push(`/dashboard/property-files/edit/${selectedFile.id}`)}
